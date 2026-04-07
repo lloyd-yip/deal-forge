@@ -2,7 +2,7 @@
   "project_name": "Deal Forge",
   "description": "AI pipeline that generates 8 custom prospect assets after Call 1 to increase Call 2 show rates for Quantum Scaling reps",
   "business_entity": "quantum_scaling",
-  "last_updated": "2026-04-04T00:00:00Z",
+  "last_updated": "2026-04-07T00:00:00Z",
   "current_state": {
     "phase_name": "Phase 1 - Backend Architecture",
     "status": "building"
@@ -11,23 +11,22 @@
     "what": "Deal Forge is an internal sales tool for Quantum Scaling reps. After completing a Call 1 (Business Audit), the rep triggers the app with the Fireflies meeting ID. An AI pipeline extracts the prospect's ICP and business context, then generates 8 custom assets: a verified lead list, branded calendar invite visual, registration page mock-up, 3 webinar title options, an interactive ROI calculator pre-populated with their numbers, a follow-up email sequence, and a brand-scraped prospect profile. All assets are ready before Call 2.",
     "why": "QS's Call 2 show rate is 37.5% — the core constraint on revenue. Prospects feel informed after Call 1 and have no strong pull to return. Deal Forge creates a concrete bridge: assets so specific to the prospect that skipping Call 2 means walking away from something already built for them. The 'sunk cost' and perceived value dramatically increase show rate and close rate.",
     "end_state": "A polished internal rep dashboard used for every Call 2 booking. Rep selects today's calls from auto-loaded Fireflies meetings, clicks Generate, and has a full asset package ready within 20 minutes. The ROI model and reg page mock have shareable prospect-facing URLs. Eventually expands to full CRM integration and automated follow-up.",
-    "current_summary": "Backend architecture phase. Schema designed and applied to Supabase (project lcryrllxityssyamcvst). Railway project created (ID: 8839ef6c-015c-455e-a75a-8bb8f82c43a2). Task-spec in progress — extract task fully specced, brand_scrape next. Fireflies API isolated and validated. Ample Leads integration pending (team member to provide actor ID + credentials). UX not yet started — blocked on /task-spec completion for all 8 tasks."
+    "current_summary": "Phase 1 task-spec in progress. Stage 1 fully specced (extract + prospect_research). Stage 2 next: brand_scrape. Clean separation decided: prospect_research = LinkedIn only (host profile), brand_scrape = website only (company brand/voice). New jobs.research_data column required (migration pending)."
   },
-  "resume_here": "Mid /task-spec run. Extract task fully specced (all 11 sections complete). Next: spec brand_scrape — need decisions on (1) exact fields to scrape (logo URL, brand colors, tagline, description), (2) whether prospect_website is required or optional at job creation. Then continue through lead_list, webinar_titles, roi_model, email_sequence, calendar_visual, reg_page.",
+  "resume_here": "Stage 1 specs done. Next: spec brand_scrape (website scraping — logo, tagline, brand voice, copy tone). Then: lead_list, roi_model, email_sequence, calendar_visual, reg_page.",
   "current_phase": {
     "name": "Phase 1 - Backend Architecture",
     "goal": "Fully spec all 8 pipeline tasks via /task-spec, then build the worker, then design UX. No frontend work until all tasks are specced.",
     "current_focus": [
-      "/task-spec in progress — extract done, brand_scrape next",
-      "Ample Leads API blocked — need actor ID and credentials from team member",
-      "Two open questions on brand_scrape: exact fields needed, website field required vs optional"
+      "Task specs in progress — extract done, prospect_research done, webinar_titles done, brand_scrape next",
+      "Ample Leads API blocked — need actor ID and credentials from team member"
     ],
     "immediate_next_steps": [
-      "Answer brand_scrape questions and complete its 11 sections",
-      "Complete /task-spec for all remaining 6 tasks (lead_list, webinar_titles, roi_model, email_sequence, calendar_visual, reg_page)",
+      "Spec brand_scrape (website scraping — what fields, Apify vs httpx, what brand_data looks like)",
+      "Spec lead_list (Ample Leads integration — blocked on credentials)",
+      "Spec roi_model, email_sequence, calendar_visual, reg_page",
       "Get Ample Leads actor ID + API key from team member",
-      "Run /api-isolation on Ample Leads once credentials available",
-      "Run /ux-design once all 8 tasks fully specced"
+      "Run /ux-design once all tasks fully specced"
     ],
     "known_issues": [
       {
@@ -36,7 +35,7 @@
         "status": "open"
       },
       {
-        "title": "brand_scrape fields not yet decided",
+        "title": "jobs.research_data column not yet in schema — migration required before prospect_research can deploy",
         "severity": "medium",
         "status": "open"
       }
@@ -47,7 +46,7 @@
     "goal": "Build the Node.js worker, task handlers for all 8 tasks, and deploy to Railway. Internal test with 2-3 real Call 1 transcripts.",
     "key_features": [
       "Job queue worker with atomic task claiming (UPDATE...RETURNING)",
-      "Stage 1: extract handler",
+      "Stage 1: extract handler, prospect_research handler",
       "Stage 2: brand_scrape, lead_list, webinar_titles, roi_model, email_sequence handlers (parallel)",
       "Stage 3: calendar_visual, reg_page handlers (parallel)",
       "Recovery cron (2-min interval, 5-min task timeout)",
@@ -58,6 +57,7 @@
       "Anthropic Claude API (Haiku + Sonnet)",
       "Fireflies GraphQL API",
       "Ample Leads REST API (or Apify actor)",
+      "Apify LinkedIn scraper (prospect_research)",
       "Apify web scraper (brand_scrape)",
       "Supabase JS client",
       "Railway deployment"
@@ -108,39 +108,56 @@
       "date": "2026-04-04"
     },
     {
-      "description": "extract task fully specced (all 11 sections: input contract, Claude prompt written, error handling table, data flow diagram)",
+      "description": "extract task fully specced (all 11 sections)",
       "date": "2026-04-04"
+    },
+    {
+      "description": "webinar_titles task fully specced (all 11 sections, 300-word limit, needs_input status, format brain architecture)",
+      "date": "2026-04-06"
+    },
+    {
+      "description": "24 QS case studies scraped from due-diligence site and written to Lloyd OS Brain — Consulting x7, Software x5, Coaching x7, Agencies x5",
+      "date": "2026-04-06"
+    },
+    {
+      "description": "prospect_research task specced (LinkedIn-only, Claude bio synthesis, jobs.research_data output)",
+      "date": "2026-04-07"
     }
   ],
   "decision_log": [
     {
       "decision": "Separate Supabase project (not shared with QS Dashboard)",
-      "reasoning": "Every existing app (Call Grader, CompeteIQ, QS Dashboard) has its own Supabase project. Sharing would mix concerns and compete for connection limits.",
+      "reasoning": "Every existing app has its own Supabase project. Sharing would mix concerns and compete for connection limits.",
       "phase": "Phase 1 - Backend Architecture"
     },
     {
       "decision": "Hard delete on jobs (no soft delete)",
-      "reasoning": "Job records are operational queue state, not compliance records. Assets persist in Supabase Storage independently. Hard delete with CASCADE is simpler and sufficient.",
+      "reasoning": "Job records are operational queue state, not compliance records. Assets persist in Supabase Storage independently.",
       "phase": "Phase 1 - Backend Architecture"
     },
     {
       "decision": "ROI model built as interactive HTML page (not spreadsheet)",
-      "reasoning": "Opens in browser alongside other assets. Pre-populated with extracted LTV. Progressive disclosure rep view + shareable prospect view (?view=prospect). Easy to build (~2.5 hours), better than Excel in sales context.",
+      "reasoning": "Opens in browser alongside other assets. Pre-populated with extracted LTV. Progressive disclosure rep view + shareable prospect view (?view=prospect).",
       "phase": "Phase 1 - Backend Architecture"
     },
     {
-      "decision": "lead_list task uses 4-step sub-pipeline (ICP extraction → lead fetch → website crawl → ICP match filter)",
-      "reasoning": "Raw Apify/Ample Leads results are low quality (~50% irrelevant). Website crawl + Claude ICP classification filters to 25 verified matches. Rep credibility depends on lead quality.",
+      "decision": "lead_list uses 4-step sub-pipeline (ICP extraction → lead fetch → website crawl → ICP match filter)",
+      "reasoning": "Raw Apify/Ample Leads results are low quality (~50% irrelevant). Website crawl + Claude ICP classification filters to 25 verified matches.",
       "phase": "Phase 1 - Backend Architecture"
     },
     {
-      "decision": "extract task writes to jobs.extracted_data (not tasks.output_data)",
-      "reasoning": "All 5 Stage 2 tasks need the extracted data. Writing to the job record makes it accessible to all downstream tasks without joins through the tasks table.",
+      "decision": "extract writes to jobs.extracted_data (not tasks.output_data)",
+      "reasoning": "All 5 Stage 2 tasks need this data. Writing to the job record makes it accessible without joins through the tasks table.",
       "phase": "Phase 1 - Backend Architecture"
     },
     {
       "decision": "Webinar slides cut from asset list",
-      "reasoning": "Gamma has no API. Slides require full narrative depth impossible from a 30-min call. Would require knowing their complete value proposition.",
+      "reasoning": "Gamma has no API. Slides require full narrative depth impossible from a 30-min call.",
+      "phase": "Phase 1 - Backend Architecture"
+    },
+    {
+      "decision": "prospect_research = LinkedIn only. brand_scrape = website only.",
+      "reasoning": "Original spec had prospect_research scraping both sources, creating overlap with brand_scrape. Clean separation: one source per task, no redundant HTTP calls.",
       "phase": "Phase 1 - Backend Architecture"
     }
   ],
