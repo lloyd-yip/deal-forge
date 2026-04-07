@@ -2,7 +2,7 @@
   "project_name": "Deal Forge",
   "description": "AI pipeline that generates 8 custom prospect assets after Call 1 to increase Call 2 show rates for Quantum Scaling reps",
   "business_entity": "quantum_scaling",
-  "last_updated": "2026-04-07T00:00:00Z",
+  "last_updated": "2026-04-07T12:00:00Z",
   "current_state": {
     "phase_name": "Phase 1 - Backend Architecture",
     "status": "building"
@@ -11,20 +11,21 @@
     "what": "Deal Forge is an internal sales tool for Quantum Scaling reps. After completing a Call 1 (Business Audit), the rep triggers the app with the Fireflies meeting ID. An AI pipeline extracts the prospect's ICP and business context, then generates 8 custom assets: a verified lead list, branded calendar invite visual, registration page mock-up, 3 webinar title options, an interactive ROI calculator pre-populated with their numbers, a follow-up email sequence, and a brand-scraped prospect profile. All assets are ready before Call 2.",
     "why": "QS's Call 2 show rate is 37.5% — the core constraint on revenue. Prospects feel informed after Call 1 and have no strong pull to return. Deal Forge creates a concrete bridge: assets so specific to the prospect that skipping Call 2 means walking away from something already built for them. The 'sunk cost' and perceived value dramatically increase show rate and close rate.",
     "end_state": "A polished internal rep dashboard used for every Call 2 booking. Rep selects today's calls from auto-loaded Fireflies meetings, clicks Generate, and has a full asset package ready within 20 minutes. The ROI model and reg page mock have shareable prospect-facing URLs. Eventually expands to full CRM integration and automated follow-up.",
-    "current_summary": "Phase 1 task-spec in progress. Stage 1 fully specced (extract + prospect_research). Stage 2 next: brand_scrape. Clean separation decided: prospect_research = LinkedIn only (host profile), brand_scrape = website only (company brand/voice). New jobs.research_data column required (migration pending)."
+    "current_summary": "Phase 1 task-spec in progress. Stage 1 fully specced (extract + prospect_research). Stage 2: brand_scrape specced, lead_list specced (blocked on Ample Leads credentials). lead_list now includes 5-step pipeline with deterministic website quality gate — hard-drop on broken/thin/parked sites, no thin-data fallback to Claude. Remaining: roi_model, webinar_titles (done), calendar_visual, reg_page."
   },
-  "resume_here": "Stage 1 specs done. Next: spec brand_scrape (website scraping — logo, tagline, brand voice, copy tone). Then: lead_list, roi_model, email_sequence, calendar_visual, reg_page.",
+  "resume_here": "Spec roi_model — interview in progress. Question pending: who uses the ROI model (rep on Call 2 live, or prospect explores before Call 2)?",
   "current_phase": {
     "name": "Phase 1 - Backend Architecture",
     "goal": "Fully spec all 8 pipeline tasks via /task-spec, then build the worker, then design UX. No frontend work until all tasks are specced.",
     "current_focus": [
-      "Task specs in progress — extract done, prospect_research done, webinar_titles done, brand_scrape next",
-      "Ample Leads API blocked — need actor ID and credentials from team member"
+      "Task specs: extract ✅, prospect_research ✅, webinar_titles ✅, brand_scrape ✅, lead_list ✅ (blocked on Ample Leads creds)",
+      "roi_model interview in progress",
+      "Remaining: calendar_visual, reg_page"
     ],
     "immediate_next_steps": [
-      "Spec brand_scrape (website scraping — what fields, Apify vs httpx, what brand_data looks like)",
-      "Spec lead_list (Ample Leads integration — blocked on credentials)",
-      "Spec roi_model, email_sequence, calendar_visual, reg_page",
+      "Complete roi_model interview and spec",
+      "Spec calendar_visual (interactive HTML Google Calendar mock + reminder email examples on Yes click)",
+      "Spec reg_page (needs brand_data from brand_scrape)",
       "Get Ample Leads actor ID + API key from team member",
       "Run /ux-design once all tasks fully specced"
     ],
@@ -121,6 +122,14 @@
     },
     {
       "description": "prospect_research task specced (LinkedIn-only, Claude bio synthesis, jobs.research_data output)",
+      "date": "2026-04-07"
+    },
+    {
+      "description": "brand_scrape task specced (Apify web-scraper, color extraction priority order, jobs.brand_data output, feeds reg_page only)",
+      "date": "2026-04-07"
+    },
+    {
+      "description": "lead_list task specced — 5-step pipeline with deterministic website quality gate (5 hard-drop rules), Haiku ICP classification, company_size in output, partial list acceptable",
       "date": "2026-04-07"
     }
   ],
