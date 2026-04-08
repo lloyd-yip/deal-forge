@@ -6,7 +6,7 @@
 **Model:** Claude Haiku (ICP classification only)
 **Temperature:** 0
 **Max tokens:** 200 per lead (batch classification)
-**Status:** PARTIALLY SPECCED — blocked on Ample Leads actor ID + credentials
+**Status:** FULLY SPECCED — Apollo.io API (replaces Ample Leads/Apify)
 
 ---
 
@@ -19,12 +19,12 @@ The rep uses this list to demonstrate to the prospect on Call 2: "Here are 25 re
 This is a 5-step sub-pipeline run sequentially within a single task:
 
 1. **ICP extraction** — read ICP fields from `jobs.extracted_data`
-2. **Lead fetch** — call Ample Leads (via Apify actor) to pull raw leads matching ICP criteria
+2. **Lead fetch** — call Apollo.io People Search API to pull raw leads matching ICP criteria
 3. **Website quality gate** — for each lead with a website URL, run deterministic quality checks to filter out broken, thin, or parked pages
 4. **Website crawl** — for leads that pass quality gate, fetch company website content for ICP classification context
 5. **ICP classification** — Claude Haiku scores each lead against the ICP; keep top 25
 
-Without the 5-step filter, raw Ample Leads results are ~50% irrelevant. The quality gate eliminates garbage leads deterministically (fast, free). The website crawl + Claude filter is what makes the final list credible enough to put in front of a prospect.
+Without the 5-step filter, raw Apollo results are ~50% irrelevant (title mismatches, wrong industry, stale data). The quality gate eliminates garbage leads deterministically (fast, free). The website crawl + Claude filter is what makes the final list credible enough to put in front of a prospect.
 
 **Design principle:** It is better to have a smaller list of quality-verified leads than a full list padded with weak matches. If we pull 50 raw records and 25 pass the quality gate and ICP filter, that is the correct output. We do not pad with lower-quality leads to hit 25.
 
@@ -47,24 +47,59 @@ If any required ICP field is null: set task status `needs_input`, surface to rep
 
 ## 3. External API Calls
 
-### 3a. Ample Leads via Apify Actor
+### 3a. Apollo.io People Search API
 
-⚠️ **BLOCKED — credentials and actor ID pending from team member**
+- **Endpoint:** `POST https://api.apollo.io/api/v1/mixed_people_search`
+- **Auth:** `api_key` in request body (env var: `APOLLO_API_KEY`)
+- **Expected raw result size:** 50–100 records per request (paginated, `per_page: 25` max per page)
 
-What is known:
-- Ample Leads is a B2B lead database accessible via an Apify actor
-- Input will include ICP filters: industry, job title/role, company size, geography
-- Output will be raw lead records: name, title, company, company size, website URL, LinkedIn URL
-- Expected raw result size: 50–200 records before filtering
+**Request body — ICP filter mapping:**
 
-What is unknown (must be resolved before build):
-- Apify actor ID (e.g. `username/actor-name`)
-- Exact input schema (field names for industry, title, company_size filters)
-- Output schema (field names in returned records)
-- Rate limits and pricing per run
-- Whether geography filter is supported or must be post-filtered
+| ICP field from extracted_data | Apollo parameter |
+|-------------------------------|-----------------|
+| `icp.role` | `person_titles[]` — array with the role string |
+| `icp.industry` | `q_organization_keyword_tags[]` — industry keywords |
+| `icp.company_size` | `organization_num_employees_ranges[]` — ranges like `"1,10"`, `"11,50"`, `"51,200"`, `"201,500"`, `"501,1000"` |
+| `icp.geography` | `person_locations[]` — city, state, or country strings |
 
-**Placeholder in code:** `AMPLE_LEADS_ACTOR_ID` env var. Input schema to be filled in once isolated and tested via `/api-isolation`.
+**Company size mapping (extracted_data string → Apollo range):**
+
+| extracted_data says | Apollo ranges |
+|---------------------|--------------|
+| "solopreneur", "1-person", "solo" | `["1,1"]` |
+| "small", "1-10", "under 10" | `["1,10"]` |
+| "10-50", "startup", "small team" | `["1,10","11,50"]` |
+| "50-200", "mid-size", "growing" | `["51,200"]` |
+| "200-500", "mid-market" | `["201,500"]` |
+| "500+", "enterprise", "large" | `["501,1000","1001,10000"]` |
+
+If company_size string doesn't map cleanly: use `["11,50","51,200"]` as default (typical QS ICP sweet spot).
+
+**Response fields used:**
+
+| Apollo field | Maps to |
+|-------------|---------|
+| `people[].name` | `lead.name` |
+| `people[].title` | `lead.title` |
+| `people[].organization.name` | `lead.company` |
+| `people[].organization.estimated_num_employees` | `lead.company_size` |
+| `people[].organization.primary_domain` | `lead.company_website` (prepend `https://` if no scheme) |
+| `people[].linkedin_url` | `lead.linkedin_url` |
+
+**Pagination strategy:** Fetch pages 1–4 (`per_page: 25`, `page: 1..4`) = up to 100 raw leads. Stop early if fewer than 25 results on any page (end of results).
+
+**Rate limits:** Apollo free/basic plan allows ~100 requests/month. Each lead_list run uses 4 requests. At scale (25 jobs/month), this is 100 requests — right at the limit. If credits become constrained, reduce to 2 pages (50 leads) — still sufficient for quality filtering to 25.
+
+**Error handling:**
+
+| Status | Behavior |
+|--------|----------|
+| 401 | Hard fail — invalid API key |
+| 422 | Hard fail — ICP filters produced invalid query |
+| 429 | Retry after 60s, max 2 attempts |
+| 0 results across all pages | Retry with loosened filters (drop geography if present). If still 0 → `failed` |
+
+**Pre-build required:** Run `/api-isolation` with a test ICP before writing integration code. Validate: input schema matches Apollo docs, `primary_domain` field consistently populated, company size returned correctly.
 
 ### 3b. Website Quality Gate (deterministic — no external API)
 
@@ -143,10 +178,10 @@ Return: { "match": true/false, "confidence": "high/medium/low", "reason": "one s
 
 1. Read ICP fields from `jobs.extracted_data`
 2. If any required ICP field is null: set task `needs_input`, list missing fields, exit
-3. Call Ample Leads actor with ICP filters → receive raw leads (50–200 records)
-4. If Ample Leads returns 0 results: retry once with loosened filters (drop geography if present). If still 0: mark task `failed` with `"No leads found for this ICP"`
+3. Call Apollo People Search API with ICP filters → paginate pages 1–4, collect up to 100 raw leads
+4. If Apollo returns 0 results across all pages: retry once with loosened filters (drop geography if present). If still 0: mark task `failed` with `"No leads found for this ICP"`
 5. For each raw lead: run website quality gate (Step 3b). Drop leads that fail any quality check
-6. If fewer than 10 leads pass quality gate: retry Ample Leads with broader filters (e.g., loosen company_size range). If still fewer than 10 pass: continue with what's available
+6. If fewer than 10 leads pass quality gate: retry Apollo with broader filters (e.g., loosen company_size range). If still fewer than 10 pass: continue with what's available
 7. For each lead that passes quality gate: crawl website via Apify (up to 10 concurrent, 15s timeout)
 8. If crawl times out for a lead: drop that lead (quality gate passed but crawl failed)
 9. Call Claude Haiku to classify all crawled leads against the ICP — batch all leads in one prompt call
@@ -202,9 +237,9 @@ Industry is not displayed — it is implied by the ICP and would be the same for
 |----------|----------|
 | Required ICP field null | `needs_input` status, error lists missing fields |
 | Non-B2B edge case ICP | Rep manually skips — out of scope for Deal Forge |
-| Ample Leads 401 | Hard fail — invalid credentials |
-| Ample Leads 0 results | Retry with loosened filters; if still 0 → `failed` |
-| Ample Leads actor timeout | Hard fail after 2 attempts |
+| Apollo 401 | Hard fail — invalid API key |
+| Apollo 0 results | Retry with loosened filters; if still 0 → `failed` |
+| Apollo 429 | Retry after 60s, max 2 attempts |
 | Lead fails website quality gate | Dropped from pipeline — not a failure |
 | Lead has no website URL | Dropped from pipeline — not a failure |
 | Website crawl timeout per lead | Drop lead — not a failure |
@@ -257,12 +292,10 @@ Industry is not displayed — it is implied by the ICP and would be the same for
 
 ## 11. Open Items (must resolve before build)
 
-- [ ] Obtain Ample Leads Apify actor ID from team member
-- [ ] Obtain Apify API key scoped to Ample Leads actor
-- [ ] Run `/api-isolation` on Ample Leads actor with a test ICP to validate input/output schema
-- [ ] Confirm: does Ample Leads support geography filter natively, or is post-filter required?
-- [ ] Confirm: does Ample Leads return company_size in lead records? (required for output schema)
-- [ ] Validate cost per Ample Leads run (Apify actor compute units)
+- [ ] Run `/api-isolation` on Apollo People Search API with a test ICP — confirm `primary_domain` is consistently populated and company size is returned
+- [ ] Validate ICP-to-Apollo-filter mapping with a real transcript (does Claude's company_size output map cleanly to Apollo ranges?)
+- [ ] Monitor Apollo credit usage once live — 100 credits/month is tight at 25 jobs/month; may need to upgrade plan or reduce pages fetched per run
+- [x] Apollo API key obtained: `APOLLO_API_KEY` env var
 
 ---
 
@@ -285,4 +318,4 @@ Industry is not displayed — it is implied by the ICP and would be the same for
 - [x] Idempotency confirmed
 - [x] Open items listed explicitly
 
-**Status:** PARTIALLY SPECCED — architecture complete, blocked on Ample Leads credentials
+**Status:** FULLY SPECCED — run `/api-isolation` on Apollo before building
