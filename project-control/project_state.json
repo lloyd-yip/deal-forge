@@ -8,24 +8,24 @@
     "status": "building"
   },
   "project_overview": {
-    "what": "Deal Forge is an internal sales tool for Quantum Scaling reps. After completing a Call 1 (Business Audit), the rep triggers the app with the Fireflies meeting ID. An AI pipeline extracts the prospect's ICP and business context, then generates 8 custom assets: a verified lead list, branded calendar invite visual, registration page mock-up, 3 webinar title options, an interactive ROI calculator pre-populated with their numbers, a follow-up email sequence, and a brand-scraped prospect profile. All assets are ready before Call 2.",
+    "what": "Deal Forge is an internal sales tool for Quantum Scaling reps. After completing a Call 1 (Business Audit), the rep triggers the app with the Fireflies meeting ID. An AI pipeline extracts the prospect's ICP and business context, then generates 8 custom assets: a verified lead list, interactive Google Calendar invite visual, a live webinar experience mock, 3 webinar title options, an interactive ROI calculator pre-populated with their numbers, a prospect research profile, and brand-scraped visual identity. All assets are ready before Call 2.",
     "why": "QS's Call 2 show rate is 37.5% — the core constraint on revenue. Prospects feel informed after Call 1 and have no strong pull to return. Deal Forge creates a concrete bridge: assets so specific to the prospect that skipping Call 2 means walking away from something already built for them. The 'sunk cost' and perceived value dramatically increase show rate and close rate.",
     "end_state": "A polished internal rep dashboard used for every Call 2 booking. Rep selects today's calls from auto-loaded Fireflies meetings, clicks Generate, and has a full asset package ready within 20 minutes. The ROI model and reg page mock have shareable prospect-facing URLs. Eventually expands to full CRM integration and automated follow-up.",
-    "current_summary": "Phase 1 task-spec in progress. Stage 1 fully specced (extract + prospect_research). Stage 2: brand_scrape specced, lead_list specced (blocked on Ample Leads credentials). lead_list now includes 5-step pipeline with deterministic website quality gate — hard-drop on broken/thin/parked sites, no thin-data fallback to Claude. Remaining: roi_model, webinar_titles (done), calendar_visual, reg_page."
+    "current_summary": "Phase 1 task-spec COMPLETE. All 8 pipeline tasks fully specced. reg_page replaced by webinar_mock (live webinar experience simulator with brand colors, 2 slides, AI-generated ICP live chat). Pipeline: extract → prospect_research → [brand_scrape, lead_list, webinar_titles, roi_model] → [calendar_visual, webinar_mock]. Ready for /ux-design then Phase 2 build."
   },
-  "resume_here": "Spec roi_model — interview in progress. Question pending: who uses the ROI model (rep on Call 2 live, or prospect explores before Call 2)?",
+  "resume_here": "All 8 task specs complete. Next: run /ux-design for the rep dashboard UI, then Phase 2 build.",
   "current_phase": {
     "name": "Phase 1 - Backend Architecture",
     "goal": "Fully spec all 8 pipeline tasks via /task-spec, then build the worker, then design UX. No frontend work until all tasks are specced.",
     "current_focus": [
-      "Task specs: extract ✅, prospect_research ✅, webinar_titles ✅, brand_scrape ✅, lead_list ✅, roi_model ✅",
-      "Remaining: calendar_visual, reg_page"
+      "All task specs complete ✅ — extract, prospect_research, brand_scrape, lead_list, webinar_titles, roi_model, calendar_visual, webinar_mock",
+      "Phase 1 spec gate passed — ready for /ux-design"
     ],
     "immediate_next_steps": [
-      "Spec calendar_visual (interactive HTML Google Calendar mock + reminder email examples on Yes click)",
-      "Spec reg_page (needs brand_data from brand_scrape)",
+      "Run /ux-design for rep dashboard (job list, asset cards, status polling, shareable links)",
       "Run /api-isolation on Apollo People Search API before building lead_list",
-      "Run /ux-design once all tasks fully specced"
+      "Add jobs.research_data + jobs.brand_data columns (schema migration before Phase 2 deploy)",
+      "Begin Phase 2 worker build after UX wireframes confirmed"
     ],
     "known_issues": [
       {
@@ -41,11 +41,11 @@
     "key_features": [
       "Job queue worker with atomic task claiming (UPDATE...RETURNING)",
       "Stage 1: extract handler, prospect_research handler",
-      "Stage 2: brand_scrape, lead_list, webinar_titles, roi_model, email_sequence handlers (parallel)",
-      "Stage 3: calendar_visual, reg_page handlers (parallel)",
+      "Stage 2: brand_scrape, lead_list, webinar_titles, roi_model handlers (parallel)",
+      "Stage 3: calendar_visual, webinar_mock handlers (parallel)",
       "Recovery cron (2-min interval, 5-min task timeout)",
-      "Supabase Storage upload for ROI model + reg page HTML",
-      "HTML templates for ROI calculator (interactive, rep + prospect views) and reg page mock"
+      "Supabase Storage upload for all HTML assets (roi_model, calendar_visual, webinar_mock)",
+      "HTML templates for ROI calculator, Google Calendar mock, and live webinar experience mock"
     ],
     "tools_and_apis": [
       "Anthropic Claude API (Haiku + Sonnet)",
@@ -118,12 +118,28 @@
       "date": "2026-04-07"
     },
     {
-      "description": "brand_scrape task specced (Apify web-scraper, color extraction priority order, jobs.brand_data output, feeds reg_page only)",
+      "description": "brand_scrape task specced (Apify web-scraper, color extraction priority order, jobs.brand_data output)",
       "date": "2026-04-07"
     },
     {
-      "description": "lead_list task specced — 5-step pipeline with deterministic website quality gate (5 hard-drop rules), Haiku ICP classification, company_size in output, partial list acceptable",
+      "description": "lead_list task specced — 5-step pipeline with deterministic website quality gate, Apollo.io API (replaced Ample Leads), company_size in output",
       "date": "2026-04-07"
+    },
+    {
+      "description": "roi_model task specced — no LLM call, pure template-fill + math, interactive HTML, rep edits live on Call 2, shareable prospect URL",
+      "date": "2026-04-08"
+    },
+    {
+      "description": "calendar_visual task specced — Google Calendar popup mock, webinar copy injected from prior tasks, Haiku generates 3 reminder emails, Yes click reveals email sequence",
+      "date": "2026-04-08"
+    },
+    {
+      "description": "webinar_mock task specced — live webinar experience simulator, 2 branded slides, AI-generated ICP live chat (18 messages), LIVE badge + attendee count",
+      "date": "2026-04-08"
+    },
+    {
+      "description": "Phase 1 spec gate complete — all 8 pipeline tasks fully specced. Ready for /ux-design and Phase 2 build.",
+      "date": "2026-04-08"
     }
   ],
   "decision_log": [
@@ -165,6 +181,11 @@
     {
       "decision": "prospect_research = LinkedIn only. brand_scrape = website only.",
       "reasoning": "Original spec had prospect_research scraping both sources, creating overlap with brand_scrape. Clean separation: one source per task, no redundant HTTP calls.",
+      "phase": "Phase 1 - Backend Architecture"
+    },
+    {
+      "decision": "reg_page replaced by webinar_mock (live webinar experience simulator)",
+      "reasoning": "Calendar invite IS the registration mechanism — showing a reg page alongside it creates cognitive dissonance ('just click Yes' vs 'also fill out this form'). webinar_mock is more powerful: shows the prospect their brand applied to the full webinar experience (slides + live chat), creating the 'oh shit' moment. Same brand data is used, better outcome.",
       "phase": "Phase 1 - Backend Architecture"
     }
   ],
