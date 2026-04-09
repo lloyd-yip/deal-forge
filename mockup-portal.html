@@ -207,57 +207,74 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .chat-text { font-size: 12px; color: #a1a1aa; line-height: 1.4; }
 
 /* ═══ TAB 4: ROI MODEL ═══ */
-.roi-wrap { max-width: 1080px; margin: 0 auto; padding: 44px 32px; }
-.roi-layout { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+/* ── ROI Model (3-slide) ─────────────────────────────── */
+.roi-wrap { max-width: 840px; margin: 0 auto; padding: 52px 40px; }
+.roi-step-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 52px; }
+.roi-step { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: #3f3f46; transition: color 250ms; }
+.roi-step.active { color: #e4e4e7; }
+.roi-step-dot { width: 8px; height: 8px; border-radius: 50%; background: #3f3f46; transition: background 250ms; }
+.roi-step.active .roi-step-dot { background: #8b5cf6; }
+.roi-step-line { flex: 1; max-width: 56px; height: 1px; background: rgba(255,255,255,0.07); }
+.roi-slider { overflow: hidden; }
+.roi-slides-track { display: flex; transition: transform 420ms cubic-bezier(0.4,0,0.2,1); }
+.roi-slide { width: 100%; flex-shrink: 0; }
 
-.roi-inputs-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 24px; }
-.roi-card-title { font-size: 13px; font-weight: 600; color: #ffffff; margin-bottom: 20px; }
-.roi-field { margin-bottom: 16px; }
-.roi-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #52525b; margin-bottom: 6px; display: block; }
-.roi-input-wrap { display: flex; align-items: center; background: rgba(10,10,15,0.8); border: 1px solid rgba(113,113,122,0.3); border-radius: 8px; overflow: hidden; transition: border-color 100ms; }
-.roi-input-wrap:focus-within { border-color: rgba(139,92,246,0.5); }
-.roi-prefix { font-size: 13px; color: #71717a; padding: 8px 10px 8px 12px; background: rgba(255,255,255,0.03); border-right: 1px solid rgba(255,255,255,0.05); }
-.roi-suffix { font-size: 13px; color: #71717a; padding: 8px 12px 8px 10px; background: rgba(255,255,255,0.03); border-left: 1px solid rgba(255,255,255,0.05); }
-.roi-input { background: none; border: none; outline: none; font-size: 13px; font-weight: 500; color: #e4e4e7; padding: 8px 10px; flex: 1; width: 100%; }
-.roi-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 16px 0; }
-.program-blank { border: 1px dashed rgba(139,92,246,0.3); border-radius: 8px; padding: 11px 14px; font-size: 12px; color: #52525b; font-style: italic; background: rgba(139,92,246,0.04); }
+/* Slide 0 — Inputs */
+.roi-slide-title { font-size: 30px; font-weight: 700; color: #e4e4e7; margin-bottom: 10px; letter-spacing: -0.5px; }
+.roi-slide-sub { font-size: 15px; color: #71717a; margin-bottom: 36px; line-height: 1.5; }
+.roi-locked-pill { display: inline-flex; align-items: center; gap: 10px; background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.2); border-radius: 10px; padding: 12px 18px; font-size: 15px; color: #34d399; font-weight: 600; margin-bottom: 40px; }
+.roi-locked-label { font-size: 10px; color: #52525b; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+.roi-input-group { display: flex; flex-direction: column; gap: 16px; max-width: 520px; margin-bottom: 44px; }
+.roi-field-big { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.09); border-radius: 14px; padding: 22px 26px; transition: border-color 140ms; }
+.roi-field-big:focus-within { border-color: rgba(139,92,246,0.5); }
+.roi-field-label { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #52525b; margin-bottom: 10px; }
+.roi-field-input-row { display: flex; align-items: center; gap: 8px; }
+.roi-field-affix { font-size: 30px; font-weight: 300; color: #3f3f46; user-select: none; }
+.roi-field-input { background: none; border: none; outline: none; font-size: 40px; font-weight: 700; color: #e4e4e7; width: 100%; min-width: 0; }
+input[type=number].roi-field-input::-webkit-inner-spin-button,
+input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.roi-continue-btn { display: inline-flex; align-items: center; gap: 10px; background: #8b5cf6; color: #fff; border: none; border-radius: 12px; padding: 18px 32px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 120ms; letter-spacing: -0.1px; }
+.roi-continue-btn:hover { background: #7c3aed; }
+.roi-back-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; color: #52525b; font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 32px; letter-spacing: 0.02em; }
+.roi-back-btn:hover { color: #a1a1aa; }
 
-.roi-right { display: flex; flex-direction: column; gap: 16px; }
+/* Slide 1 — Funnel */
+.roi-funnel-title { font-size: 24px; font-weight: 700; color: #e4e4e7; margin-bottom: 6px; letter-spacing: -0.4px; }
+.roi-funnel-sub { font-size: 14px; color: #71717a; margin-bottom: 40px; }
+.roi-funnel-rows { display: flex; flex-direction: column; }
+.roi-fbar { height: 64px; border-radius: 10px; display: flex; align-items: center; padding: 0 22px; justify-content: space-between; margin-bottom: 4px; transition: width 350ms ease; }
+.roi-fbar .rfb-label { font-size: 15px; font-weight: 600; color: #e4e4e7; }
+.roi-fbar .rfb-num { font-size: 24px; font-weight: 700; color: #e4e4e7; font-variant-numeric: tabular-nums; }
+.rfb-1 { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.25); width: 100%; }
+.rfb-2 { background: rgba(139,92,246,0.10); border: 1px solid rgba(139,92,246,0.22); }
+.rfb-3 { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.22); }
+.rfb-4 { background: rgba(59,130,246,0.10); border: 1px solid rgba(59,130,246,0.22); }
+.rfb-5 { background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.18); }
+.roi-fgate { display: flex; align-items: center; gap: 10px; padding: 6px 0 6px 18px; margin-bottom: 4px; }
+.roi-fgate-line { width: 1px; height: 22px; background: rgba(255,255,255,0.1); }
+.roi-fgate-pill { font-size: 11px; font-weight: 600; color: #71717a; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 3px 9px; }
+.roi-result-strip { display: flex; gap: 40px; margin: 36px 0; padding: 22px 28px; background: rgba(52,211,153,0.05); border: 1px solid rgba(52,211,153,0.15); border-radius: 14px; }
+.roi-result-item { display: flex; flex-direction: column; gap: 4px; }
+.roi-result-label { font-size: 10px; font-weight: 700; color: #52525b; letter-spacing: 0.07em; text-transform: uppercase; }
+.roi-result-value { font-size: 32px; font-weight: 700; color: #34d399; letter-spacing: -0.5px; }
+.roi-result-note { font-size: 12px; color: #52525b; }
 
-/* Funnel waterfall */
-.funnel-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; }
-.funnel-header { padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-.funnel-title { font-size: 13px; font-weight: 600; color: #ffffff; }
-.funnel-sub { font-size: 11px; color: #52525b; margin-top: 2px; }
-.funnel-table { width: 100%; border-collapse: collapse; }
-.funnel-table th { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #52525b; padding: 10px 20px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.funnel-table th:first-child { text-align: left; }
-.funnel-table th:nth-child(2) { text-align: center; }
-.funnel-table td { padding: 9px 20px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-.funnel-table tr:last-child td { border-bottom: none; }
-.funnel-table td:first-child { color: #a1a1aa; }
-.funnel-table td:nth-child(2) { text-align: center; color: #52525b; font-size: 11px; }
-.funnel-table td:nth-child(3), .funnel-table td:nth-child(4) { text-align: right; font-weight: 500; color: #e4e4e7; font-variant-numeric: tabular-nums; }
-.funnel-table tr.funnel-revenue td { background: rgba(52,211,153,0.06); }
-.funnel-table tr.funnel-revenue td:nth-child(3), .funnel-table tr.funnel-revenue td:nth-child(4) { color: #34d399; font-weight: 600; font-size: 13px; }
-.funnel-arrow { font-size: 10px; color: #3f3f46; margin-right: 4px; }
-
-/* Monthly ramp */
-.ramp-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; }
-.ramp-header { padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: baseline; }
-.ramp-title { font-size: 13px; font-weight: 600; color: #ffffff; }
-.ramp-total { font-size: 13px; font-weight: 700; color: #34d399; }
+/* Slide 2 — 12-Month */
+.roi-timeline-title { font-size: 24px; font-weight: 700; color: #e4e4e7; margin-bottom: 6px; letter-spacing: -0.4px; }
+.roi-timeline-sub { font-size: 14px; color: #71717a; margin-bottom: 32px; }
+.ramp-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; overflow: hidden; }
+.ramp-header { padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: baseline; }
+.ramp-title { font-size: 13px; font-weight: 600; color: #e4e4e7; }
+.ramp-total { font-size: 20px; font-weight: 700; color: #34d399; letter-spacing: -0.3px; }
 .ramp-table { width: 100%; border-collapse: collapse; }
-.ramp-table th { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #52525b; padding: 8px 16px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.ramp-table th { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #52525b; padding: 10px 20px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05); }
 .ramp-table th:first-child { text-align: left; }
-.ramp-table td { padding: 7px 16px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); color: #a1a1aa; text-align: right; font-variant-numeric: tabular-nums; }
+.ramp-table td { padding: 9px 20px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.03); color: #a1a1aa; text-align: right; font-variant-numeric: tabular-nums; }
 .ramp-table td:first-child { text-align: left; color: #71717a; }
-.ramp-table td.has-revenue { color: #e4e4e7; }
-.ramp-table td.cumul { color: #8b5cf6; font-weight: 500; }
+.ramp-table td.has-rev { color: #e4e4e7; font-weight: 500; }
+.ramp-table td.cumul { color: #8b5cf6; font-weight: 600; }
 .ramp-table tr:last-child td { border-bottom: none; }
-.phase-tag { display: inline-block; font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle; }
-.p1-tag { background: rgba(139,92,246,0.2); color: #a78bfa; }
-.p2-tag { background: rgba(52,211,153,0.15); color: #34d399; }
+.ramp-ramp-tag { display: inline-block; font-size: 9px; font-weight: 700; color: #52525b; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 4px; padding: 1px 5px; margin-left: 5px; vertical-align: middle; letter-spacing: 0.04em; }
 </style>
 </head>
 <body>
@@ -669,130 +686,149 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 <!-- ═══════════════════════════════ -->
 <!-- TAB 4: ROI MODEL               -->
 <!-- ═══════════════════════════════ -->
-<div class="tab-content" id="tab-3">
+<div class="tab-content" id="tab-roi">
   <div class="roi-wrap">
-    <h2 class="section-title" style="margin-bottom:6px;">Your Revenue Projection</h2>
-    <p style="font-size:14px;color:#71717a;margin-bottom:32px;">Built with Acme Corp's numbers. Adjust any input to recalculate the full funnel live.</p>
 
-    <div class="roi-layout">
-      <!-- Inputs -->
-      <div class="roi-inputs-card">
-        <div class="roi-card-title">Your Numbers</div>
-
-        <div class="roi-field">
-          <label class="roi-label">Average Client LTV</label>
-          <div class="roi-input-wrap"><span class="roi-prefix">$</span><input class="roi-input" type="number" id="ltv" value="48000" oninput="recalc()"></div>
-        </div>
-
-        <div class="roi-divider"></div>
-        <div style="font-size:10px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#3f3f46;margin-bottom:12px;">Funnel Rates</div>
-
-        <div class="roi-field">
-          <label class="roi-label">Registration Rate</label>
-          <div class="roi-input-wrap"><input class="roi-input" type="number" id="reg-rate" value="8" oninput="recalc()"><span class="roi-suffix">%</span></div>
-        </div>
-        <div class="roi-field">
-          <label class="roi-label">Show Rate (of registrants)</label>
-          <div class="roi-input-wrap"><input class="roi-input" type="number" id="show-rate" value="35" oninput="recalc()"><span class="roi-suffix">%</span></div>
-        </div>
-        <div class="roi-field">
-          <label class="roi-label">Call Booking Rate (of attendees)</label>
-          <div class="roi-input-wrap"><input class="roi-input" type="number" id="call-rate" value="15" oninput="recalc()"><span class="roi-suffix">%</span></div>
-        </div>
-        <div class="roi-field">
-          <label class="roi-label">Sales Close Rate (of calls)</label>
-          <div class="roi-input-wrap"><input class="roi-input" type="number" id="close-rate" value="25" oninput="recalc()"><span class="roi-suffix">%</span></div>
-        </div>
-
-        <div class="roi-divider"></div>
-        <div>
-          <label class="roi-label">Program Investment</label>
-          <div class="program-blank">To be discussed with your rep</div>
-        </div>
-      </div>
-
-      <!-- Right column: funnel + timeline -->
-      <div class="roi-right">
-
-        <!-- Funnel Waterfall -->
-        <div class="funnel-card">
-          <div class="funnel-header">
-            <div class="funnel-title">Full Funnel Breakdown</div>
-            <div class="funnel-sub">Each conversion step, both phases — QS benchmark rates shown</div>
-          </div>
-          <table class="funnel-table">
-            <thead>
-              <tr>
-                <th>Funnel Step</th>
-                <th>Rate</th>
-                <th>Phase 1 · 7,500 prospects</th>
-                <th>Phase 2 · 50,000 prospects</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Prospects Reached</td>
-                <td>—</td>
-                <td>7,500</td>
-                <td>50,000</td>
-              </tr>
-              <tr>
-                <td><span class="funnel-arrow">↓</span>Webinar Registrations</td>
-                <td id="f-reg-rate">8%</td>
-                <td id="p1-regs">600</td>
-                <td id="p2-regs">4,000</td>
-              </tr>
-              <tr>
-                <td><span class="funnel-arrow">↓</span>Webinar Attendees</td>
-                <td id="f-show-rate">35%</td>
-                <td id="p1-shows">210</td>
-                <td id="p2-shows">1,400</td>
-              </tr>
-              <tr>
-                <td><span class="funnel-arrow">↓</span>Sales Calls Booked</td>
-                <td id="f-call-rate">15%</td>
-                <td id="p1-calls">32</td>
-                <td id="p2-calls">210</td>
-              </tr>
-              <tr>
-                <td><span class="funnel-arrow">↓</span>Clients Closed</td>
-                <td id="f-close-rate">25%</td>
-                <td id="p1-closes">8</td>
-                <td id="p2-closes">53</td>
-              </tr>
-              <tr class="funnel-revenue">
-                <td style="font-weight:600;color:#e4e4e7;">New Revenue</td>
-                <td>—</td>
-                <td id="p1-rev" style="color:#34d399;font-weight:600;">$384K</td>
-                <td id="p2-rev" style="color:#34d399;font-weight:600;">$2.5M</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Monthly Ramp -->
-        <div class="ramp-card">
-          <div class="ramp-header">
-            <div class="ramp-title">12-Month Revenue Build</div>
-            <div class="ramp-total" id="total-12m">$0</div>
-          </div>
-          <table class="ramp-table">
-            <thead>
-              <tr>
-                <th>Month</th>
-                <th>New Clients</th>
-                <th>Monthly Revenue</th>
-                <th>Cumulative</th>
-              </tr>
-            </thead>
-            <tbody id="ramp-body">
-              <!-- populated by JS -->
-            </tbody>
-          </table>
-        </div>
-
-      </div>
+    <!-- Step indicator -->
+    <div class="roi-step-bar">
+      <div class="roi-step active" id="roi-s0"><div class="roi-step-dot"></div>Your Numbers</div>
+      <div class="roi-step-line"></div>
+      <div class="roi-step" id="roi-s1"><div class="roi-step-dot"></div>Funnel Breakdown</div>
+      <div class="roi-step-line"></div>
+      <div class="roi-step" id="roi-s2"><div class="roi-step-dot"></div>12-Month Timeline</div>
     </div>
+
+    <div class="roi-slider">
+      <div class="roi-slides-track" id="roi-track">
+
+        <!-- ── Slide 0: Inputs ── -->
+        <div class="roi-slide">
+          <h2 class="roi-slide-title">Your Revenue Projection</h2>
+          <p class="roi-slide-sub">Three numbers is all we need. Your lead list data is already loaded.</p>
+
+          <div class="roi-locked-pill">
+            <span class="roi-locked-label">Outreach</span>
+            30,000 prospects / month
+          </div>
+
+          <div class="roi-input-group">
+            <div class="roi-field-big">
+              <div class="roi-field-label">Average Client LTV</div>
+              <div class="roi-field-input-row">
+                <span class="roi-field-affix">$</span>
+                <input class="roi-field-input" type="number" id="ltv" value="48000" placeholder="48000">
+              </div>
+            </div>
+            <div class="roi-field-big">
+              <div class="roi-field-label">Sales Call Show Rate</div>
+              <div class="roi-field-input-row">
+                <input class="roi-field-input" type="number" id="show-rate" value="75" placeholder="75">
+                <span class="roi-field-affix">%</span>
+              </div>
+            </div>
+            <div class="roi-field-big">
+              <div class="roi-field-label">Sales Close Rate</div>
+              <div class="roi-field-input-row">
+                <input class="roi-field-input" type="number" id="close-rate" value="25" placeholder="25">
+                <span class="roi-field-affix">%</span>
+              </div>
+            </div>
+          </div>
+
+          <button class="roi-continue-btn" onclick="roiCalcAndNext()">Calculate My Revenue →</button>
+        </div>
+
+        <!-- ── Slide 1: Funnel ── -->
+        <div class="roi-slide">
+          <button class="roi-back-btn" onclick="roiGoSlide(0)">← Back</button>
+          <h2 class="roi-funnel-title">Full Funnel Breakdown</h2>
+          <p class="roi-funnel-sub">Based on 30,000 outreaches/month with QS benchmark conversion rates baked in.</p>
+
+          <div class="roi-funnel-rows">
+            <div class="roi-fbar rfb-1">
+              <span class="rfb-label">Monthly Outreach</span>
+              <span class="rfb-num">30,000</span>
+            </div>
+            <div class="roi-fgate">
+              <div class="roi-fgate-line"></div>
+              <div class="roi-fgate-pill">0.5–0.8% attend the webinar</div>
+            </div>
+
+            <div class="roi-fbar rfb-2" id="rfb-2" style="width:70%">
+              <span class="rfb-label">Webinar Attendees</span>
+              <span class="rfb-num" id="r-attendees">195</span>
+            </div>
+            <div class="roi-fgate">
+              <div class="roi-fgate-line"></div>
+              <div class="roi-fgate-pill">14–22% book a call</div>
+            </div>
+
+            <div class="roi-fbar rfb-3" id="rfb-3" style="width:44%">
+              <span class="rfb-label">Calls Booked</span>
+              <span class="rfb-num" id="r-booked">35</span>
+            </div>
+            <div class="roi-fgate">
+              <div class="roi-fgate-line"></div>
+              <div class="roi-fgate-pill" id="r-show-pill">75% show up to the call</div>
+            </div>
+
+            <div class="roi-fbar rfb-4" id="rfb-4" style="width:28%">
+              <span class="rfb-label">Calls Held</span>
+              <span class="rfb-num" id="r-held">26</span>
+            </div>
+            <div class="roi-fgate">
+              <div class="roi-fgate-line"></div>
+              <div class="roi-fgate-pill" id="r-close-pill">25% close</div>
+            </div>
+
+            <div class="roi-fbar rfb-5" id="rfb-5" style="width:16%">
+              <span class="rfb-label">New Clients / Month</span>
+              <span class="rfb-num" id="r-clients">6</span>
+            </div>
+          </div>
+
+          <div class="roi-result-strip">
+            <div class="roi-result-item">
+              <div class="roi-result-label">Monthly Revenue</div>
+              <div class="roi-result-value" id="r-monthly">—</div>
+            </div>
+            <div class="roi-result-item">
+              <div class="roi-result-label">Annual (full velocity)</div>
+              <div class="roi-result-value" id="r-annual">—</div>
+              <div class="roi-result-note">Months 4–12 at full run rate</div>
+            </div>
+          </div>
+
+          <button class="roi-continue-btn" onclick="roiGoSlide(2)">See 12-Month Timeline →</button>
+        </div>
+
+        <!-- ── Slide 2: 12-Month ── -->
+        <div class="roi-slide">
+          <button class="roi-back-btn" onclick="roiGoSlide(1)">← Back</button>
+          <h2 class="roi-timeline-title">12-Month Revenue Build</h2>
+          <p class="roi-timeline-sub">Months 1–3 reflect system ramp-up. Full velocity from Month 4.</p>
+
+          <div class="ramp-card">
+            <div class="ramp-header">
+              <div class="ramp-title">Monthly Projection</div>
+              <div class="ramp-total" id="total-12m">—</div>
+            </div>
+            <table class="ramp-table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>New Clients</th>
+                  <th>Revenue</th>
+                  <th>Cumulative</th>
+                </tr>
+              </thead>
+              <tbody id="ramp-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /roi-slides-track -->
+    </div><!-- /roi-slider -->
   </div>
 </div>
 
@@ -958,98 +994,90 @@ function setRsvp(btn, type) {
   }
 }
 
-// ── ROI Calculator ──
+// ── ROI Model (3-slide) ──
 function fmt(n) {
-  if (n >= 1000000) return '$' + (n/1000000).toFixed(2).replace(/\.?0+$/,'') + 'M';
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(1).replace(/\.0$/,'') + 'M';
   if (n >= 1000) return '$' + Math.round(n/1000) + 'K';
   return '$' + Math.round(n).toLocaleString();
 }
 function fmtN(n) { return Math.round(n).toLocaleString(); }
 
-function recalc() {
-  const ltv       = parseFloat(document.getElementById('ltv').value)       || 0;
-  const regRate   = (parseFloat(document.getElementById('reg-rate').value)  || 0) / 100;
-  const showRate  = (parseFloat(document.getElementById('show-rate').value) || 0) / 100;
-  const callRate  = (parseFloat(document.getElementById('call-rate').value) || 0) / 100;
-  const closeRate = (parseFloat(document.getElementById('close-rate').value)|| 0) / 100;
+// Hardcoded QS benchmark rates (midpoints of stated ranges)
+const ATTEND_RATE  = 0.0065; // 0.5–0.8% → midpoint 0.65%
+const BOOKING_RATE = 0.18;   // 14–22% → midpoint 18%
+const MONTHLY_INVITES = 30000;
 
-  // Update rate display in funnel table
-  document.getElementById('f-reg-rate').textContent   = Math.round(regRate*100)   + '%';
-  document.getElementById('f-show-rate').textContent  = Math.round(showRate*100)  + '%';
-  document.getElementById('f-call-rate').textContent  = Math.round(callRate*100)  + '%';
-  document.getElementById('f-close-rate').textContent = Math.round(closeRate*100) + '%';
+// Ramp curve: index = month (1-based), value = fraction of full velocity
+const RAMP = [0, 0.25, 0.50, 0.80, 1, 1, 1, 1, 1, 1, 1, 1, 1];
 
-  // Phase 1: 7,500 prospects
-  const p1Regs   = Math.round(7500 * regRate);
-  const p1Shows  = Math.round(p1Regs * showRate);
-  const p1Calls  = Math.round(p1Shows * callRate);
-  const p1Closes = Math.round(p1Calls * closeRate);
-  const p1Rev    = p1Closes * ltv;
+let _roiSlide = 0;
 
-  // Phase 2: 50,000 prospects
-  const p2Regs   = Math.round(50000 * regRate);
-  const p2Shows  = Math.round(p2Regs * showRate);
-  const p2Calls  = Math.round(p2Shows * callRate);
-  const p2Closes = Math.round(p2Calls * closeRate);
-  const p2Rev    = p2Closes * ltv;
+function roiGoSlide(n) {
+  _roiSlide = n;
+  document.getElementById('roi-track').style.transform = `translateX(-${n * 100}%)`;
+  [0,1,2].forEach(i => {
+    document.getElementById('roi-s' + i).classList.toggle('active', i === n);
+  });
+}
 
-  // Update funnel waterfall
-  document.getElementById('p1-regs').textContent   = fmtN(p1Regs);
-  document.getElementById('p1-shows').textContent  = fmtN(p1Shows);
-  document.getElementById('p1-calls').textContent  = fmtN(p1Calls);
-  document.getElementById('p1-closes').textContent = fmtN(p1Closes);
-  document.getElementById('p1-rev').textContent    = fmt(p1Rev);
-  document.getElementById('p2-regs').textContent   = fmtN(p2Regs);
-  document.getElementById('p2-shows').textContent  = fmtN(p2Shows);
-  document.getElementById('p2-calls').textContent  = fmtN(p2Calls);
-  document.getElementById('p2-closes').textContent = fmtN(p2Closes);
-  document.getElementById('p2-rev').textContent    = fmt(p2Rev);
+function roiCalcAndNext() {
+  const ltv       = parseFloat(document.getElementById('ltv').value)        || 0;
+  const showRate  = (parseFloat(document.getElementById('show-rate').value)  || 0) / 100;
+  const closeRate = (parseFloat(document.getElementById('close-rate').value) || 0) / 100;
 
-  // Monthly ramp
-  // P1 (90-day campaign): closes distributed M2–M5
-  //   M2: 15%, M3: 45%, M4: 30%, M5: 10%
-  // P2 (starts M4, ramps to velocity by M6):
-  //   Monthly velocity = p2Closes / 12
-  //   M4: 20%, M5: 50%, M6: 90%, M7+: 100%
-  const p2Monthly = p2Closes / 12;
-  const p1Dist = [0, 0, 0.15, 0.45, 0.30, 0.10, 0, 0, 0, 0, 0, 0, 0]; // index = month
-  const p2Ramp = [0, 0, 0, 0, 0.20, 0.50, 0.90, 1, 1, 1, 1, 1, 1];
+  // Steady-state monthly funnel
+  const attendees = Math.round(MONTHLY_INVITES * ATTEND_RATE);       // ~195
+  const booked    = Math.round(attendees * BOOKING_RATE);             // ~35
+  const held      = Math.round(booked * showRate);
+  const clients   = Math.round(held * closeRate);
+  const monthly   = clients * ltv;
+  const annual    = monthly * 12;
 
+  // Update funnel bars (width scales relative to 30K baseline)
+  document.getElementById('r-attendees').textContent = fmtN(attendees);
+  document.getElementById('r-booked').textContent    = fmtN(booked);
+  document.getElementById('r-held').textContent      = fmtN(held);
+  document.getElementById('r-clients').textContent   = fmtN(clients);
+  document.getElementById('r-show-pill').textContent  = Math.round(showRate*100) + '% show up to the call';
+  document.getElementById('r-close-pill').textContent = Math.round(closeRate*100) + '% close';
+
+  // Proportional bar widths (anchored to attendees=70%)
+  const base = attendees || 1;
+  document.getElementById('rfb-2').style.width = '70%';
+  document.getElementById('rfb-3').style.width = Math.max(12, Math.round(70 * booked / base)) + '%';
+  document.getElementById('rfb-4').style.width = Math.max(8,  Math.round(70 * held    / base)) + '%';
+  document.getElementById('rfb-5').style.width = Math.max(5,  Math.round(70 * clients / base)) + '%';
+
+  document.getElementById('r-monthly').textContent = monthly > 0 ? fmt(monthly) : '—';
+  document.getElementById('r-annual').textContent  = annual  > 0 ? fmt(annual)  : '—';
+
+  // Build 12-month ramp table
   const tbody = document.getElementById('ramp-body');
   tbody.innerHTML = '';
   let cumulative = 0;
-
   for (let m = 1; m <= 12; m++) {
-    const p1c = p1Closes * (p1Dist[m] || 0);
-    const p2c = p2Monthly * (p2Ramp[m] || 0);
-    const clients = p1c + p2c;
-    const revenue = clients * ltv;
-    cumulative += revenue;
-
-    const hasP1 = p1c > 0.1;
-    const hasP2 = p2c > 0.1;
-    const hasRev = revenue > 0;
-
-    let phaseTag = '';
-    if (hasP1 && hasP2) phaseTag = '<span class="phase-tag p1-tag">P1</span><span class="phase-tag p2-tag">P2</span>';
-    else if (hasP1) phaseTag = '<span class="phase-tag p1-tag">P1</span>';
-    else if (hasP2) phaseTag = '<span class="phase-tag p2-tag">P2</span>';
-
+    const ramp    = RAMP[m] || 0;
+    const mClients = clients * ramp;
+    const mRev    = mClients * ltv;
+    cumulative += mRev;
+    const hasRev  = mRev > 0.5;
+    const isRamp  = ramp > 0 && ramp < 1;
+    const tag     = isRamp ? `<span class="ramp-ramp-tag">RAMP</span>` : '';
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>Month ${m}${phaseTag}</td>
-      <td class="${hasRev ? 'has-revenue' : ''}">${hasRev ? Math.round(clients) : '—'}</td>
-      <td class="${hasRev ? 'has-revenue' : ''}">${hasRev ? fmt(revenue) : '—'}</td>
-      <td class="${cumulative > 0 ? 'cumul' : ''}">${cumulative > 0 ? fmt(cumulative) : '—'}</td>
+      <td>Month ${m}${tag}</td>
+      <td class="${hasRev ? 'has-rev' : ''}">${hasRev ? fmtN(Math.round(mClients)) : '—'}</td>
+      <td class="${hasRev ? 'has-rev' : ''}">${hasRev ? fmt(mRev) : '—'}</td>
+      <td class="${cumulative > 0.5 ? 'cumul' : ''}">${cumulative > 0.5 ? fmt(cumulative) : '—'}</td>
     `;
     tbody.appendChild(tr);
   }
+  document.getElementById('total-12m').textContent = cumulative > 0 ? fmt(cumulative) : '—';
 
-  document.getElementById('total-12m').textContent = fmt(cumulative);
+  roiGoSlide(1);
 }
 
 switchVariant(0);
-recalc();
 </script>
 </body>
 </html>
