@@ -242,17 +242,20 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 .roi-funnel-title { font-size: 24px; font-weight: 700; color: #e4e4e7; margin-bottom: 6px; letter-spacing: -0.4px; }
 .roi-funnel-sub { font-size: 14px; color: #71717a; margin-bottom: 40px; }
 .roi-funnel-rows { display: flex; flex-direction: column; }
-.roi-fbar { height: 64px; border-radius: 10px; display: flex; align-items: center; padding: 0 22px; justify-content: space-between; margin-bottom: 4px; transition: width 350ms ease; }
-.roi-fbar .rfb-label { font-size: 15px; font-weight: 600; color: #e4e4e7; }
-.roi-fbar .rfb-num { font-size: 24px; font-weight: 700; color: #e4e4e7; font-variant-numeric: tabular-nums; }
+/* Funnel row: label+number always at full width above the bar */
+.roi-fbar-row { margin-bottom: 4px; }
+.roi-fbar-meta { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.roi-fbar-label { font-size: 14px; font-weight: 600; color: #a1a1aa; }
+.roi-fbar-num { font-size: 28px; font-weight: 700; color: #e4e4e7; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+/* Bar itself is just the color block — centered, no text inside */
+.roi-fbar { height: 52px; border-radius: 10px; margin: 0 auto; transition: width 350ms ease; }
 .rfb-1 { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.25); width: 100%; }
 .rfb-2 { background: rgba(139,92,246,0.10); border: 1px solid rgba(139,92,246,0.22); }
 .rfb-3 { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.22); }
 .rfb-4 { background: rgba(59,130,246,0.10); border: 1px solid rgba(59,130,246,0.22); }
 .rfb-5 { background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.18); }
-.roi-fgate { display: flex; align-items: center; gap: 10px; padding: 6px 0 6px 18px; margin-bottom: 4px; }
-.roi-fgate-line { width: 1px; height: 22px; background: rgba(255,255,255,0.1); }
-.roi-fgate-pill { font-size: 11px; font-weight: 600; color: #71717a; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 3px 9px; }
+.roi-fgate { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 8px 0; margin-bottom: 4px; }
+.roi-fgate-pill { font-size: 11px; font-weight: 600; color: #71717a; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 4px 10px; }
 .roi-result-strip { display: flex; gap: 40px; margin: 36px 0; padding: 22px 28px; background: rgba(52,211,153,0.05); border: 1px solid rgba(52,211,153,0.15); border-radius: 14px; }
 .roi-result-item { display: flex; flex-direction: column; gap: 4px; }
 .roi-result-label { font-size: 10px; font-weight: 700; color: #52525b; letter-spacing: 0.07em; text-transform: uppercase; }
@@ -745,45 +748,53 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
           <p class="roi-funnel-sub">Based on 30,000 outreaches/month with QS benchmark conversion rates baked in.</p>
 
           <div class="roi-funnel-rows">
-            <div class="roi-fbar rfb-1">
-              <span class="rfb-label">Monthly Outreach</span>
-              <span class="rfb-num">30,000</span>
+            <!-- Bar 1: Monthly Outreach (100%) -->
+            <div class="roi-fbar-row">
+              <div class="roi-fbar-meta">
+                <span class="roi-fbar-label">Monthly Outreach</span>
+                <span class="roi-fbar-num">30,000</span>
+              </div>
+              <div class="roi-fbar rfb-1"></div>
             </div>
-            <div class="roi-fgate">
-              <div class="roi-fgate-line"></div>
-              <div class="roi-fgate-pill">0.5–0.8% attend the webinar</div>
-            </div>
+            <div class="roi-fgate"><div class="roi-fgate-pill">0.5–0.8% attend the webinar</div></div>
 
-            <div class="roi-fbar rfb-2" id="rfb-2" style="width:70%">
-              <span class="rfb-label">Webinar Attendees</span>
-              <span class="rfb-num" id="r-attendees">195</span>
+            <!-- Bar 2: Webinar Attendees -->
+            <div class="roi-fbar-row">
+              <div class="roi-fbar-meta">
+                <span class="roi-fbar-label">Webinar Attendees</span>
+                <span class="roi-fbar-num" id="r-attendees">195</span>
+              </div>
+              <div class="roi-fbar rfb-2" id="rfb-2" style="width:70%"></div>
             </div>
-            <div class="roi-fgate">
-              <div class="roi-fgate-line"></div>
-              <div class="roi-fgate-pill">14–22% book a call</div>
-            </div>
+            <div class="roi-fgate"><div class="roi-fgate-pill">14–22% book a call</div></div>
 
-            <div class="roi-fbar rfb-3" id="rfb-3" style="width:44%">
-              <span class="rfb-label">Calls Booked</span>
-              <span class="rfb-num" id="r-booked">35</span>
+            <!-- Bar 3: Calls Booked -->
+            <div class="roi-fbar-row">
+              <div class="roi-fbar-meta">
+                <span class="roi-fbar-label">Calls Booked</span>
+                <span class="roi-fbar-num" id="r-booked">35</span>
+              </div>
+              <div class="roi-fbar rfb-3" id="rfb-3" style="width:44%"></div>
             </div>
-            <div class="roi-fgate">
-              <div class="roi-fgate-line"></div>
-              <div class="roi-fgate-pill" id="r-show-pill">75% show up to the call</div>
-            </div>
+            <div class="roi-fgate"><div class="roi-fgate-pill" id="r-show-pill">75% show up to the call</div></div>
 
-            <div class="roi-fbar rfb-4" id="rfb-4" style="width:28%">
-              <span class="rfb-label">Calls Held</span>
-              <span class="rfb-num" id="r-held">26</span>
+            <!-- Bar 4: Calls Held -->
+            <div class="roi-fbar-row">
+              <div class="roi-fbar-meta">
+                <span class="roi-fbar-label">Calls Held</span>
+                <span class="roi-fbar-num" id="r-held">26</span>
+              </div>
+              <div class="roi-fbar rfb-4" id="rfb-4" style="width:28%"></div>
             </div>
-            <div class="roi-fgate">
-              <div class="roi-fgate-line"></div>
-              <div class="roi-fgate-pill" id="r-close-pill">25% close</div>
-            </div>
+            <div class="roi-fgate"><div class="roi-fgate-pill" id="r-close-pill">25% close</div></div>
 
-            <div class="roi-fbar rfb-5" id="rfb-5" style="width:16%">
-              <span class="rfb-label">New Clients / Month</span>
-              <span class="rfb-num" id="r-clients">6</span>
+            <!-- Bar 5: New Clients -->
+            <div class="roi-fbar-row">
+              <div class="roi-fbar-meta">
+                <span class="roi-fbar-label">New Clients / Month</span>
+                <span class="roi-fbar-num" id="r-clients">6</span>
+              </div>
+              <div class="roi-fbar rfb-5" id="rfb-5" style="width:16%"></div>
             </div>
           </div>
 
