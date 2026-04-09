@@ -809,6 +809,37 @@ function switchSlide(i) {
   document.querySelectorAll('.slide-dot').forEach((d,j) => d.classList.toggle('active', i===j));
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   PERSONA POOLS — DO NOT MIX. Single source of truth. Never cross-reference.
+
+   QS_CLIENTS      → existing Quantum Scaling clients.
+                     Use ONLY in: case studies, social proof, testimonials.
+                     NEVER in: webinar chat, attendee lists, booking messages.
+
+   WEBINAR_PROSPECTS → lead-list prospects attending the webinar.
+                       Use ONLY in: chat messages, attendee names, booking notifications.
+                       NEVER in: case studies or client testimonials.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const QS_CLIENTS = [
+  { name: 'Sarah Chen',    firm: 'Meridian Advisory',  result: 'went from 100% referral-dependent to 847 registered attendees in her first webinar cycle' },
+  { name: 'Derek Okonkwo', firm: 'Vantage Partners',   result: 'booked 31 qualified sales calls in Month 2 using this exact outreach system' },
+  { name: 'Marcus Webb',   firm: 'Sterling Growth',    result: 'broke through a $1.8M plateau and reached $212K/month recurring within 6 months' },
+  { name: 'Jordan Marsh',  firm: 'Pinnacle Growth Co.',result: 'scaled from 3 referrals/month to 22 inbound calls in 60 days' },
+  { name: 'Alicia Fontaine',firm:'Meridian Advisory',  result: 'first webinar cycle generated 6 new clients at $42K average contract value' },
+  { name: 'Tyler Breckenridge', firm: 'Northbrook Digital', result: '$1.1M in pipeline from a single 90-minute webinar run to 600 attendees' },
+  { name: 'Priya Menon',   firm: 'Apex Revenue Labs',  result: 'Phase 1 alone identified 6,200 ICP-matched contacts her team had never reached' },
+  { name: 'David Nakamura',firm: 'Horizon Strategy Group', result: 'Phase 2 outreach hit 31K contacts in Month 1, 14 calls booked in Week 3' },
+  { name: 'Camille Rousseau', firm: 'Rousseau Consulting', result: 'close rate improved from 18% to 31% after adopting the 2-call structure' },
+];
+
+// Webinar prospects: attendees, chat participants, booking notifications.
+// These are leads, NOT clients. Never use their names as case studies.
+const WEBINAR_PROSPECTS = [
+  { name: 'Nadia Caruso',    firm: 'Lumina Strategies',  init: 'Nadia C.' },
+  { name: 'Sophie Whitfield', firm: 'Whitfield & Co.',   init: 'Sophie W.' },
+  { name: 'Ryan Calloway',   firm: 'Calloway Advisors',  init: 'Ryan C.' },
+];
+
 // ── Variant switching ──
 function descHTML(hook, cases, bullets) {
   return `<div class="cal-desc-cta">
@@ -832,17 +863,18 @@ function descHTML(hook, cases, bullets) {
 </div>`;
 }
 
+// Helper: format a QS_CLIENTS entry as a case study line
+function clientCase(c) {
+  return `<strong>${c.name} (${c.firm})</strong> — ${c.result}.`;
+}
+
 const variants = [
   {
     tag: 'Problem-aware',
     title: 'Why 90% of Consulting Firms Plateau at $1.5M — and the Revenue System That Actually Breaks Through',
     desc: descHTML(
       'If 80% of your pipeline comes from referrals, you don\'t have a business — you have a dependency. In 90 minutes, I\'ll show you the exact system 1,400+ consulting firms used to break through the $1.5M ceiling and build predictable revenue that doesn\'t rely on who you know.',
-      [
-        '<strong>Sarah Chen (Meridian Advisory)</strong> — went from 100% referral-dependent to 847 registered attendees in her first webinar cycle.',
-        '<strong>Derek Okonkwo (Vantage Partners)</strong> — booked 31 qualified sales calls in Month 2 using this exact outreach system.',
-        '<strong>Marcus Webb (Sterling Growth)</strong> — broke through a $1.8M plateau and reached $212K/month recurring within 6 months.'
-      ],
+      [clientCase(QS_CLIENTS[0]), clientCase(QS_CLIENTS[1]), clientCase(QS_CLIENTS[2])],
       [
         'Why the referral ceiling exists — and the 3-phase system that breaks through it',
         'How to run 30,000+ automated outreaches per month without cold calling or discounting',
@@ -855,11 +887,7 @@ const variants = [
     title: 'The Webinar Funnel That Generated $500M+ for Consulting Firms — Live Training with Lloyd Yip',
     desc: descHTML(
       'The same acquisition system behind $500M+ in client revenue — now live, with your numbers built in.',
-      [
-        '<strong>Jordan Marsh (Pinnacle Growth Co.)</strong> — scaled from 3 referrals/month to 22 inbound calls in 60 days.',
-        '<strong>Alicia Fontaine (Meridian Advisory)</strong> — first webinar cycle generated 6 new clients at $42K average contract value.',
-        '<strong>Tyler Breckenridge (Northbrook Digital)</strong> — $1.1M in pipeline from a single 90-minute webinar run to 600 attendees.'
-      ],
+      [clientCase(QS_CLIENTS[3]), clientCase(QS_CLIENTS[4]), clientCase(QS_CLIENTS[5])],
       [
         'The exact webinar funnel Quantum Scaling has deployed across 1,400+ B2B firms',
         'How clients scaled from referral-dependent to 30K+ outreaches/month on autopilot',
@@ -872,11 +900,7 @@ const variants = [
     title: 'The 3-Phase Revenue Engine Replacing Referrals for $1M–$5M Consulting Firms',
     desc: descHTML(
       'Referrals work — until they don\'t. Here\'s the 3-phase system replacing them across 1,400+ consulting firms.',
-      [
-        '<strong>Priya Menon (Apex Revenue Labs)</strong> — Phase 1 alone identified 6,200 ICP-matched contacts her team had never reached.',
-        '<strong>David Nakamura (Horizon Strategy Group)</strong> — Phase 2 outreach hit 31K contacts in Month 1, 14 calls booked in Week 3.',
-        '<strong>Camille Rousseau (Rousseau Consulting)</strong> — Phase 3 close rate improved from 18% to 31% after adopting the 2-call structure.'
-      ],
+      [clientCase(QS_CLIENTS[6]), clientCase(QS_CLIENTS[7]), clientCase(QS_CLIENTS[8])],
       [
         'Phase 1: Market identification — pull your exact ICP from a database of 87M+ contacts',
         'Phase 2: Automated webinar outreach — 30K+ targeted invites per month, zero cold calls',
