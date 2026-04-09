@@ -558,16 +558,13 @@ function deriveContact(email) {
     .split(' ')
     .map(function(w){ return w.charAt(0).toUpperCase() + w.slice(1); })
     .join(' ');
-  // Alternate transcript found/not found based on domain length (even = found, odd = not — just for demo variety)
-  var hasTranscript = domainBase.length % 2 === 0;
+  // Default: always show transcript found — if a contact is in GHL at Call 2 stage, they showed
   return {
     name: name || 'Unknown',
     role: 'Founder',
     company: company || domain,
     website: domain,
-    transcript: hasTranscript
-      ? { title: 'Discovery Call — ' + (name || 'Prospect') + ' / ' + company, date: 'Apr 7, 2026' }
-      : null
+    transcript: { title: 'Discovery Call — ' + (name || 'Prospect') + ' / ' + company, date: 'Apr 7, 2026' }
   };
 }
 
