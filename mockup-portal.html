@@ -8,13 +8,13 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
 body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; color: #e4e4e7; min-height: 100vh; }
 
-.portal-nav { height: 52px; background: rgba(13,13,18,0.92); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; padding: 0 32px; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.portal-nav { height: 52px; background: #0d0d12; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; padding: 0 32px; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
 .wordmark { display: flex; align-items: center; gap: 8px; }
 .wordmark-icon { width: 20px; height: 20px; background: linear-gradient(135deg, #8b5cf6, #6d28d9); border-radius: 6px; }
 .wordmark-text { font-size: 13px; font-weight: 600; color: #e4e4e7; letter-spacing: -0.01em; }
 .prepared-for { font-size: 12px; color: #52525b; }
 
-.tab-bar { border-bottom: 1px solid rgba(255,255,255,0.06); padding: 0 32px; display: flex; background: rgba(13,13,18,0.7); position: sticky; top: 52px; z-index: 99; }
+.tab-bar { border-bottom: 1px solid rgba(255,255,255,0.06); padding: 0 32px; display: flex; background: #0d0d12; position: sticky; top: 52px; z-index: 99; }
 .tab { font-size: 13px; padding: 14px 20px; color: #71717a; cursor: pointer; border-bottom: 2px solid transparent; transition: all 100ms; white-space: nowrap; background: none; border-left: none; border-right: none; border-top: none; }
 .tab:hover { color: #a1a1aa; }
 .tab.active { color: #ffffff; border-bottom-color: #8b5cf6; }
@@ -259,8 +259,8 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 .roi-mode-group { display: flex; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.07); }
 .roi-mode-btn { padding: 5px 14px; font-size: 11px; font-weight: 700; letter-spacing: 0.03em; background: rgba(255,255,255,0.02); color: #3f3f46; cursor: pointer; border: none; transition: all 120ms; white-space: nowrap; }
 .roi-mode-btn:hover:not(.active) { color: #71717a; background: rgba(255,255,255,0.04); }
-.roi-mode-btn.cons.active { background: rgba(52,211,153,0.12); color: #34d399; }
-.roi-mode-btn.agg.active { background: rgba(239,68,68,0.1); color: #f87171; }
+.roi-mode-btn.cons.active { background: rgba(251,191,36,0.12); color: #fbbf24; }
+.roi-mode-btn.agg.active { background: rgba(52,211,153,0.12); color: #34d399; }
 .roi-result-strip { display: flex; gap: 40px; margin: 36px 0; padding: 22px 28px; background: rgba(52,211,153,0.05); border: 1px solid rgba(52,211,153,0.15); border-radius: 14px; }
 .roi-result-item { display: flex; flex-direction: column; gap: 4px; }
 .roi-result-label { font-size: 10px; font-weight: 700; color: #52525b; letter-spacing: 0.07em; text-transform: uppercase; }
@@ -790,8 +790,22 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
                 <input class="roi-field-input" type="number" id="ltv" value="48000" placeholder="48000">
               </div>
             </div>
+            <div class="roi-field-big">
+              <div class="roi-field-label">Sales Call Show Rate</div>
+              <div class="roi-field-input-row">
+                <input class="roi-field-input" type="number" id="show-rate" value="75" placeholder="75">
+                <span class="roi-field-affix">%</span>
+              </div>
+            </div>
+            <div class="roi-field-big">
+              <div class="roi-field-label">Sales Close Rate</div>
+              <div class="roi-field-input-row">
+                <input class="roi-field-input" type="number" id="close-rate" value="25" placeholder="25">
+                <span class="roi-field-affix">%</span>
+              </div>
+            </div>
           </div>
-          <p style="font-size:12px;color:#52525b;margin-bottom:32px;">Funnel conversion rates are adjustable on the next step — conservative or aggressive.</p>
+          <p style="font-size:12px;color:#52525b;margin-bottom:32px;">Webinar attendance &amp; booking rates are QS benchmarks — adjustable conservative or aggressive on the next step.</p>
 
           <button class="roi-continue-btn" onclick="roiCalcAndNext()">Calculate My Revenue →</button>
         </div>
@@ -841,12 +855,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
               </div>
               <div class="roi-fbar rfb-3" id="rfb-3" style="width:30%"></div>
             </div>
-            <div class="roi-fgate">
-              <div class="roi-mode-group">
-                <button class="roi-mode-btn cons active" id="m-show-c" onclick="toggleMode('show','conservative')">Conservative · 65%</button>
-                <button class="roi-mode-btn agg" id="m-show-a" onclick="toggleMode('show','aggressive')">Aggressive · 80%</button>
-              </div>
-            </div>
+            <div class="roi-fgate"><div class="roi-fgate-pill" id="r-show-pill">75% show up to the call</div></div>
 
             <!-- Bar 4: Calls Held -->
             <div class="roi-fbar-row">
@@ -856,12 +865,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
               </div>
               <div class="roi-fbar rfb-4" id="rfb-4" style="width:18%"></div>
             </div>
-            <div class="roi-fgate">
-              <div class="roi-mode-group">
-                <button class="roi-mode-btn cons active" id="m-close-c" onclick="toggleMode('close','conservative')">Conservative · 20%</button>
-                <button class="roi-mode-btn agg" id="m-close-a" onclick="toggleMode('close','aggressive')">Aggressive · 30%</button>
-              </div>
-            </div>
+            <div class="roi-fgate"><div class="roi-fgate-pill" id="r-close-pill">25% close</div></div>
 
             <!-- Bar 5: New Clients -->
             <div class="roi-fbar-row">
@@ -1354,8 +1358,11 @@ function roiCalc() {
   const ltv         = parseFloat(document.getElementById('ltv').value) || 0;
   const attendRate  = RATES.attend[_modes.attend];
   const bookingRate = RATES.booking[_modes.booking];
-  const showRate    = RATES.show[_modes.show];
-  const closeRate   = RATES.close[_modes.close];
+  const showRate    = (parseFloat(document.getElementById('show-rate').value) || 75) / 100;
+  const closeRate   = (parseFloat(document.getElementById('close-rate').value) || 25) / 100;
+
+  document.getElementById('r-show-pill').textContent  = Math.round(showRate * 100) + '% show up to the call';
+  document.getElementById('r-close-pill').textContent = Math.round(closeRate * 100) + '% close';
 
   const attendees = Math.round(MONTHLY_INVITES * attendRate);
   const booked    = Math.round(attendees * bookingRate);
