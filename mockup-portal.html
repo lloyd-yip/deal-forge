@@ -105,7 +105,7 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .email-preview { font-size: 11px; color: #5f6368; line-height: 1.5; }
 
 /* ═══ TAB 3: WEBINAR ═══ */
-.webinar-wrap { background: #0a0a12; min-height: calc(100vh - 108px); display: flex; flex-direction: column; }
+.webinar-wrap { background: #0a0a12; height: calc(100vh - 108px); display: flex; flex-direction: column; }
 .webinar-top-bar { background: #111118; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
 .live-badge { display: flex; align-items: center; gap: 6px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 20px; padding: 4px 10px; }
 .live-dot { width: 6px; height: 6px; background: #ef4444; border-radius: 50%; animation: pulse 1.5s infinite; }
@@ -303,7 +303,7 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
       </div>
 
       <div class="tam-blurb">
-        At <strong>30K outreaches/month</strong>, you cycle your full market of <strong>87,400 prospects</strong> every 3 months — then rotate the webinar topic to re-engage the same audience fresh. You are never audience-limited.
+        At <strong>30K/mo</strong>, your entire market cycles every <strong>3 months</strong> — rotate the webinar topic each cycle to re-engage the same audience fresh.
       </div>
     </div>
 
@@ -389,7 +389,22 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
           </div>
         </div>
 
-        <div class="cal-desc" id="cal-desc"><!-- populated by switchVariant(0) on load --></div>
+        <div class="cal-desc" id="cal-desc">
+          <div class="cal-desc-hook">Most firms plateau not because of talent — but because 100% of their pipeline depends on referrals they can't control.</div>
+          <div class="cal-desc-section">
+            <div class="cal-desc-section-label">What You'll Learn</div>
+            <ul class="cal-desc-bullets">
+              <li>Why the referral ceiling exists — and the 3-phase system that breaks through it</li>
+              <li>How to run 30,000+ automated outreaches per month without cold calling or discounting</li>
+              <li>Live funnel math built with your firm's specific numbers</li>
+            </ul>
+          </div>
+          <div class="cal-desc-meta">
+            <span><strong>For:</strong> B2B consulting &amp; advisory founders · $1M–$5M revenue</span>
+            <span><strong>Host:</strong> Lloyd Yip · Founder, Quantum Scaling · $500M+ in client revenue</span>
+            <span><strong>Duration:</strong> 90 min + live Q&amp;A · Join link sent on confirmation</span>
+          </div>
+        </div>
 
         <div class="rsvp-label">Will you attend?</div>
         <div class="rsvp-buttons">
@@ -458,7 +473,7 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
             <div class="slide-1-footer">
               <div class="slide-1-host">
                 <div class="host-avatar" id="host-avatar-wrap">
-                  <img src="https://media.licdn.com/dms/image/v2/C4E03AQEtIxMkjlDmyA/profile-displayphoto-shrink_200_200/0/1638042721905" alt="Lloyd Yip" onerror="document.getElementById('host-avatar-wrap').innerHTML='LY'">
+                  <img src="/lloyd-avatar" alt="Lloyd Yip" onerror="document.getElementById('host-avatar-wrap').innerHTML='LY'">
                 </div>
                 <div>
                   <div class="host-name">Lloyd Yip</div>
@@ -887,8 +902,8 @@ function recalc() {
   document.getElementById('total-12m').textContent = fmt(cumulative);
 }
 
-recalc();
 switchVariant(0);
+recalc();
 </script>
 </body>
 </html>
