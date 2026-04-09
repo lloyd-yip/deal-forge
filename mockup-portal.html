@@ -210,7 +210,7 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 /* ── ROI Model (3-slide) ─────────────────────────────── */
 .roi-wrap { max-width: 840px; margin: 0 auto; padding: 52px 40px; }
 .roi-step-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 52px; }
-.roi-step { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: #3f3f46; transition: color 250ms; }
+.roi-step { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: #3f3f46; transition: color 250ms; cursor: pointer; }
 .roi-step.active { color: #e4e4e7; }
 .roi-step-dot { width: 8px; height: 8px; border-radius: 50%; background: #3f3f46; transition: background 250ms; }
 .roi-step.active .roi-step-dot { background: #8b5cf6; }
@@ -256,6 +256,11 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 .rfb-5 { background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.18); }
 .roi-fgate { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 8px 0; margin-bottom: 4px; }
 .roi-fgate-pill { font-size: 11px; font-weight: 600; color: #71717a; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 4px 10px; }
+.roi-mode-group { display: flex; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.07); }
+.roi-mode-btn { padding: 5px 14px; font-size: 11px; font-weight: 700; letter-spacing: 0.03em; background: rgba(255,255,255,0.02); color: #3f3f46; cursor: pointer; border: none; transition: all 120ms; white-space: nowrap; }
+.roi-mode-btn:hover:not(.active) { color: #71717a; background: rgba(255,255,255,0.04); }
+.roi-mode-btn.cons.active { background: rgba(52,211,153,0.12); color: #34d399; }
+.roi-mode-btn.agg.active { background: rgba(239,68,68,0.1); color: #f87171; }
 .roi-result-strip { display: flex; gap: 40px; margin: 36px 0; padding: 22px 28px; background: rgba(52,211,153,0.05); border: 1px solid rgba(52,211,153,0.15); border-radius: 14px; }
 .roi-result-item { display: flex; flex-direction: column; gap: 4px; }
 .roi-result-label { font-size: 10px; font-weight: 700; color: #52525b; letter-spacing: 0.07em; text-transform: uppercase; }
@@ -374,13 +379,12 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
       <div class="funnel-row">
         <div class="funnel-bar b1">
           <span class="funnel-bar-name">Lead Database</span>
-          <span class="funnel-bar-vol">87,400 ICP-matched prospects</span>
         </div>
       </div>
 
       <div class="funnel-gate">
         <div class="funnel-gate-dot"></div>
-        <div class="funnel-rate-pill g">30,000 invites / month</div>
+        <div style="font-size:11px;color:#3f3f46;font-style:italic">Every contact receives a personalized invite</div>
         <div class="funnel-gate-dot"></div>
       </div>
 
@@ -388,13 +392,12 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
       <div class="funnel-row">
         <div class="funnel-bar b2">
           <span class="funnel-bar-name">Calendar Invite</span>
-          <span class="funnel-bar-vol">150–240 attend / month</span>
         </div>
       </div>
 
       <div class="funnel-gate">
         <div class="funnel-gate-dot"></div>
-        <div class="funnel-rate-pill p">0.5–0.8% attendance rate</div>
+        <div class="funnel-rate-pill p">0.3–0.5% attendance rate</div>
         <div class="funnel-gate-dot"></div>
       </div>
 
@@ -402,7 +405,6 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
       <div class="funnel-row">
         <div class="funnel-bar b3">
           <span class="funnel-bar-name">Live Webinar</span>
-          <span class="funnel-bar-vol">21–53 calls / month</span>
         </div>
       </div>
 
@@ -416,7 +418,6 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
       <div class="funnel-row">
         <div class="funnel-bar b4">
           <span class="funnel-bar-name">Sales Call</span>
-          <span class="funnel-bar-vol">25%+ close</span>
         </div>
       </div>
 
@@ -636,7 +637,14 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
         <div class="live-badge"><div class="live-dot"></div><span class="live-text">LIVE</span></div>
         <span class="attendee-count">847 attending</span>
       </div>
-      <div style="font-size:12px;color:#52525b;">Quantum Scaling · Webinar Series</div>
+      <div style="font-size:12px;color:#52525b;display:flex;align-items:center;gap:10px;">
+        Quantum Scaling · Webinar Series
+        <span style="color:#3f3f46">·</span>
+        <span style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:3px 10px;">
+          <img id="prospect-favicon" style="width:14px;height:14px;border-radius:2px;display:none" alt="" onerror="this.style.display='none'">
+          <span style="color:#71717a;font-size:11px;">Prepared for <strong style="color:#a1a1aa" id="prospect-label">Acme Corp</strong></span>
+        </span>
+      </div>
     </div>
 
     <div class="webinar-body">
@@ -754,11 +762,11 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 
     <!-- Step indicator -->
     <div class="roi-step-bar">
-      <div class="roi-step active" id="roi-s0"><div class="roi-step-dot"></div>Your Numbers</div>
+      <div class="roi-step active" id="roi-s0" onclick="roiGoSlide(0)"><div class="roi-step-dot"></div>Your Numbers</div>
       <div class="roi-step-line"></div>
-      <div class="roi-step" id="roi-s1"><div class="roi-step-dot"></div>Funnel Breakdown</div>
+      <div class="roi-step" id="roi-s1" onclick="roiGoSlide(1)"><div class="roi-step-dot"></div>Monthly Funnel</div>
       <div class="roi-step-line"></div>
-      <div class="roi-step" id="roi-s2"><div class="roi-step-dot"></div>12-Month Timeline</div>
+      <div class="roi-step" id="roi-s2" onclick="roiGoSlide(2)"><div class="roi-step-dot"></div>12-Month Timeline</div>
     </div>
 
     <div class="roi-slider">
@@ -782,21 +790,8 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
                 <input class="roi-field-input" type="number" id="ltv" value="48000" placeholder="48000">
               </div>
             </div>
-            <div class="roi-field-big">
-              <div class="roi-field-label">Sales Call Show Rate</div>
-              <div class="roi-field-input-row">
-                <input class="roi-field-input" type="number" id="show-rate" value="75" placeholder="75">
-                <span class="roi-field-affix">%</span>
-              </div>
-            </div>
-            <div class="roi-field-big">
-              <div class="roi-field-label">Sales Close Rate</div>
-              <div class="roi-field-input-row">
-                <input class="roi-field-input" type="number" id="close-rate" value="25" placeholder="25">
-                <span class="roi-field-affix">%</span>
-              </div>
-            </div>
           </div>
+          <p style="font-size:12px;color:#52525b;margin-bottom:32px;">Funnel conversion rates are adjustable on the next step — conservative or aggressive.</p>
 
           <button class="roi-continue-btn" onclick="roiCalcAndNext()">Calculate My Revenue →</button>
         </div>
@@ -804,8 +799,8 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
         <!-- ── Slide 1: Funnel ── -->
         <div class="roi-slide">
           <button class="roi-back-btn" onclick="roiGoSlide(0)">← Back</button>
-          <h2 class="roi-funnel-title">Full Funnel Breakdown</h2>
-          <p class="roi-funnel-sub">Based on 30,000 outreaches/month with QS benchmark conversion rates baked in.</p>
+          <h2 class="roi-funnel-title">Monthly Funnel Breakdown</h2>
+          <p class="roi-funnel-sub">30,000 outreaches/month. Toggle each step conservative or aggressive to stress-test the numbers.</p>
 
           <div class="roi-funnel-rows">
             <!-- Bar 1: Monthly Outreach (100%) -->
@@ -816,45 +811,65 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
               </div>
               <div class="roi-fbar rfb-1"></div>
             </div>
-            <div class="roi-fgate"><div class="roi-fgate-pill">0.5–0.8% attend the webinar</div></div>
+            <div class="roi-fgate">
+              <div class="roi-mode-group">
+                <button class="roi-mode-btn cons active" id="m-attend-c" onclick="toggleMode('attend','conservative')">Conservative · 0.3%</button>
+                <button class="roi-mode-btn agg" id="m-attend-a" onclick="toggleMode('attend','aggressive')">Aggressive · 0.5%</button>
+              </div>
+            </div>
 
             <!-- Bar 2: Webinar Attendees -->
             <div class="roi-fbar-row">
               <div class="roi-fbar-meta">
                 <span class="roi-fbar-label">Webinar Attendees</span>
-                <span class="roi-fbar-num" id="r-attendees">195</span>
+                <span class="roi-fbar-num" id="r-attendees">90</span>
               </div>
               <div class="roi-fbar rfb-2" id="rfb-2" style="width:70%"></div>
             </div>
-            <div class="roi-fgate"><div class="roi-fgate-pill">14–22% book a call</div></div>
+            <div class="roi-fgate">
+              <div class="roi-mode-group">
+                <button class="roi-mode-btn cons active" id="m-booking-c" onclick="toggleMode('booking','conservative')">Conservative · 14%</button>
+                <button class="roi-mode-btn agg" id="m-booking-a" onclick="toggleMode('booking','aggressive')">Aggressive · 22%</button>
+              </div>
+            </div>
 
             <!-- Bar 3: Calls Booked -->
             <div class="roi-fbar-row">
               <div class="roi-fbar-meta">
                 <span class="roi-fbar-label">Calls Booked</span>
-                <span class="roi-fbar-num" id="r-booked">35</span>
+                <span class="roi-fbar-num" id="r-booked">13</span>
               </div>
-              <div class="roi-fbar rfb-3" id="rfb-3" style="width:44%"></div>
+              <div class="roi-fbar rfb-3" id="rfb-3" style="width:30%"></div>
             </div>
-            <div class="roi-fgate"><div class="roi-fgate-pill" id="r-show-pill">75% show up to the call</div></div>
+            <div class="roi-fgate">
+              <div class="roi-mode-group">
+                <button class="roi-mode-btn cons active" id="m-show-c" onclick="toggleMode('show','conservative')">Conservative · 65%</button>
+                <button class="roi-mode-btn agg" id="m-show-a" onclick="toggleMode('show','aggressive')">Aggressive · 80%</button>
+              </div>
+            </div>
 
             <!-- Bar 4: Calls Held -->
             <div class="roi-fbar-row">
               <div class="roi-fbar-meta">
                 <span class="roi-fbar-label">Calls Held</span>
-                <span class="roi-fbar-num" id="r-held">26</span>
+                <span class="roi-fbar-num" id="r-held">8</span>
               </div>
-              <div class="roi-fbar rfb-4" id="rfb-4" style="width:28%"></div>
+              <div class="roi-fbar rfb-4" id="rfb-4" style="width:18%"></div>
             </div>
-            <div class="roi-fgate"><div class="roi-fgate-pill" id="r-close-pill">25% close</div></div>
+            <div class="roi-fgate">
+              <div class="roi-mode-group">
+                <button class="roi-mode-btn cons active" id="m-close-c" onclick="toggleMode('close','conservative')">Conservative · 20%</button>
+                <button class="roi-mode-btn agg" id="m-close-a" onclick="toggleMode('close','aggressive')">Aggressive · 30%</button>
+              </div>
+            </div>
 
             <!-- Bar 5: New Clients -->
             <div class="roi-fbar-row">
               <div class="roi-fbar-meta">
                 <span class="roi-fbar-label">New Clients / Month</span>
-                <span class="roi-fbar-num" id="r-clients">6</span>
+                <span class="roi-fbar-num" id="r-clients">2</span>
               </div>
-              <div class="roi-fbar rfb-5" id="rfb-5" style="width:16%"></div>
+              <div class="roi-fbar rfb-5" id="rfb-5" style="width:8%"></div>
             </div>
           </div>
 
@@ -866,7 +881,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
             <div class="roi-result-item">
               <div class="roi-result-label">Annual (full velocity)</div>
               <div class="roi-result-value" id="r-annual">—</div>
-              <div class="roi-result-note">Months 4–12 at full run rate</div>
+              <div class="roi-result-note">Months 6–12 at full run rate</div>
             </div>
           </div>
 
@@ -877,7 +892,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
         <div class="roi-slide">
           <button class="roi-back-btn" onclick="roiGoSlide(1)">← Back</button>
           <h2 class="roi-timeline-title">12-Month Revenue Build</h2>
-          <p class="roi-timeline-sub">Months 1–3 reflect system ramp-up. Full velocity from Month 4.</p>
+          <p class="roi-timeline-sub">Month 1 is onboarding — no outreach yet. System ramps through Month 5. Full velocity from Month 6.</p>
 
           <div class="ramp-card">
             <div class="ramp-header">
@@ -1299,13 +1314,22 @@ function fmt(n) {
 }
 function fmtN(n) { return Math.round(n).toLocaleString(); }
 
-// Hardcoded QS benchmark rates (midpoints of stated ranges)
-const ATTEND_RATE  = 0.0065; // 0.5–0.8% → midpoint 0.65%
-const BOOKING_RATE = 0.18;   // 14–22% → midpoint 18%
+// ── Prospect config (set per prospect before sharing) ──
+const PROSPECT = { name: 'Acme Corp', domain: 'acme.com' };
+
+// ── QS benchmark rate ranges ──
+const RATES = {
+  attend:  { conservative: 0.003, aggressive: 0.005 },  // 0.3% vs 0.5%
+  booking: { conservative: 0.14,  aggressive: 0.22  },  // 14% vs 22%
+  show:    { conservative: 0.65,  aggressive: 0.80  },  // 65% vs 80%
+  close:   { conservative: 0.20,  aggressive: 0.30  },  // 20% vs 30%
+};
+let _modes = { attend: 'conservative', booking: 'conservative', show: 'conservative', close: 'conservative' };
+
 const MONTHLY_INVITES = 30000;
 
-// Ramp curve: index = month (1-based), value = fraction of full velocity
-const RAMP = [0, 0.25, 0.50, 0.80, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+// Ramp: index = month (1-based). Month 1 = onboarding (0). Full velocity Month 6+.
+const RAMP = [0, 0, 0.10, 0.25, 0.45, 0.70, 1, 1, 1, 1, 1, 1, 1];
 
 let _roiSlide = 0;
 
@@ -1317,33 +1341,40 @@ function roiGoSlide(n) {
   });
 }
 
-function roiCalcAndNext() {
-  const ltv       = parseFloat(document.getElementById('ltv').value)        || 0;
-  const showRate  = (parseFloat(document.getElementById('show-rate').value)  || 0) / 100;
-  const closeRate = (parseFloat(document.getElementById('close-rate').value) || 0) / 100;
+function toggleMode(step, mode) {
+  _modes[step] = mode;
+  ['conservative', 'aggressive'].forEach(m => {
+    const btn = document.getElementById('m-' + step + '-' + m[0]);
+    if (btn) btn.classList.toggle('active', m === mode);
+  });
+  roiCalc();
+}
 
-  // Steady-state monthly funnel
-  const attendees = Math.round(MONTHLY_INVITES * ATTEND_RATE);       // ~195
-  const booked    = Math.round(attendees * BOOKING_RATE);             // ~35
+function roiCalc() {
+  const ltv         = parseFloat(document.getElementById('ltv').value) || 0;
+  const attendRate  = RATES.attend[_modes.attend];
+  const bookingRate = RATES.booking[_modes.booking];
+  const showRate    = RATES.show[_modes.show];
+  const closeRate   = RATES.close[_modes.close];
+
+  const attendees = Math.round(MONTHLY_INVITES * attendRate);
+  const booked    = Math.round(attendees * bookingRate);
   const held      = Math.round(booked * showRate);
   const clients   = Math.round(held * closeRate);
   const monthly   = clients * ltv;
   const annual    = monthly * 12;
 
-  // Update funnel bars (width scales relative to 30K baseline)
   document.getElementById('r-attendees').textContent = fmtN(attendees);
   document.getElementById('r-booked').textContent    = fmtN(booked);
   document.getElementById('r-held').textContent      = fmtN(held);
   document.getElementById('r-clients').textContent   = fmtN(clients);
-  document.getElementById('r-show-pill').textContent  = Math.round(showRate*100) + '% show up to the call';
-  document.getElementById('r-close-pill').textContent = Math.round(closeRate*100) + '% close';
 
-  // Proportional bar widths (anchored to attendees=70%)
+  // Proportional bar widths (attendees anchored to 70%)
   const base = attendees || 1;
   document.getElementById('rfb-2').style.width = '70%';
-  document.getElementById('rfb-3').style.width = Math.max(12, Math.round(70 * booked / base)) + '%';
-  document.getElementById('rfb-4').style.width = Math.max(8,  Math.round(70 * held    / base)) + '%';
-  document.getElementById('rfb-5').style.width = Math.max(5,  Math.round(70 * clients / base)) + '%';
+  document.getElementById('rfb-3').style.width = Math.max(8, Math.round(70 * booked  / base)) + '%';
+  document.getElementById('rfb-4').style.width = Math.max(5, Math.round(70 * held    / base)) + '%';
+  document.getElementById('rfb-5').style.width = Math.max(3, Math.round(70 * clients / base)) + '%';
 
   document.getElementById('r-monthly').textContent = monthly > 0 ? fmt(monthly) : '—';
   document.getElementById('r-annual').textContent  = annual  > 0 ? fmt(annual)  : '—';
@@ -1353,13 +1384,16 @@ function roiCalcAndNext() {
   tbody.innerHTML = '';
   let cumulative = 0;
   for (let m = 1; m <= 12; m++) {
-    const ramp    = RAMP[m] || 0;
-    const mClients = clients * ramp;
-    const mRev    = mClients * ltv;
+    const ramp      = RAMP[m] || 0;
+    const mClients  = clients * ramp;
+    const mRev      = mClients * ltv;
     cumulative += mRev;
-    const hasRev  = mRev > 0.5;
-    const isRamp  = ramp > 0 && ramp < 1;
-    const tag     = isRamp ? `<span class="ramp-ramp-tag">RAMP</span>` : '';
+    const hasRev        = mRev > 0.5;
+    const isOnboarding  = m === 1;
+    const isRamp        = !isOnboarding && ramp > 0 && ramp < 1;
+    const tag = isOnboarding
+      ? `<span class="ramp-ramp-tag">ONBOARDING</span>`
+      : isRamp ? `<span class="ramp-ramp-tag">RAMP</span>` : '';
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>Month ${m}${tag}</td>
@@ -1370,7 +1404,10 @@ function roiCalcAndNext() {
     tbody.appendChild(tr);
   }
   document.getElementById('total-12m').textContent = cumulative > 0 ? fmt(cumulative) : '—';
+}
 
+function roiCalcAndNext() {
+  roiCalc();
   roiGoSlide(1);
 }
 
@@ -1385,6 +1422,17 @@ function csFilter(stage) {
 }
 
 switchVariant(0);
+
+// Load prospect branding into webinar bar
+(function() {
+  const label = document.getElementById('prospect-label');
+  const favicon = document.getElementById('prospect-favicon');
+  if (label) label.textContent = PROSPECT.name;
+  if (favicon) {
+    favicon.src = `https://www.google.com/s2/favicons?domain=${PROSPECT.domain}&sz=64`;
+    favicon.onload = () => { favicon.style.display = 'inline'; };
+  }
+})();
 </script>
 </body>
 </html>
