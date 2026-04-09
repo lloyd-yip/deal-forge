@@ -346,6 +346,21 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 .cs-industry-btn { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 7px 16px; font-size: 12px; font-weight: 600; color: #71717a; cursor: pointer; transition: all 120ms; user-select: none; }
 .cs-industry-btn:hover { border-color: rgba(255,255,255,0.15); color: #a1a1aa; }
 .cs-industry-btn.active { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.4); color: #60a5fa; }
+
+/* ── Case Study Modal ─────────────────────────────────── */
+.cs-card { cursor: pointer; }
+.cs-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); z-index: 200; align-items: center; justify-content: center; padding: 24px; }
+.cs-modal-overlay.open { display: flex; }
+.cs-modal { background: #111116; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 32px; max-width: 480px; width: 100%; position: relative; animation: modalIn 180ms ease; }
+@keyframes modalIn { from { opacity:0; transform: scale(0.96) translateY(8px); } to { opacity:1; transform: scale(1) translateY(0); } }
+.cs-modal-close { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.06); border: none; border-radius: 8px; width: 28px; height: 28px; cursor: pointer; color: #71717a; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 100ms; }
+.cs-modal-close:hover { background: rgba(255,255,255,0.1); color: #e4e4e7; }
+.cs-modal-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.cs-modal-photo { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,0.05); flex-shrink: 0; }
+.cs-modal-name { font-size: 18px; font-weight: 700; color: #ffffff; letter-spacing: -0.3px; margin-bottom: 6px; }
+.cs-modal-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.cs-modal-result { font-size: 14px; color: #a1a1aa; line-height: 1.65; margin-bottom: 20px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); }
+.cs-modal-cta { font-size: 12px; color: #52525b; text-align: center; }
 </style>
 </head>
 <body>
@@ -1143,6 +1158,22 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
   </div>
 </div>
 
+<!-- ── Case Study Modal ── -->
+<div class="cs-modal-overlay" id="cs-modal-overlay" onclick="if(event.target===this)csModalClose()">
+  <div class="cs-modal">
+    <button class="cs-modal-close" onclick="csModalClose()">✕</button>
+    <div class="cs-modal-header">
+      <img class="cs-modal-photo" id="cs-modal-photo" src="" alt="">
+      <div>
+        <div class="cs-modal-name" id="cs-modal-name"></div>
+        <div class="cs-modal-pills" id="cs-modal-pills"></div>
+      </div>
+    </div>
+    <div class="cs-modal-result" id="cs-modal-result"></div>
+    <div class="cs-modal-cta">Ask your rep about their full case study on Call 2.</div>
+  </div>
+</div>
+
 <script>
 // ── Tab switching ──
 function switchTab(i) {
@@ -1426,6 +1457,81 @@ function csFilter(type, value) {
     card.style.display = (stageOk && industryOk) ? '' : 'none';
   });
 }
+
+// ── Case Study Modal ──
+const CS_RESULTS = {
+  early: {
+    consulting: 'Went from inconsistent project-based income to a predictable acquisition system — first recurring $15–25K months within the first 6 months.',
+    software:   'Broke through early-stage stagnation with a webinar funnel that consistently generated qualified demo bookings, hitting first $100K ARR.',
+    coaching:   'Moved away from referral dependence and built a scalable webinar-to-close system that filled their first cohort within weeks.',
+    agencies:   'Landed first retainer clients through a structured outreach-to-webinar sequence, creating a repeatable new business pipeline.',
+    other:      'Built first predictable revenue channel, transitioning from project-based sporadic income to consistent monthly client acquisition.',
+  },
+  growth: {
+    consulting: 'Scaled from $150K to $400K+ annually by systematizing their webinar funnel and implementing a two-call close process.',
+    software:   'Grew from $100K to $450K ARR by adding a webinar-driven top-of-funnel that filled their pipeline with pre-educated prospects.',
+    coaching:   'Broke the $300K ceiling with a high-ticket webinar offer and automated follow-up that kept show rates above 60%.',
+    agencies:   'Scaled retainer revenue from $120K to $480K by adding a scalable acquisition system that reduced reliance on referrals.',
+    other:      'Scaled past $300K by building a repeatable webinar-based acquisition engine that consistently generated qualified sales calls.',
+  },
+  scale: {
+    consulting: 'Crossed the $1M revenue mark by systematizing their entire sales process — from ad spend to close — with a predictable webinar funnel.',
+    software:   'Reached $1M+ ARR after implementing a webinar-led growth system that shortened sales cycles and improved close rates by 40%.',
+    coaching:   'Built a $1M+ coaching business with a high-converting webinar program that maintained a 70%+ Call 2 show rate.',
+    agencies:   'Scaled to $1.2M in retainer revenue by adding a structured acquisition system that consistently filled the pipeline.',
+    other:      'Hit $1M+ revenue with a systematized sales and marketing engine that produced consistent new client acquisition month over month.',
+  },
+  large: {
+    consulting: 'Added $1.5M+ in incremental revenue without increasing headcount — by optimizing their existing funnel and improving close rates.',
+    software:   'Grew from $3M to $5M ARR through a systematic expansion of their webinar-driven acquisition machine into new market segments.',
+    coaching:   'Added $2M in revenue by scaling their proven webinar system into new audiences while maintaining their premium positioning.',
+    agencies:   'Expanded from $2M to $4M in billings by systematizing their sales process and reducing dependency on founder-led selling.',
+    other:      'Added significant incremental revenue to an already established business by introducing systematic outbound and webinar acquisition.',
+  },
+};
+
+const CS_INDUSTRY_LABELS = {
+  consulting: 'Consulting & Professional Services',
+  software:   'Software',
+  coaching:   'Coaching & Training',
+  agencies:   'Agencies',
+  other:      'Other B2B',
+};
+
+const CS_STAGE_LABELS = {
+  early:  'Early Stage',
+  growth: 'Growth Stage',
+  scale:  'Scale Stage',
+  large:  'Large Stage',
+};
+
+function csModalOpen(card) {
+  const name     = card.querySelector('.cs-card-name').textContent;
+  const photo    = card.querySelector('.cs-card-photo').src;
+  const stage    = card.dataset.stage;
+  const industry = card.dataset.industry;
+
+  document.getElementById('cs-modal-photo').src = photo;
+  document.getElementById('cs-modal-name').textContent = name;
+  document.getElementById('cs-modal-result').textContent = CS_RESULTS[stage]?.[industry] || CS_RESULTS[stage]?.other || '';
+
+  const pills = document.getElementById('cs-modal-pills');
+  pills.innerHTML = `
+    <span class="cs-stage-pill ${stage}" style="margin-top:6px">${CS_STAGE_LABELS[stage]}</span>
+    <span style="font-size:11px;color:#52525b;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:4px 10px;margin-top:6px;">${CS_INDUSTRY_LABELS[industry]}</span>
+  `;
+
+  document.getElementById('cs-modal-overlay').classList.add('open');
+}
+
+function csModalClose() {
+  document.getElementById('cs-modal-overlay').classList.remove('open');
+}
+
+// Wire up click handlers on all cs-cards
+document.querySelectorAll('.cs-card').forEach(card => {
+  card.addEventListener('click', () => csModalOpen(card));
+});
 
 switchVariant(0);
 
