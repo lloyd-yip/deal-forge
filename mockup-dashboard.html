@@ -189,10 +189,8 @@
         <div class="nj-label">Assign Rep</div>
         <select id="nj-rep" class="nj-input" style="appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%2352525b' viewBox='0 0 24 24'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;">
           <option value="">Select rep...</option>
-          <option value="ryan">Ryan Wilson</option>
-          <option value="james">James Carter</option>
-          <option value="doug">Doug Rich</option>
-          <option value="nicholas">Nicholas Batista</option>
+          <option value="melissa">Melissa F.</option>
+          <option value="ryan">Ryan Matsumori</option>
         </select>
       </div>
 
@@ -224,10 +222,16 @@
       <div style="width:18px;height:18px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border-radius:5px;"></div>
       <span style="font-size:13px;font-weight:600;color:#e4e4e7;letter-spacing:-0.01em;">Deal Forge</span>
     </div>
-    <button onclick="njOpen()" style="background:#f4f4f5;color:#09090b;font-size:13px;font-weight:600;padding:6px 14px;border-radius:8px;border:none;cursor:pointer;transition:background 100ms;display:flex;align-items:center;gap:5px;" onmouseenter="this.style.background='#ffffff'" onmouseleave="this.style.background='#f4f4f5'">
-      <svg style="width:13px;height:13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14M5 12h14"/></svg>
-      New Job
-    </button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <a href="/" target="_blank" style="font-size:13px;color:#71717a;padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);text-decoration:none;display:flex;align-items:center;gap:5px;transition:all 100ms;" onmouseenter="this.style.borderColor='rgba(255,255,255,0.16)';this.style.color='#a1a1aa'" onmouseleave="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#71717a'">
+        <svg style="width:12px;height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+        Preview Portal
+      </a>
+      <button onclick="njOpen()" style="background:#f4f4f5;color:#09090b;font-size:13px;font-weight:600;padding:6px 14px;border-radius:8px;border:none;cursor:pointer;transition:background 100ms;display:flex;align-items:center;gap:5px;" onmouseenter="this.style.background='#ffffff'" onmouseleave="this.style.background='#f4f4f5'">
+        <svg style="width:13px;height:13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14M5 12h14"/></svg>
+        New Job
+      </button>
+    </div>
   </nav>
 
   <!-- Content -->
@@ -242,11 +246,9 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
       <!-- Rep pills -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1;">
-        <button class="rep-pill active" onclick="filterRep('all',this)">All Reps</button>
-        <button class="rep-pill" onclick="filterRep('ryan',this)">Ryan Wilson</button>
-        <button class="rep-pill" onclick="filterRep('james',this)">James Carter</button>
-        <button class="rep-pill" onclick="filterRep('doug',this)">Doug Rich</button>
-        <button class="rep-pill" onclick="filterRep('nicholas',this)">Nicholas Batista</button>
+        <button class="rep-pill active" onclick="filterRep('all',this)">All</button>
+        <button class="rep-pill" onclick="filterRep('melissa',this)">Melissa F.</button>
+        <button class="rep-pill" onclick="filterRep('ryan',this)">Ryan Matsumori</button>
       </div>
       <!-- Search -->
       <div style="position:relative;min-width:200px;">
@@ -269,12 +271,12 @@
 
       <div id="job-rows">
 
-        <div class="row-item job-row" data-rep="ryan" data-name="sarah chen" data-company="acme corp" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
+        <div class="row-item job-row" data-rep="melissa" data-name="sarah chen" data-company="acme corp" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
           <div style="flex:1;">
             <div style="font-size:13px;font-weight:500;color:#ffffff;">Acme Corp</div>
             <div style="font-size:12px;color:#71717a;margin-top:1px;">Sarah Chen · CEO</div>
           </div>
-          <div style="width:110px;font-size:12px;color:#71717a;">Ryan Wilson</div>
+          <div style="width:110px;font-size:12px;color:#71717a;">Melissa F.</div>
           <div style="width:100px;display:flex;align-items:center;gap:6px;">
             <span class="status-dot dot-green"></span>
             <span style="font-size:12px;color:#71717a;">Complete</span>
@@ -288,7 +290,7 @@
             <div style="font-size:13px;font-weight:500;color:#ffffff;">TechFlow Inc</div>
             <div style="font-size:12px;color:#71717a;margin-top:1px;">Marcus Reid · VP Sales</div>
           </div>
-          <div style="width:110px;font-size:12px;color:#71717a;">Ryan Wilson</div>
+          <div style="width:110px;font-size:12px;color:#71717a;">Ryan Matsumori</div>
           <div style="width:100px;display:flex;align-items:center;gap:6px;">
             <span class="status-dot dot-amber"></span>
             <span style="font-size:12px;color:#71717a;">Running</span>
@@ -297,12 +299,12 @@
           <svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </div>
 
-        <div class="row-item job-row" data-rep="james" data-name="priya nair" data-company="buildright llc" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
+        <div class="row-item job-row" data-rep="melissa" data-name="priya nair" data-company="buildright llc" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
           <div style="flex:1;">
             <div style="font-size:13px;font-weight:500;color:#ffffff;">BuildRight LLC</div>
             <div style="font-size:12px;color:#71717a;margin-top:1px;">Priya Nair · Founder</div>
           </div>
-          <div style="width:110px;font-size:12px;color:#71717a;">James Carter</div>
+          <div style="width:110px;font-size:12px;color:#71717a;">Melissa F.</div>
           <div style="width:100px;display:flex;align-items:center;gap:6px;">
             <span class="status-dot dot-red"></span>
             <span style="font-size:12px;color:#71717a;">Failed</span>
@@ -311,12 +313,12 @@
           <svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </div>
 
-        <div class="row-item job-row" data-rep="james" data-name="dan osei" data-company="summit advisors" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
+        <div class="row-item job-row" data-rep="ryan" data-name="dan osei" data-company="summit advisors" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
           <div style="flex:1;">
             <div style="font-size:13px;font-weight:500;color:#ffffff;">Summit Advisors</div>
             <div style="font-size:12px;color:#71717a;margin-top:1px;">Dan Osei · Managing Director</div>
           </div>
-          <div style="width:110px;font-size:12px;color:#71717a;">James Carter</div>
+          <div style="width:110px;font-size:12px;color:#71717a;">Ryan Matsumori</div>
           <div style="width:100px;display:flex;align-items:center;gap:6px;">
             <span class="status-dot dot-green"></span>
             <span style="font-size:12px;color:#71717a;">Complete</span>
@@ -325,12 +327,12 @@
           <svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </div>
 
-        <div class="row-item job-row" data-rep="doug" data-name="linh tran" data-company="nova growth" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
+        <div class="row-item job-row" data-rep="melissa" data-name="linh tran" data-company="nova growth" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
           <div style="flex:1;">
             <div style="font-size:13px;font-weight:500;color:#ffffff;">Nova Growth</div>
             <div style="font-size:12px;color:#71717a;margin-top:1px;">Linh Tran · CEO</div>
           </div>
-          <div style="width:110px;font-size:12px;color:#71717a;">Doug Rich</div>
+          <div style="width:110px;font-size:12px;color:#71717a;">Melissa F.</div>
           <div style="width:100px;display:flex;align-items:center;gap:6px;">
             <span class="status-dot dot-purple"></span>
             <span style="font-size:12px;color:#71717a;">Pending</span>
@@ -339,12 +341,12 @@
           <svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </div>
 
-        <div class="row-item job-row" data-rep="nicholas" data-name="carlos mendez" data-company="clearpath consulting" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
+        <div class="row-item job-row" data-rep="ryan" data-name="carlos mendez" data-company="clearpath consulting" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
           <div style="flex:1;">
             <div style="font-size:13px;font-weight:500;color:#ffffff;">Clearpath Consulting</div>
             <div style="font-size:12px;color:#71717a;margin-top:1px;">Carlos Mendez · Partner</div>
           </div>
-          <div style="width:110px;font-size:12px;color:#71717a;">Nicholas Batista</div>
+          <div style="width:110px;font-size:12px;color:#71717a;">Ryan Matsumori</div>
           <div style="width:100px;display:flex;align-items:center;gap:6px;">
             <span class="status-dot dot-amber"></span>
             <span style="font-size:12px;color:#71717a;">Running</span>
@@ -522,7 +524,7 @@
 
 <script>
 
-// ─── DEMO DATA ───────────────────────────────────────
+// ─── DEMO DATA (known contacts — any other email also resolves via smart fallback) ───
 const DEMO_GHL = {
   'sarah@acmecorp.com': {
     name: 'Sarah Chen', role: 'CEO', company: 'Acme Corp', website: 'acmecorp.com',
@@ -537,6 +539,37 @@ const DEMO_GHL = {
     transcript: { title: 'Strategy Call — Priya Nair', date: 'Jan 12, 2026' }
   },
 };
+
+// Derive a plausible contact from any email (demo fallback — simulates GHL match)
+function deriveContact(email) {
+  var parts = email.split('@');
+  var local = parts[0] || '';
+  var domain = parts[1] || '';
+  // Name from local part: scottb → "Scott B.", john.smith → "John Smith"
+  var nameParts = local.replace(/[._\-]/g, ' ').split(' ').filter(Boolean);
+  var name = nameParts.map(function(p) {
+    return p.length === 1 ? p.toUpperCase() + '.' : p.charAt(0).toUpperCase() + p.slice(1);
+  }).join(' ');
+  // Company from domain: familycareclarity.com → "Family Care Clarity"
+  var domainBase = domain.split('.')[0] || domain;
+  var company = domainBase
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[-_]/g, ' ')
+    .split(' ')
+    .map(function(w){ return w.charAt(0).toUpperCase() + w.slice(1); })
+    .join(' ');
+  // Alternate transcript found/not found based on domain length (even = found, odd = not — just for demo variety)
+  var hasTranscript = domainBase.length % 2 === 0;
+  return {
+    name: name || 'Unknown',
+    role: 'Founder',
+    company: company || domain,
+    website: domain,
+    transcript: hasTranscript
+      ? { title: 'Discovery Call — ' + (name || 'Prospect') + ' / ' + company, date: 'Apr 7, 2026' }
+      : null
+  };
+}
 
 // ─── SCREEN TOGGLE ───────────────────────────────────
 function showScreen(name) {
@@ -613,7 +646,7 @@ function njSearch() {
   // Simulate API latency
   setTimeout(function() {
     document.getElementById('nj-loading').style.display = 'none';
-    var contact = DEMO_GHL[email] || null;
+    var contact = DEMO_GHL[email] || (email.indexOf('@') > 0 ? deriveContact(email) : null);
 
     if (!contact) {
       document.getElementById('nj-not-found').style.display = 'block';
