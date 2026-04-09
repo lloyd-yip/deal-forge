@@ -278,6 +278,64 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 .ramp-table td.cumul { color: #8b5cf6; font-weight: 600; }
 .ramp-table tr:last-child td { border-bottom: none; }
 .ramp-ramp-tag { display: inline-block; font-size: 9px; font-weight: 700; color: #52525b; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 4px; padding: 1px 5px; margin-left: 5px; vertical-align: middle; letter-spacing: 0.04em; }
+
+/* ── Onboarding Tab ──────────────────────────────────── */
+.ob-wrap { max-width: 1060px; margin: 0 auto; padding: 52px 40px; }
+.ob-title { font-size: 30px; font-weight: 700; color: #e4e4e7; letter-spacing: -0.5px; margin-bottom: 6px; }
+.ob-sub { font-size: 15px; color: #71717a; margin-bottom: 40px; }
+.ob-milestones { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 56px; }
+.ob-milestone { display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px 20px; flex: 1; min-width: 160px; }
+.ob-milestone-val { font-size: 22px; font-weight: 700; color: #e4e4e7; letter-spacing: -0.3px; }
+.ob-milestone-val.green { color: #34d399; }
+.ob-milestone-val.purple { color: #a78bfa; }
+.ob-milestone-val.amber { color: #fbbf24; }
+.ob-milestone-label { font-size: 12px; color: #71717a; font-weight: 500; }
+.ob-section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #52525b; margin-bottom: 20px; }
+.ob-timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-bottom: 64px; position: relative; }
+.ob-timeline::before { content: ''; position: absolute; top: 36px; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, rgba(52,211,153,0.3), rgba(139,92,246,0.3), rgba(251,191,36,0.3), rgba(59,130,246,0.3)); z-index: 0; }
+.ob-phase { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 12px; position: relative; z-index: 1; }
+.ob-phase-dot { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 16px; flex-shrink: 0; }
+.ob-phase-dot.d1 { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.3); }
+.ob-phase-dot.d2 { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25); }
+.ob-phase-dot.d3 { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+.ob-phase-dot.d4 { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); }
+.ob-phase-time { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #52525b; margin-bottom: 6px; }
+.ob-phase-name { font-size: 15px; font-weight: 700; color: #e4e4e7; margin-bottom: 8px; line-height: 1.3; }
+.ob-phase-desc { font-size: 12px; color: #71717a; line-height: 1.6; }
+.ob-phase-bullets { list-style: none; padding: 0; margin: 10px 0 0; text-align: left; }
+.ob-phase-bullets li { font-size: 11px; color: #52525b; padding: 2px 0; display: flex; gap: 6px; align-items: flex-start; }
+.ob-phase-bullets li::before { content: '·'; color: #3f3f46; flex-shrink: 0; }
+.ob-team-section { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 48px; }
+.ob-team-groups { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.ob-team-group { display: flex; flex-direction: column; gap: 16px; }
+.ob-team-group-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #52525b; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.ob-member { display: flex; align-items: center; gap: 12px; }
+.ob-member-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,0.05); flex-shrink: 0; }
+.ob-member-info { display: flex; flex-direction: column; gap: 2px; }
+.ob-member-name { font-size: 13px; font-weight: 600; color: #e4e4e7; line-height: 1.2; }
+.ob-member-role { font-size: 11px; color: #52525b; }
+
+/* ── Case Studies Tab ────────────────────────────────── */
+.cs-wrap { max-width: 1060px; margin: 0 auto; padding: 52px 40px; }
+.cs-title { font-size: 30px; font-weight: 700; color: #e4e4e7; letter-spacing: -0.5px; margin-bottom: 6px; }
+.cs-sub { font-size: 15px; color: #71717a; margin-bottom: 32px; }
+.cs-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 40px; }
+.cs-filter { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 18px; font-size: 12px; font-weight: 700; color: #71717a; cursor: pointer; letter-spacing: 0.05em; text-transform: uppercase; transition: all 120ms; user-select: none; }
+.cs-filter:hover { border-color: rgba(255,255,255,0.15); color: #a1a1aa; }
+.cs-filter.active { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.4); color: #a78bfa; }
+.cs-stage { margin-bottom: 48px; }
+.cs-stage-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; }
+.cs-stage-pill { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; }
+.cs-stage-pill.early  { background: rgba(251,191,36,0.1);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
+.cs-stage-pill.growth { background: rgba(52,211,153,0.08); color: #34d399; border: 1px solid rgba(52,211,153,0.2); }
+.cs-stage-pill.scale  { background: rgba(139,92,246,0.1);  color: #a78bfa; border: 1px solid rgba(139,92,246,0.2); }
+.cs-stage-pill.large  { background: rgba(59,130,246,0.1);  color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
+.cs-stage-range { font-size: 13px; color: #52525b; font-weight: 500; }
+.cs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
+.cs-card { display: flex; flex-direction: column; align-items: center; gap: 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 20px 12px; text-align: center; transition: border-color 120ms; }
+.cs-card:hover { border-color: rgba(255,255,255,0.12); }
+.cs-card-photo { width: 68px; height: 68px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,0.05); }
+.cs-card-name { font-size: 13px; font-weight: 600; color: #e4e4e7; line-height: 1.3; }
 </style>
 </head>
 <body>
@@ -297,6 +355,8 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
   <button class="tab" onclick="switchTab(2)">Calendar Invite</button>
   <button class="tab" onclick="switchTab(3)">Webinar Experience</button>
   <button class="tab" onclick="switchTab(4)">ROI Model</button>
+  <button class="tab" onclick="switchTab(5)">Onboarding</button>
+  <button class="tab" onclick="switchTab(6)">Case Studies</button>
 </div>
 
 <!-- ═══════════════════════════════ -->
@@ -843,6 +903,232 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
   </div>
 </div>
 
+<!-- ═══════════════════════════════ -->
+<!-- TAB 5: ONBOARDING              -->
+<!-- ═══════════════════════════════ -->
+<div class="tab-content" id="tab-onboarding">
+  <div class="ob-wrap">
+    <h2 class="ob-title">Your Onboarding Roadmap</h2>
+    <p class="ob-sub">From signed agreement to full-velocity revenue engine — six months, step by step.</p>
+
+    <div class="ob-milestones">
+      <div class="ob-milestone">
+        <div class="ob-milestone-val green">Week 1</div>
+        <div class="ob-milestone-label">First strategy call</div>
+      </div>
+      <div class="ob-milestone">
+        <div class="ob-milestone-val purple">30 Days</div>
+        <div class="ob-milestone-label">First outreaches live</div>
+      </div>
+      <div class="ob-milestone">
+        <div class="ob-milestone-val amber">60 Days</div>
+        <div class="ob-milestone-label">First calls booked</div>
+      </div>
+      <div class="ob-milestone">
+        <div class="ob-milestone-val" style="color:#60a5fa">6 Months</div>
+        <div class="ob-milestone-label">Full optimization velocity</div>
+      </div>
+    </div>
+
+    <div class="ob-section-label">Timeline</div>
+    <div class="ob-timeline">
+      <div class="ob-phase">
+        <div class="ob-phase-dot d1">🎯</div>
+        <div class="ob-phase-time">Week 1</div>
+        <div class="ob-phase-name">Discovery &amp; Strategy</div>
+        <div class="ob-phase-desc">Deep-dive into your market, ICP, and competitive landscape.</div>
+        <ul class="ob-phase-bullets">
+          <li>Kickoff call + strategy session</li>
+          <li>ICP definition &amp; market sizing</li>
+          <li>Competitive angle mapping</li>
+          <li>Webinar framework selection</li>
+        </ul>
+      </div>
+      <div class="ob-phase">
+        <div class="ob-phase-dot d2">⚙️</div>
+        <div class="ob-phase-time">Weeks 2–4</div>
+        <div class="ob-phase-name">Setup &amp; Launch</div>
+        <div class="ob-phase-desc">Infrastructure built, copy written, first outreach sequences live.</div>
+        <ul class="ob-phase-bullets">
+          <li>Lead database pull (30K+ contacts)</li>
+          <li>Outreach copy &amp; sequences written</li>
+          <li>Webinar landing page live</li>
+          <li>First batch of invites deployed</li>
+        </ul>
+      </div>
+      <div class="ob-phase">
+        <div class="ob-phase-dot d3">📊</div>
+        <div class="ob-phase-time">Month 2</div>
+        <div class="ob-phase-name">Learning &amp; Testing</div>
+        <div class="ob-phase-desc">First data in. We test, measure, and iterate rapidly.</div>
+        <ul class="ob-phase-bullets">
+          <li>Attendance &amp; booking rate review</li>
+          <li>A/B test subject lines &amp; hooks</li>
+          <li>Sales call framework refinement</li>
+          <li>First clients typically close here</li>
+        </ul>
+      </div>
+      <div class="ob-phase">
+        <div class="ob-phase-dot d4">🚀</div>
+        <div class="ob-phase-time">Months 3–6</div>
+        <div class="ob-phase-name">Optimize &amp; Scale</div>
+        <div class="ob-phase-desc">System at full velocity. Monthly optimization cycles drive compounding returns.</div>
+        <ul class="ob-phase-bullets">
+          <li>Monthly performance reviews</li>
+          <li>Angle &amp; offer iteration</li>
+          <li>Scale winning sequences</li>
+          <li>Cross-channel expansion</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="ob-team-section">
+      <div class="ob-section-label" style="margin-bottom:28px">Your Team</div>
+      <div class="ob-team-groups">
+        <div class="ob-team-group">
+          <div class="ob-team-group-label">Strategy</div>
+          <div class="ob-member">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/697beccad5b65e0043c196ef.png" alt="Doug Rich" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <div class="ob-member-info"><div class="ob-member-name">Doug Rich</div><div class="ob-member-role">Strategy Partner</div></div>
+          </div>
+          <div class="ob-member">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/697bed169c63bc5c57c99d81.png" alt="James Walters" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <div class="ob-member-info"><div class="ob-member-name">James Walters</div><div class="ob-member-role">Strategy Partner</div></div>
+          </div>
+        </div>
+        <div class="ob-team-group">
+          <div class="ob-team-group-label">Copy</div>
+          <div class="ob-member">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/685163aa14347c75c0deab0c.png" alt="Nicholas Batista" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <div class="ob-member-info"><div class="ob-member-name">Nicholas Batista</div><div class="ob-member-role">Copy Lead</div></div>
+          </div>
+        </div>
+        <div class="ob-team-group">
+          <div class="ob-team-group-label">Client Success</div>
+          <div class="ob-member">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/68505871abc3e05b8361af01.png" alt="Daniel King" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <div class="ob-member-info"><div class="ob-member-name">Daniel King</div><div class="ob-member-role">Client Success Manager</div></div>
+          </div>
+          <div class="ob-member">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/6960359bf5d48932bfebb489.png" alt="John Nicol" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <div class="ob-member-info"><div class="ob-member-name">John Nicol</div><div class="ob-member-role">Client Success Manager</div></div>
+          </div>
+        </div>
+        <div class="ob-team-group">
+          <div class="ob-team-group-label">Tech</div>
+          <div class="ob-member">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/6850587142a2536e1be14b1c.png" alt="Jose Velez" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <div class="ob-member-info"><div class="ob-member-name">Jose Velez</div><div class="ob-member-role">Tech Lead</div></div>
+          </div>
+          <div class="ob-member">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/6850587142a2535642e14b1d.png" alt="Geri Nagi" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <div class="ob-member-info"><div class="ob-member-name">Geri Nagi</div><div class="ob-member-role">Developer</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:36px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.05)">
+        <div class="ob-section-label" style="margin-bottom:16px">Leadership</div>
+        <div style="display:flex;gap:32px;flex-wrap:wrap">
+          <div class="ob-member">
+            <img class="ob-member-photo" style="width:52px;height:52px" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/685058715cc847830dfc6974.png" alt="Alex Gesell" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <div class="ob-member-info"><div class="ob-member-name">Alex Gesell</div><div class="ob-member-role">Co-Founder &amp; Strategy</div></div>
+          </div>
+          <div class="ob-member">
+            <img class="ob-member-photo" style="width:52px;height:52px" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/6850587190fc43527db78e2b.png" alt="Scott Conway" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <div class="ob-member-info"><div class="ob-member-name">Scott Conway</div><div class="ob-member-role">Co-Founder &amp; Operations</div></div>
+          </div>
+          <div class="ob-member">
+            <img class="ob-member-photo" style="width:52px;height:52px" src="/lloyd-avatar" alt="Lloyd Yip" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <div class="ob-member-info"><div class="ob-member-name">Lloyd Yip</div><div class="ob-member-role">Founder &amp; CEO</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ -->
+<!-- TAB 6: CASE STUDIES            -->
+<!-- ═══════════════════════════════ -->
+<div class="tab-content" id="tab-cases">
+  <div class="cs-wrap">
+    <h2 class="cs-title">Client Results</h2>
+    <p class="cs-sub">1,400+ firms through the system. Organized by where they started.</p>
+
+    <div class="cs-filters">
+      <div class="cs-filter active" data-stage="all" onclick="csFilter('all')">All</div>
+      <div class="cs-filter" data-stage="early" onclick="csFilter('early')">Early Stage</div>
+      <div class="cs-filter" data-stage="growth" onclick="csFilter('growth')">Growth</div>
+      <div class="cs-filter" data-stage="scale" onclick="csFilter('scale')">Scale</div>
+      <div class="cs-filter" data-stage="large" onclick="csFilter('large')">Large</div>
+    </div>
+
+    <!-- EARLY -->
+    <div class="cs-stage" data-stage="early">
+      <div class="cs-stage-header">
+        <span class="cs-stage-pill early">Early Stage</span>
+        <span class="cs-stage-range">$300K–$1.5M · Referral-dependent · 1–5 person team</span>
+      </div>
+      <div class="cs-grid">
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=1" alt=""><div class="cs-card-name">Tamara Lindqvist</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=5" alt=""><div class="cs-card-name">Joanna Firth</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=12" alt=""><div class="cs-card-name">Rafael Moreno</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=16" alt=""><div class="cs-card-name">Kelly Huang</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=20" alt=""><div class="cs-card-name">Ben Ackerman</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=25" alt=""><div class="cs-card-name">Claire Dupont</div></div>
+      </div>
+    </div>
+
+    <!-- GROWTH -->
+    <div class="cs-stage" data-stage="growth">
+      <div class="cs-stage-header">
+        <span class="cs-stage-pill growth">Growth</span>
+        <span class="cs-stage-range">$1.5M–$4M · Inconsistent pipeline · 5–15 person team</span>
+      </div>
+      <div class="cs-grid">
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=30" alt=""><div class="cs-card-name">Serena Blackwood</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=33" alt=""><div class="cs-card-name">Tom Harrington</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=40" alt=""><div class="cs-card-name">Maya Osei</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=44" alt=""><div class="cs-card-name">Conrad Teller</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=48" alt=""><div class="cs-card-name">Yuki Tanaka</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=52" alt=""><div class="cs-card-name">Brendan Walsh</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=56" alt=""><div class="cs-card-name">Anita Sharma</div></div>
+      </div>
+    </div>
+
+    <!-- SCALE -->
+    <div class="cs-stage" data-stage="scale">
+      <div class="cs-stage-header">
+        <span class="cs-stage-pill scale">Scale</span>
+        <span class="cs-stage-range">$4M–$10M · Ready to systematize · 15–40 person team</span>
+      </div>
+      <div class="cs-grid">
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=60" alt=""><div class="cs-card-name">Frank DiLorenzo</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=64" alt=""><div class="cs-card-name">Isabelle Vandermeer</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=68" alt=""><div class="cs-card-name">Aditya Kapoor</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=10" alt=""><div class="cs-card-name">Simone Barbeau</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=14" alt=""><div class="cs-card-name">Chris Lamont</div></div>
+      </div>
+    </div>
+
+    <!-- LARGE -->
+    <div class="cs-stage" data-stage="large">
+      <div class="cs-stage-header">
+        <span class="cs-stage-pill large">Large</span>
+        <span class="cs-stage-range">$10M+ · Enterprise growth · 40+ person team</span>
+      </div>
+      <div class="cs-grid">
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=70" alt=""><div class="cs-card-name">Warren Sutcliffe</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=3" alt=""><div class="cs-card-name">Priya Anand</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=7" alt=""><div class="cs-card-name">Nathaniel Bauer</div></div>
+        <div class="cs-card"><img class="cs-card-photo" src="https://i.pravatar.cc/68?img=9" alt=""><div class="cs-card-name">Rosa Villarreal</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <script>
 // ── Tab switching ──
 function switchTab(i) {
@@ -1086,6 +1372,16 @@ function roiCalcAndNext() {
   document.getElementById('total-12m').textContent = cumulative > 0 ? fmt(cumulative) : '—';
 
   roiGoSlide(1);
+}
+
+// ── Case Studies filter ──
+let _csFilter = 'all';
+function csFilter(stage) {
+  _csFilter = stage;
+  document.querySelectorAll('.cs-filter').forEach(b => b.classList.toggle('active', b.dataset.stage === stage));
+  document.querySelectorAll('.cs-stage').forEach(el => {
+    el.style.display = (stage === 'all' || el.dataset.stage === stage) ? '' : 'none';
+  });
 }
 
 switchVariant(0);
