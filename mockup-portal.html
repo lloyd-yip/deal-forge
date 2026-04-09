@@ -22,6 +22,35 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
+/* ═══ TAB 0: HOW IT WORKS ═══ */
+.hiw-wrap { max-width: 1100px; margin: 0 auto; padding: 56px 32px; }
+.hiw-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #34d399; margin-bottom: 10px; }
+.hiw-title { font-size: 30px; font-weight: 700; color: #ffffff; letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 10px; }
+.hiw-sub { font-size: 14px; color: #71717a; margin-bottom: 52px; }
+.hiw-funnel { display: flex; align-items: flex-start; gap: 0; }
+.hiw-step { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 24px 20px; display: flex; flex-direction: column; gap: 10px; }
+.hiw-step-num { font-size: 11px; font-weight: 700; color: #3f3f46; letter-spacing: 0.08em; }
+.hiw-step-icon-wrap { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
+.hiw-step-icon-wrap.s1 { background: rgba(52,211,153,0.12); }
+.hiw-step-icon-wrap.s2 { background: rgba(139,92,246,0.12); }
+.hiw-step-icon-wrap.s3 { background: rgba(251,191,36,0.12); }
+.hiw-step-icon-wrap.s4 { background: rgba(59,130,246,0.12); }
+.hiw-step-title { font-size: 15px; font-weight: 600; color: #ffffff; }
+.hiw-step-desc { font-size: 12px; color: #71717a; line-height: 1.6; flex: 1; }
+.hiw-step-rate { font-size: 11px; font-weight: 600; color: #34d399; background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.15); border-radius: 6px; padding: 4px 10px; display: inline-block; margin-top: 6px; }
+.hiw-step-rate.purple { color: #a78bfa; background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.15); }
+.hiw-step-rate.amber { color: #fbbf24; background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.15); }
+.hiw-step-rate.blue { color: #60a5fa; background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.15); }
+.hiw-arrow { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 68px; flex-shrink: 0; width: 64px; gap: 6px; }
+.hiw-arrow-line { width: 100%; height: 1px; background: linear-gradient(90deg, rgba(52,211,153,0.3), rgba(52,211,153,0.1)); position: relative; }
+.hiw-arrow-line::after { content: '›'; position: absolute; right: -4px; top: -9px; color: rgba(52,211,153,0.5); font-size: 18px; }
+.hiw-arrow-label { font-size: 10px; font-weight: 600; color: #3f3f46; text-align: center; letter-spacing: 0.04em; text-transform: uppercase; }
+.hiw-stats { display: flex; gap: 0; margin-top: 40px; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; overflow: hidden; }
+.hiw-stat { flex: 1; padding: 22px 24px; border-right: 1px solid rgba(255,255,255,0.06); }
+.hiw-stat:last-child { border-right: none; }
+.hiw-stat-val { font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; }
+.hiw-stat-label { font-size: 11px; color: #52525b; margin-top: 4px; font-weight: 500; }
+
 /* ═══ TAB 1: LEAD LIST ═══ */
 .lead-list-wrap { max-width: 1100px; margin: 0 auto; padding: 48px 32px; }
 .section-title { font-size: 28px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; margin-bottom: 6px; }
@@ -65,7 +94,7 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 /* Side-by-side layout for modal + email panel */
 .cal-content-row { position: relative; z-index: 10; display: flex; align-items: flex-start; gap: 0; }
 
-.cal-modal { background: #ffffff; border-radius: 16px; padding: 28px; width: 460px; box-shadow: 0 32px 80px rgba(0,0,0,0.6); color: #1a1a1a; flex-shrink: 0; }
+.cal-modal { background: #ffffff; border-radius: 16px; padding: 28px; width: 460px; max-height: calc(100vh - 180px); overflow-y: auto; box-shadow: 0 32px 80px rgba(0,0,0,0.6); color: #1a1a1a; flex-shrink: 0; }
 .cal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
 .cal-event-color { width: 14px; height: 14px; background: #4285f4; border-radius: 3px; margin-top: 3px; flex-shrink: 0; }
 .cal-event-title { font-size: 17px; font-weight: 600; color: #1a1a1a; line-height: 1.35; margin-left: 10px; flex: 1; }
@@ -84,6 +113,13 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .cal-desc-meta { display: flex; flex-direction: column; gap: 4px; }
 .cal-desc-meta span { font-size: 12px; color: #5f6368; }
 .cal-desc-meta strong { color: #3c4043; }
+.cal-desc-cta { background: #f0f7ff; border: 1px solid #d2e3fc; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; font-size: 12px; line-height: 1.7; color: #1a1a1a; }
+.cal-desc-cta a { color: #1a73e8; text-decoration: none; font-weight: 500; }
+.cal-desc-cases { margin-bottom: 14px; }
+.cal-desc-cases-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #70757a; margin-bottom: 8px; }
+.cal-desc-case { font-size: 12px; color: #3c4043; padding: 7px 0; border-bottom: 1px solid #f1f3f4; line-height: 1.5; }
+.cal-desc-case:last-child { border-bottom: none; }
+.cal-desc-case strong { color: #1a1a1a; }
 
 .rsvp-label { font-size: 12px; color: #70757a; margin-bottom: 10px; font-weight: 500; }
 .rsvp-buttons { display: flex; gap: 8px; }
@@ -245,16 +281,98 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 </nav>
 
 <div class="tab-bar">
-  <button class="tab active" onclick="switchTab(0)">Lead List</button>
-  <button class="tab" onclick="switchTab(1)">Calendar Invite</button>
-  <button class="tab" onclick="switchTab(2)">Webinar Experience</button>
-  <button class="tab" onclick="switchTab(3)">ROI Model</button>
+  <button class="tab active" onclick="switchTab(0)">How It Works</button>
+  <button class="tab" onclick="switchTab(1)">Lead List</button>
+  <button class="tab" onclick="switchTab(2)">Calendar Invite</button>
+  <button class="tab" onclick="switchTab(3)">Webinar Experience</button>
+  <button class="tab" onclick="switchTab(4)">ROI Model</button>
+</div>
+
+<!-- ═══════════════════════════════ -->
+<!-- ═══════════════════════════════ -->
+<!-- TAB 0: HOW IT WORKS            -->
+<!-- ═══════════════════════════════ -->
+<div class="tab-content active" id="tab-how">
+  <div class="hiw-wrap">
+    <div class="hiw-eyebrow">The System</div>
+    <h2 class="hiw-title">How Quantum Scaling Builds Your Revenue Engine</h2>
+    <p class="hiw-sub">From ICP-matched prospect to signed client — here's the complete flow your rep will walk through with you.</p>
+
+    <div class="hiw-funnel">
+      <!-- Step 1 -->
+      <div class="hiw-step">
+        <div class="hiw-step-num">01</div>
+        <div class="hiw-step-icon-wrap s1">
+          <svg width="20" height="20" fill="none" stroke="#34d399" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <div class="hiw-step-title">Lead Database</div>
+        <div class="hiw-step-desc">87M+ verified B2B contacts filtered to your exact ICP — by title, company size, industry, and geography. We identify the full addressable market before a single message is sent.</div>
+        <div class="hiw-step-rate">87,400 prospects identified</div>
+      </div>
+
+      <div class="hiw-arrow">
+        <div class="hiw-arrow-line"></div>
+        <div class="hiw-arrow-label">30K / mo</div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="hiw-step">
+        <div class="hiw-step-num">02</div>
+        <div class="hiw-step-icon-wrap s2">
+          <svg width="20" height="20" fill="none" stroke="#a78bfa" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        </div>
+        <div class="hiw-step-title">Calendar Invite</div>
+        <div class="hiw-step-desc">Automated, personalized calendar invites delivered directly into each prospect's Google or Outlook calendar. High-converting copy with case studies — not a cold email, a warm booking.</div>
+        <div class="hiw-step-rate purple">0.5–0.8% attend</div>
+      </div>
+
+      <div class="hiw-arrow">
+        <div class="hiw-arrow-line"></div>
+        <div class="hiw-arrow-label">150–240 / mo</div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="hiw-step">
+        <div class="hiw-step-num">03</div>
+        <div class="hiw-step-icon-wrap s3">
+          <svg width="20" height="20" fill="none" stroke="#fbbf24" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.845v6.31a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        </div>
+        <div class="hiw-step-title">Live Webinar</div>
+        <div class="hiw-step-desc">A 90-minute live training that educates, builds authority, and converts warm attendees. Lloyd presents the system live, answers questions, and ends with a clear next step for qualified attendees.</div>
+        <div class="hiw-step-rate amber">14–22% book a call</div>
+      </div>
+
+      <div class="hiw-arrow">
+        <div class="hiw-arrow-line"></div>
+        <div class="hiw-arrow-label">21–53 calls / mo</div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="hiw-step">
+        <div class="hiw-step-num">04</div>
+        <div class="hiw-step-icon-wrap s4">
+          <svg width="20" height="20" fill="none" stroke="#60a5fa" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+        </div>
+        <div class="hiw-step-title">Sales Call</div>
+        <div class="hiw-step-desc">Two-call close process. Call 1: diagnosis — understand the business, validate fit, build trust. Call 2: decision — present the proposal, handle objections, close. Warm prospects, structured process.</div>
+        <div class="hiw-step-rate blue">25%+ close rate</div>
+      </div>
+    </div>
+
+    <!-- Bottom stats -->
+    <div class="hiw-stats">
+      <div class="hiw-stat"><div class="hiw-stat-val">1,400+</div><div class="hiw-stat-label">B2B firms in the system</div></div>
+      <div class="hiw-stat"><div class="hiw-stat-val">$500M+</div><div class="hiw-stat-label">client revenue generated</div></div>
+      <div class="hiw-stat"><div class="hiw-stat-val">90 days</div><div class="hiw-stat-label">avg time to first sales calls</div></div>
+      <div class="hiw-stat"><div class="hiw-stat-val">30K/mo</div><div class="hiw-stat-label">automated outreaches</div></div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════ -->
 <!-- TAB 1: LEAD LIST               -->
 <!-- ═══════════════════════════════ -->
-<div class="tab-content active" id="tab-0">
+<div class="tab-content" id="tab-0">
   <div class="lead-list-wrap">
     <h2 class="section-title">Your Target Market</h2>
     <p class="section-sub">Deep research · ICP-matched · Sourced via Apollo · Sample of 25 shown below</p>
@@ -306,9 +424,6 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
         <span class="filter-tag">Australia</span>
       </div>
 
-      <div class="tam-blurb">
-        At <strong>30K/mo</strong>, your entire market cycles every <strong>3 months</strong> — rotate the webinar topic each cycle to re-engage the same audience fresh.
-      </div>
     </div>
 
     <!-- Lead Table -->
@@ -394,9 +509,20 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
         </div>
 
         <div class="cal-desc" id="cal-desc">
+          <div class="cal-desc-cta">
+            👉 <strong>Click Yes or Maybe</strong> to reserve your spot.<br>
+            Click <strong>No</strong> and we'll remove you from this invite series.<br>
+            🔗 <a href="#">Your registration link →</a>
+          </div>
           <div class="cal-desc-hook">Most firms plateau not because of talent — but because 100% of their pipeline depends on referrals they can't control.</div>
+          <div class="cal-desc-cases">
+            <div class="cal-desc-cases-label">What clients built in their first 90 days</div>
+            <div class="cal-desc-case"><strong>Sarah Chen (Meridian Advisory)</strong> — went from 100% referral-dependent to 847 registered attendees in her first webinar cycle.</div>
+            <div class="cal-desc-case"><strong>Derek Okonkwo (Vantage Partners)</strong> — booked 31 qualified sales calls in Month 2 using this exact outreach system.</div>
+            <div class="cal-desc-case"><strong>Marcus Webb (Sterling Growth)</strong> — broke through a $1.8M plateau and reached $212K/month recurring within 6 months.</div>
+          </div>
           <div class="cal-desc-section">
-            <div class="cal-desc-section-label">What You'll Learn</div>
+            <div class="cal-desc-section-label">What You'll Walk Away With</div>
             <ul class="cal-desc-bullets">
               <li>Why the referral ceiling exists — and the 3-phase system that breaks through it</li>
               <li>How to run 30,000+ automated outreaches per month without cold calling or discounting</li>
@@ -709,16 +835,25 @@ function switchSlide(i) {
 }
 
 // ── Variant switching ──
-function descHTML(hook, bullets, forLine, host, duration) {
-  return `<div class="cal-desc-hook">${hook}</div>
+function descHTML(hook, cases, bullets) {
+  return `<div class="cal-desc-cta">
+  👉 <strong>Click Yes or Maybe</strong> to reserve your spot.<br>
+  Click <strong>No</strong> and we'll remove you from this invite series.<br>
+  🔗 <a href="#">Your registration link →</a>
+</div>
+<div class="cal-desc-hook">${hook}</div>
+<div class="cal-desc-cases">
+  <div class="cal-desc-cases-label">What clients built in their first 90 days</div>
+  ${cases.map(c=>`<div class="cal-desc-case">${c}</div>`).join('')}
+</div>
 <div class="cal-desc-section">
-  <div class="cal-desc-section-label">What You'll Learn</div>
+  <div class="cal-desc-section-label">What You'll Walk Away With</div>
   <ul class="cal-desc-bullets">${bullets.map(b=>`<li>${b}</li>`).join('')}</ul>
 </div>
 <div class="cal-desc-meta">
-  <span><strong>For:</strong> ${forLine}</span>
-  <span><strong>Host:</strong> ${host}</span>
-  <span><strong>Duration:</strong> ${duration} · Join link sent on confirmation</span>
+  <span><strong>For:</strong> B2B consulting &amp; advisory founders · $1M–$5M revenue</span>
+  <span><strong>Host:</strong> Lloyd Yip · Founder, Quantum Scaling · $500M+ in client revenue</span>
+  <span><strong>Duration:</strong> 90 min + live Q&amp;A · Join link sent on confirmation</span>
 </div>`;
 }
 
@@ -729,43 +864,49 @@ const variants = [
     desc: descHTML(
       'Most firms plateau not because of talent — but because 100% of their pipeline depends on referrals they can\'t control.',
       [
+        '<strong>Sarah Chen (Meridian Advisory)</strong> — went from 100% referral-dependent to 847 registered attendees in her first webinar cycle.',
+        '<strong>Derek Okonkwo (Vantage Partners)</strong> — booked 31 qualified sales calls in Month 2 using this exact outreach system.',
+        '<strong>Marcus Webb (Sterling Growth)</strong> — broke through a $1.8M plateau and reached $212K/month recurring within 6 months.'
+      ],
+      [
         'Why the referral ceiling exists — and the 3-phase system that breaks through it',
         'How to run 30,000+ automated outreaches per month without cold calling or discounting',
         'Live funnel math built with your firm\'s specific numbers'
-      ],
-      'B2B consulting &amp; advisory founders · $1M–$5M revenue',
-      'Lloyd Yip · Founder, Quantum Scaling · $500M+ in client revenue',
-      '90 min + live Q&amp;A'
+      ]
     )
   },
   {
     tag: 'Outcome-focused',
     title: 'The Webinar Funnel That Generated $500M+ for Consulting Firms — Live Training with Lloyd Yip',
     desc: descHTML(
-      'The same acquisition system behind $500M+ in client revenue — now live, with your numbers.',
+      'The same acquisition system behind $500M+ in client revenue — now live, with your numbers built in.',
+      [
+        '<strong>Jordan Marsh (Pinnacle Growth Co.)</strong> — scaled from 3 referrals/month to 22 inbound calls in 60 days.',
+        '<strong>Alicia Fontaine (Meridian Advisory)</strong> — first webinar cycle generated 6 new clients at $42K average contract value.',
+        '<strong>Tyler Breckenridge (Northbrook Digital)</strong> — $1.1M in pipeline from a single 90-minute webinar run to 600 attendees.'
+      ],
       [
         'The exact webinar funnel Quantum Scaling has deployed across 1,400+ B2B firms',
         'How clients scaled from referral-dependent to 30K+ outreaches/month on autopilot',
         'Your 90-day revenue projection built live during the session'
-      ],
-      'B2B consulting &amp; advisory founders · $1M–$5M revenue',
-      'Lloyd Yip · Founder, Quantum Scaling · $500M+ in client revenue',
-      '90 min + live Q&amp;A'
+      ]
     )
   },
   {
     tag: 'Mechanism-led',
     title: 'The 3-Phase Revenue Engine Replacing Referrals for $1M–$5M Consulting Firms',
     desc: descHTML(
-      'Referrals work — until they don\'t. There\'s a 3-phase system replacing them across 1,400+ consulting firms.',
+      'Referrals work — until they don\'t. Here\'s the 3-phase system replacing them across 1,400+ consulting firms.',
+      [
+        '<strong>Priya Menon (Apex Revenue Labs)</strong> — Phase 1 alone identified 6,200 ICP-matched contacts her team had never reached.',
+        '<strong>David Nakamura (Horizon Strategy Group)</strong> — Phase 2 outreach hit 31K contacts in Month 1, 14 calls booked in Week 3.',
+        '<strong>Camille Rousseau (Rousseau Consulting)</strong> — Phase 3 close rate improved from 18% to 31% after adopting the 2-call structure.'
+      ],
       [
         'Phase 1: Market identification — pull your exact ICP from a database of 87M+ contacts',
         'Phase 2: Automated webinar outreach — 30K+ targeted invites per month, zero cold calls',
         'Phase 3: Pipeline conversion — the exact call flow that closes 25%+ of booked calls'
-      ],
-      'B2B consulting &amp; advisory founders · $1M–$5M revenue',
-      'Lloyd Yip · Founder, Quantum Scaling · $500M+ in client revenue',
-      '90 min + live Q&amp;A'
+      ]
     )
   }
 ];
