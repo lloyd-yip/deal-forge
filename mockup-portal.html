@@ -349,7 +349,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 
 /* ── Case Study Modal ─────────────────────────────────── */
 .cs-card { cursor: pointer; }
-.cs-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); z-index: 200; align-items: center; justify-content: center; padding: 24px; }
+.cs-modal-overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,0.7); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); z-index: 9999; align-items: center; justify-content: center; padding: 24px; }
 .cs-modal-overlay.open { display: flex; }
 .cs-modal { background: #111116; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 32px; max-width: 480px; width: 100%; position: relative; animation: modalIn 180ms ease; }
 @keyframes modalIn { from { opacity:0; transform: scale(0.96) translateY(8px); } to { opacity:1; transform: scale(1) translateY(0); } }
@@ -1528,9 +1528,10 @@ function csModalClose() {
   document.getElementById('cs-modal-overlay').classList.remove('open');
 }
 
-// Wire up click handlers on all cs-cards
-document.querySelectorAll('.cs-card').forEach(card => {
-  card.addEventListener('click', () => csModalOpen(card));
+// Wire up click handlers on all cs-cards (document delegation — works in all browsers)
+document.addEventListener('click', function(e) {
+  var card = e.target.closest && e.target.closest('.cs-card');
+  if (card) csModalOpen(card);
 });
 
 switchVariant(0);
