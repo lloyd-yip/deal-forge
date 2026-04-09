@@ -75,6 +75,16 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .cal-meta-row { display: flex; align-items: flex-start; gap: 12px; font-size: 13px; color: #3c4043; }
 .cal-meta-icon { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; color: #70757a; }
 .cal-desc { font-size: 13px; color: #3c4043; line-height: 1.6; padding: 14px 0; border-top: 1px solid #e8eaed; border-bottom: 1px solid #e8eaed; margin-bottom: 18px; }
+.cal-desc-hook { font-size: 13px; font-weight: 500; color: #1a1a1a; margin-bottom: 12px; line-height: 1.4; }
+.cal-desc-section { margin-bottom: 12px; }
+.cal-desc-section-label { font-size: 11px; font-weight: 600; color: #70757a; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+.cal-desc-bullets { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; }
+.cal-desc-bullets li { font-size: 13px; color: #3c4043; padding-left: 16px; position: relative; }
+.cal-desc-bullets li::before { content: '→'; position: absolute; left: 0; color: #1a73e8; font-weight: 600; }
+.cal-desc-meta { display: flex; flex-direction: column; gap: 4px; }
+.cal-desc-meta span { font-size: 12px; color: #5f6368; }
+.cal-desc-meta strong { color: #3c4043; }
+
 .rsvp-label { font-size: 12px; color: #70757a; margin-bottom: 10px; font-weight: 500; }
 .rsvp-buttons { display: flex; gap: 8px; }
 .rsvp-btn { padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid #dadce0; background: #fff; color: #3c4043; transition: all 100ms; }
@@ -85,8 +95,8 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 
 /* Email side panel */
 .email-side-panel { overflow: hidden; width: 0; opacity: 0; transition: width 350ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease; flex-shrink: 0; }
-.email-side-panel.open { width: 340px; opacity: 1; }
-.email-side-inner { width: 340px; background: #ffffff; border-radius: 16px; margin-left: 16px; padding: 24px; box-shadow: 0 32px 80px rgba(0,0,0,0.5); }
+.email-side-panel.open { width: 360px; opacity: 1; }
+.email-side-inner { width: 324px; background: #ffffff; border-radius: 16px; margin-left: 16px; padding: 24px; box-shadow: 0 32px 80px rgba(0,0,0,0.5); }
 .email-panel-title { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #70757a; margin-bottom: 14px; }
 .email-item { padding: 12px 14px; border: 1px solid #e8eaed; border-radius: 10px; margin-bottom: 10px; background: #f8f9fa; }
 .email-item:last-child { margin-bottom: 0; }
@@ -102,7 +112,7 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 .live-text { font-size: 11px; font-weight: 600; color: #ef4444; letter-spacing: 0.05em; }
 .attendee-count { font-size: 12px; color: #71717a; }
-.webinar-body { display: flex; flex: 1; }
+.webinar-body { display: flex; flex: 1; min-height: 0; }
 .slide-area { flex: 1; padding: 24px; display: flex; flex-direction: column; }
 .slide-nav { display: flex; gap: 8px; margin-bottom: 16px; }
 .slide-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.15); cursor: pointer; transition: background 100ms; }
@@ -153,11 +163,14 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .avg-item strong { color: #34d399; }
 
 /* Chat panel */
-.chat-panel { width: 280px; border-left: 1px solid rgba(255,255,255,0.06); background: #0e0e16; display: flex; flex-direction: column; }
-.chat-header { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.chat-panel { width: 280px; border-left: 1px solid rgba(255,255,255,0.06); background: #0e0e16; display: flex; flex-direction: column; height: 100%; }
+.chat-header { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; }
 .chat-title { font-size: 12px; font-weight: 600; color: #e4e4e7; }
 .chat-subtitle { font-size: 11px; color: #52525b; margin-top: 2px; }
-.chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; max-height: 400px; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.chat-booking { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); border-radius: 8px; padding: 8px 10px; }
+.chat-booking .chat-name { color: #34d399; }
+.chat-booking .chat-text { color: #6ee7b7; font-size: 12px; }
 .chat-name { font-size: 11px; font-weight: 600; color: #8b5cf6; margin-bottom: 3px; }
 .chat-name.support { color: #34d399; }
 .chat-text { font-size: 12px; color: #a1a1aa; line-height: 1.4; }
@@ -290,7 +303,7 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
       </div>
 
       <div class="tam-blurb">
-        Based on your ICP profile, we identified <strong>87,400 reachable prospects</strong> across English-speaking markets. At a cadence of <strong>30,000–35,000 outreaches per month</strong>, you can move through your entire addressable market in approximately <strong>3 months per cycle</strong> — then recycle with a new webinar topic to re-engage the same audience. Because your TAM is above the 30K threshold, you're never limited by audience size — you have enough market to run fresh campaigns for years without duplicating. We recommend rotating webinar angles every cycle to maximize show rates across your full market.
+        At <strong>30K outreaches/month</strong>, you cycle your full market of <strong>87,400 prospects</strong> every 3 months — then rotate the webinar topic to re-engage the same audience fresh. You are never audience-limited.
       </div>
     </div>
 
@@ -376,15 +389,13 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
           </div>
         </div>
 
-        <div class="cal-desc" id="cal-desc">
-          Most consulting firms hit a ceiling not because of talent or delivery — but because their entire pipeline depends on referrals they can't control. In this 90-minute live session, Lloyd breaks down the three-phase revenue system that's moved 1,400+ consulting founders from referral-dependent to a fully automated, high-converting pipeline — without adding headcount, burning out on outreach, or discounting to compete.
-        </div>
+        <div class="cal-desc" id="cal-desc"><!-- populated by switchVariant(0) on load --></div>
 
         <div class="rsvp-label">Will you attend?</div>
         <div class="rsvp-buttons">
-          <button class="rsvp-btn" id="rsvp-yes-btn" onclick="rsvpYes(this)">Yes</button>
-          <button class="rsvp-btn" onclick="rsvpNo(this)">No</button>
-          <button class="rsvp-btn">Maybe</button>
+          <button class="rsvp-btn" id="rsvp-yes-btn" onclick="setRsvp(this,'yes')">Yes</button>
+          <button class="rsvp-btn" id="rsvp-no-btn" onclick="setRsvp(this,'no')">No</button>
+          <button class="rsvp-btn" id="rsvp-maybe-btn" onclick="setRsvp(this,'maybe')">Maybe</button>
         </div>
         <div class="rsvp-confirmed" id="rsvp-confirmed">✓ You're registered. Reminders on the way.</div>
       </div>
@@ -523,6 +534,12 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
           <div class="chat-msg"><div class="chat-name">Priya M.</div><div class="chat-text">Is there a replay available? Our COO wants to see this but has a conflict</div></div>
           <div class="chat-msg"><div class="chat-name support">QS Support</div><div class="chat-text">Yes — replay goes out within 24 hours to all registered attendees</div></div>
           <div class="chat-msg"><div class="chat-name">Marcus W.</div><div class="chat-text">Most excited about the ROI model — want to see our specific numbers</div></div>
+          <div class="chat-msg chat-booking"><div class="chat-name support">QS Support</div><div class="chat-text">🎉 Sarah Chen just booked a call — excited to walk through your funnel with you, Sarah!</div></div>
+          <div class="chat-msg"><div class="chat-name">Nadia C.</div><div class="chat-text">This is exactly the framework we've been missing. Taking notes furiously</div></div>
+          <div class="chat-msg chat-booking"><div class="chat-name support">QS Support</div><div class="chat-text">✅ Derek Okonkwo — call confirmed! Looking forward to mapping this to Vantage Partners, Derek</div></div>
+          <div class="chat-msg"><div class="chat-name">Ryan C.</div><div class="chat-text">We've been stuck at $1.2M for 2 years. This is the unlock</div></div>
+          <div class="chat-msg chat-booking"><div class="chat-name support">QS Support</div><div class="chat-text">🎉 Marcus Webb just booked — can't wait to go through the numbers with you, Marcus</div></div>
+          <div class="chat-msg"><div class="chat-name">Leila A.</div><div class="chat-text">The Phase 2 outreach volume is wild — didn't know this was possible without a massive team</div></div>
         </div>
       </div>
     </div>
@@ -673,21 +690,64 @@ function switchSlide(i) {
 }
 
 // ── Variant switching ──
+function descHTML(hook, bullets, forLine, host, duration) {
+  return `<div class="cal-desc-hook">${hook}</div>
+<div class="cal-desc-section">
+  <div class="cal-desc-section-label">What You'll Learn</div>
+  <ul class="cal-desc-bullets">${bullets.map(b=>`<li>${b}</li>`).join('')}</ul>
+</div>
+<div class="cal-desc-meta">
+  <span><strong>For:</strong> ${forLine}</span>
+  <span><strong>Host:</strong> ${host}</span>
+  <span><strong>Duration:</strong> ${duration} · Join link sent on confirmation</span>
+</div>`;
+}
+
 const variants = [
   {
     tag: 'Problem-aware',
     title: 'Why 90% of Consulting Firms Plateau at $1.5M — and the Revenue System That Actually Breaks Through',
-    desc: 'Most consulting firms hit a ceiling not because of talent or delivery — but because their entire pipeline depends on referrals they can\'t control. In this 90-minute live session, Lloyd breaks down the three-phase revenue system that\'s moved 1,400+ consulting founders from referral-dependent to a fully automated, high-converting pipeline — without adding headcount, burning out on outreach, or discounting to compete.'
+    desc: descHTML(
+      'Most firms plateau not because of talent — but because 100% of their pipeline depends on referrals they can\'t control.',
+      [
+        'Why the referral ceiling exists — and the 3-phase system that breaks through it',
+        'How to run 30,000+ automated outreaches per month without cold calling or discounting',
+        'Live funnel math built with your firm\'s specific numbers'
+      ],
+      'B2B consulting &amp; advisory founders · $1M–$5M revenue',
+      'Lloyd Yip · Founder, Quantum Scaling · $500M+ in client revenue',
+      '90 min + live Q&amp;A'
+    )
   },
   {
     tag: 'Outcome-focused',
     title: 'The Webinar Funnel That Generated $500M+ for Consulting Firms — Live Training with Lloyd Yip',
-    desc: 'In this 90-minute live training, Lloyd walks through the exact acquisition system Quantum Scaling has deployed across 1,400+ B2B consulting and advisory firms — the same system responsible for over $500M in client revenue. You\'ll leave with the framework, the funnel math built with your specific numbers, and a clear picture of what this looks like in your business starting in the next 90 days.'
+    desc: descHTML(
+      'The same acquisition system behind $500M+ in client revenue — now live, with your numbers.',
+      [
+        'The exact webinar funnel Quantum Scaling has deployed across 1,400+ B2B firms',
+        'How clients scaled from referral-dependent to 30K+ outreaches/month on autopilot',
+        'Your 90-day revenue projection built live during the session'
+      ],
+      'B2B consulting &amp; advisory founders · $1M–$5M revenue',
+      'Lloyd Yip · Founder, Quantum Scaling · $500M+ in client revenue',
+      '90 min + live Q&amp;A'
+    )
   },
   {
     tag: 'Mechanism-led',
     title: 'The 3-Phase Revenue Engine Replacing Referrals for $1M–$5M Consulting Firms',
-    desc: 'Referrals work — until they don\'t. This training reveals the three-phase automated system consulting founders are using to build a predictable, scalable pipeline that doesn\'t depend on word-of-mouth, cold calling, or paid ads. Lloyd has used this exact framework with 1,400+ clients to generate $500M+ in combined revenue — and in this session, he\'ll show you how it maps to your firm specifically.'
+    desc: descHTML(
+      'Referrals work — until they don\'t. There\'s a 3-phase system replacing them across 1,400+ consulting firms.',
+      [
+        'Phase 1: Market identification — pull your exact ICP from a database of 87M+ contacts',
+        'Phase 2: Automated webinar outreach — 30K+ targeted invites per month, zero cold calls',
+        'Phase 3: Pipeline conversion — the exact call flow that closes 25%+ of booked calls'
+      ],
+      'B2B consulting &amp; advisory founders · $1M–$5M revenue',
+      'Lloyd Yip · Founder, Quantum Scaling · $500M+ in client revenue',
+      '90 min + live Q&amp;A'
+    )
   }
 ];
 
@@ -702,26 +762,40 @@ function switchVariant(i) {
   });
   document.getElementById('var-tag').textContent = variants[i].tag;
   document.getElementById('cal-title').textContent = variants[i].title;
-  document.getElementById('cal-desc').textContent = variants[i].desc;
+  document.getElementById('cal-desc').innerHTML = variants[i].desc;
   document.getElementById('slide-title').textContent = variants[i].title;
   resetRsvp();
 }
 
 function resetRsvp() {
-  const btn = document.getElementById('rsvp-yes-btn');
-  btn.textContent = 'Yes';
-  btn.classList.remove('confirmed');
+  ['rsvp-yes-btn','rsvp-no-btn','rsvp-maybe-btn'].forEach(id => {
+    const b = document.getElementById(id);
+    b.classList.remove('confirmed');
+    b.textContent = id === 'rsvp-yes-btn' ? 'Yes' : id === 'rsvp-no-btn' ? 'No' : 'Maybe';
+  });
   document.getElementById('rsvp-confirmed').style.display = 'none';
   document.getElementById('email-side-panel').classList.remove('open');
 }
 
-function rsvpYes(btn) {
-  btn.textContent = '✓ Going';
+function setRsvp(btn, type) {
+  ['rsvp-yes-btn','rsvp-no-btn','rsvp-maybe-btn'].forEach(id => {
+    document.getElementById(id).classList.remove('confirmed');
+  });
   btn.classList.add('confirmed');
-  document.getElementById('rsvp-confirmed').style.display = 'block';
-  document.getElementById('email-side-panel').classList.add('open');
+  if (type === 'yes') {
+    btn.textContent = '✓ Going';
+    document.getElementById('rsvp-confirmed').style.display = 'block';
+    document.getElementById('email-side-panel').classList.add('open');
+  } else if (type === 'no') {
+    btn.textContent = '✗ Not Going';
+    document.getElementById('rsvp-confirmed').style.display = 'none';
+    document.getElementById('email-side-panel').classList.remove('open');
+  } else {
+    btn.textContent = '? Maybe';
+    document.getElementById('rsvp-confirmed').style.display = 'none';
+    document.getElementById('email-side-panel').classList.remove('open');
+  }
 }
-function rsvpNo(btn) { btn.textContent = 'Not going'; }
 
 // ── ROI Calculator ──
 function fmt(n) {
@@ -814,6 +888,7 @@ function recalc() {
 }
 
 recalc();
+switchVariant(0);
 </script>
 </body>
 </html>
