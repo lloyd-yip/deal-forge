@@ -524,18 +524,21 @@
 
 <script>
 
-// ─── DEMO DATA (known contacts — any other email also resolves via smart fallback) ───
+// ─── DEMO DATA — rep is GHL opp owner ───────────────
 const DEMO_GHL = {
   'sarah@acmecorp.com': {
     name: 'Sarah Chen', role: 'CEO', company: 'Acme Corp', website: 'acmecorp.com',
+    rep: 'melissa',
     transcript: { title: 'Discovery Call — Sarah Chen / Acme Corp', date: 'Jan 14, 2026' }
   },
   'marcus@techflow.io': {
     name: 'Marcus Reid', role: 'VP Sales', company: 'TechFlow Inc', website: 'techflow.io',
-    transcript: null
+    rep: 'ryan',
+    transcript: null  // explicitly no-show for demo
   },
   'priya@buildright.com': {
     name: 'Priya Nair', role: 'Founder', company: 'BuildRight LLC', website: 'buildright.com',
+    rep: 'melissa',
     transcript: { title: 'Strategy Call — Priya Nair', date: 'Jan 12, 2026' }
   },
 };
@@ -558,12 +561,15 @@ function deriveContact(email) {
     .split(' ')
     .map(function(w){ return w.charAt(0).toUpperCase() + w.slice(1); })
     .join(' ');
-  // Default: always show transcript found — if a contact is in GHL at Call 2 stage, they showed
+  // Deterministic rep assignment from email char code (simulates GHL opp owner lookup)
+  var rep = (local.charCodeAt(0) % 2 === 0) ? 'melissa' : 'ryan';
+  // Always transcript found — at Call 2 stage they showed
   return {
     name: name || 'Unknown',
     role: 'Founder',
     company: company || domain,
     website: domain,
+    rep: rep,
     transcript: { title: 'Discovery Call — ' + (name || 'Prospect') + ' / ' + company, date: 'Apr 7, 2026' }
   };
 }
@@ -656,6 +662,11 @@ function njSearch() {
     document.getElementById('nj-name').textContent = contact.name;
     document.getElementById('nj-role-company').textContent = contact.role + ' · ' + contact.company;
     document.getElementById('nj-website').textContent = contact.website;
+
+    // Auto-assign rep from GHL opp owner
+    if (contact.rep) {
+      document.getElementById('nj-rep').value = contact.rep;
+    }
 
     // Transcript status
     if (contact.transcript) {
