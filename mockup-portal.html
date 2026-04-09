@@ -359,7 +359,14 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 .cs-modal-photo { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,0.05); flex-shrink: 0; }
 .cs-modal-name { font-size: 18px; font-weight: 700; color: #ffffff; letter-spacing: -0.3px; margin-bottom: 6px; }
 .cs-modal-pills { display: flex; gap: 6px; flex-wrap: wrap; }
-.cs-modal-result { font-size: 14px; color: #a1a1aa; line-height: 1.65; margin-bottom: 20px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); }
+.cs-modal-company { font-size: 12px; color: #52525b; margin-top: 2px; }
+.cs-modal-stats { display: flex; gap: 10px; margin-bottom: 16px; }
+.cs-modal-stat { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px 14px; }
+.cs-modal-stat-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #3f3f46; margin-bottom: 4px; }
+.cs-modal-stat-value { font-size: 12px; font-weight: 600; color: #e4e4e7; line-height: 1.4; }
+.cs-modal-metric { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: #a78bfa; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); border-radius: 6px; padding: 4px 10px; display: inline-block; margin-bottom: 14px; }
+.cs-modal-result { font-size: 14px; color: #a1a1aa; line-height: 1.65; margin-bottom: 16px; padding: 14px 16px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); }
+.cs-modal-quote { font-size: 13px; color: #71717a; font-style: italic; line-height: 1.55; margin-bottom: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); }
 .cs-modal-cta { font-size: 12px; color: #52525b; text-align: center; }
 </style>
 </head>
@@ -1166,10 +1173,23 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
       <img class="cs-modal-photo" id="cs-modal-photo" src="" alt="">
       <div>
         <div class="cs-modal-name" id="cs-modal-name"></div>
+        <div class="cs-modal-company" id="cs-modal-company"></div>
         <div class="cs-modal-pills" id="cs-modal-pills"></div>
       </div>
     </div>
+    <div class="cs-modal-stats" id="cs-modal-stats" style="display:none">
+      <div class="cs-modal-stat">
+        <div class="cs-modal-stat-label">Before</div>
+        <div class="cs-modal-stat-value" id="cs-modal-before"></div>
+      </div>
+      <div class="cs-modal-stat">
+        <div class="cs-modal-stat-label">After</div>
+        <div class="cs-modal-stat-value" id="cs-modal-after"></div>
+      </div>
+    </div>
+    <div class="cs-modal-metric" id="cs-modal-metric" style="display:none"></div>
     <div class="cs-modal-result" id="cs-modal-result"></div>
+    <div class="cs-modal-quote" id="cs-modal-quote" style="display:none"></div>
     <div class="cs-modal-cta">Ask your rep about their full case study on Call 2.</div>
   </div>
 </div>
@@ -1505,21 +1525,57 @@ const CS_STAGE_LABELS = {
   large:  'Large Stage',
 };
 
+// ── Per-client real data (sourced from QS Proof Library & due-diligence page) ──
+const CS_CLIENTS = {
+  'Forrest Dombrow': { company:'Profitable by Design', before:'$0/year', after:'$500K/year', metric:'Built from zero', result:'Built his first predictable client acquisition system from scratch — scaling from zero to $500K/year through a systematic webinar-to-close funnel.', quote:null },
+  'Tejas Parikh': { company:'Akshar Business Consulting', before:'$36K/year · 0 calls/month', after:'$1M/year · 10 calls/month', metric:'27× revenue in 6 months', result:'Scaled 27× in 6 months — $36K to $1M/year. Won 4 × $100K enterprise contracts targeting CFOs at mid-market companies. Named LinkedIn Top Voice in Budgeting. 270+ webinar attendees/month.', quote:'"The webinar system just works for large deals with C-Level in the enterprise."' },
+  'Simon Mueller': { company:'Mantaro Brands', before:'€0 · 1 sales call/month', after:'€12M ARR in 2 years', metric:'Sold at high 8-figure valuation', result:'Built from €0 to €12M ARR in just 2 years. Secured a €20M Series A and ultimately exited at a high 8-figure valuation. 20 sales calls/month, 120+ webinar attendees/month.', quote:'"The combination of superstar coaches, cutting-edge knowledge, and an inspiring community was key to scaling from €0 to €12M in 2 years."' },
+  'Philipp Von Schulthess': { company:'Oxoia', before:'$120K/year · Referrals only', after:'$1M/year', metric:'8.3× revenue · $250K from first webinar', result:'Closed a $250K contract from his very first webinar and secured a major strategic partnership. Scaled from $120K to $1M/year with no prior repeatable acquisition system.', quote:null },
+  'Cedric Le Rouzo': { company:'Cinna Mon Consulting', before:'$30K/month · 40 hrs/mo on lead gen', after:'$250K/month · 3 hrs/mo to run', metric:'35× ROI in year one · $2M ARR', result:'Transformed from $30K to $250K/month in 6 months — eventually reaching $2M ARR. Lead gen time dropped 40 hrs → 3 hrs/month. Cost per sales call: $2,000 → $10. 100K calendar invites → 500 live attendees → 100 booked calls/month.', quote:null },
+  'Brooks Golden': { company:'High Performing Coach', before:'$500K/month · 5% close rate', after:'$2M/month · 20% close rate', metric:'4× revenue in first month · 90% cost reduction', result:'Quadrupled revenue in the first month — $500K to $2M/month. Lead gen costs dropped 90%. Close rate jumped from 5% to 20%. 250+ live webinar attendees/month, 50 sales calls/month.', quote:'"Within the first months we already 4Xed our revenue and then we consistently improved our closing rate."' },
+  'Nick Uresin': { company:'The Podcast Pros', before:'€0/year', after:'€480K/year', metric:'Full business built from scratch', result:'Built The Podcast Pros from zero to €480K/year using the webinar acquisition system as the primary growth engine from day one.', quote:null },
+  'Felix Petzel': { company:'Panda Media', before:'€25K/month · 30% margins', after:'€75K/month · 90% margins', metric:'14× pipeline · 95% lower lead gen costs', result:'Tripled revenue from €25K to €75K/month while margins surged from 30% to 90% as lead gen costs fell 95%. 600+ webinar attendees/month. Sales calls grew from 3 to 40/month.', quote:'"Our costs dropped by 95%, margins surged to 90%. Their expertise exceeded expectations."' },
+  'Bora Ger': { company:'Bora Ger Consulting', before:'$60K/year · 3 calls/month', after:'$360K/year · 15 calls/month', metric:'6× revenue · 4M content views', result:'Scaled 6× from $60K to $360K/year. Generated 4 million content views, 300+ live webinar attendees/month, and now receives daily inbound partnership requests and speaking invitations.', quote:'"The learning & long-term effect was exponential for me."' },
+  'Jason Rotman': { company:'Elevate Financial Partners', before:'$120K/year · Sporadic leads', after:'$360K/year · 62 calls/month', metric:'3× revenue · 400+ webinar attendees/mo', result:'Tripled revenue from $120K to $360K/year. Now generates 62 qualified sales calls/month from 400+ live webinar attendees — serving high-net-worth individuals, founders, and executives.', quote:'"It was the solution I was seeking to talk to high quality leads every day...It\'s like a machine now."' },
+  'Lynn Rousseau': { company:'The Conscious Leader', before:'$300K/year · 20+ years on referrals', after:'$600K/year · 44 calls/month', metric:'2× revenue · 287 registrations on first webinar', result:'After 20+ years building exclusively through referrals, launched a webinar that delivered 287 registrations on the first run. Doubled annual revenue from $300K to $600K.', quote:null },
+};
+
 function csModalOpen(card) {
   const name     = card.querySelector('.cs-card-name').textContent;
   const photo    = card.querySelector('.cs-card-photo').src;
   const stage    = card.dataset.stage;
   const industry = card.dataset.industry;
+  const client   = CS_CLIENTS[name] || null;
 
   document.getElementById('cs-modal-photo').src = photo;
   document.getElementById('cs-modal-name').textContent = name;
-  document.getElementById('cs-modal-result').textContent = CS_RESULTS[stage]?.[industry] || CS_RESULTS[stage]?.other || '';
+
+  const companyEl = document.getElementById('cs-modal-company');
+  companyEl.textContent = client?.company || '';
+  companyEl.style.display = client?.company ? '' : 'none';
 
   const pills = document.getElementById('cs-modal-pills');
   pills.innerHTML = `
     <span class="cs-stage-pill ${stage}" style="margin-top:6px">${CS_STAGE_LABELS[stage]}</span>
     <span style="font-size:11px;color:#52525b;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:4px 10px;margin-top:6px;">${CS_INDUSTRY_LABELS[industry]}</span>
   `;
+
+  const statsEl = document.getElementById('cs-modal-stats');
+  if (client?.before && client?.after) {
+    document.getElementById('cs-modal-before').textContent = client.before;
+    document.getElementById('cs-modal-after').textContent = client.after;
+    statsEl.style.display = 'flex';
+  } else { statsEl.style.display = 'none'; }
+
+  const metricEl = document.getElementById('cs-modal-metric');
+  if (client?.metric) { metricEl.textContent = client.metric; metricEl.style.display = 'inline-block'; }
+  else { metricEl.style.display = 'none'; }
+
+  document.getElementById('cs-modal-result').textContent = client?.result || CS_RESULTS[stage]?.[industry] || CS_RESULTS[stage]?.other || '';
+
+  const quoteEl = document.getElementById('cs-modal-quote');
+  if (client?.quote) { quoteEl.textContent = client.quote; quoteEl.style.display = ''; }
+  else { quoteEl.style.display = 'none'; }
 
   document.getElementById('cs-modal-overlay').classList.add('open');
 }

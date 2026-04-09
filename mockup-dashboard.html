@@ -3,85 +3,215 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deal Forge — Dashboard Mockup</title>
+<title>Deal Forge — Dashboard</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          zinc: {
-            950: '#0a0a0f',
-          }
-        }
-      }
-    }
-  }
-</script>
 <style>
   * { -webkit-font-smoothing: antialiased; }
   body { background: #0a0a0f; font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; }
 
-  /* Page glow */
   .page-glow {
-    position: fixed;
-    top: 0; left: 50%;
-    transform: translateX(-50%);
+    position: fixed; top: 0; left: 50%; transform: translateX(-50%);
     width: 800px; height: 400px;
-    background: radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.13) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.13) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
   }
 
-  .nav { height: 48px; background: rgba(10,10,15,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .nav { height: 48px; background: rgba(10,10,15,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.06); }
 
-  .task-card { transition: border-color 100ms; }
-  .task-card:hover { border-color: rgba(255,255,255,0.14); }
-
-  .ghost-btn { border: 1px solid transparent; color: #52525b; transition: all 100ms; }
+  .ghost-btn { border: 1px solid transparent; color: #52525b; transition: all 100ms; cursor: pointer; background: none; }
   .ghost-btn:hover { border-color: rgba(113,113,122,0.5); background: rgba(39,39,42,0.5); color: #d4d4d8; }
 
-  .row-item { transition: background 100ms; }
+  .row-item { transition: background 100ms; border-bottom: 1px solid rgba(255,255,255,0.05); }
   .row-item:hover { background: rgba(39,39,42,0.4); cursor: pointer; }
+  .row-item:last-child { border-bottom: none; }
 
   .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
   .dot-green { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
   .dot-amber { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.5); }
   .dot-red { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.4); }
+  .dot-purple { background: #8b5cf6; box-shadow: 0 0 6px rgba(139,92,246,0.5); }
 
-  .tab-active { background: #0a0a0f; border: 1px solid rgba(255,255,255,0.1); }
-  .tab-inactive { color: #71717a; }
-  .tab-inactive:hover { color: #a1a1aa; }
-
-  .screen-label {
-    position: absolute;
-    top: -28px; left: 0;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #52525b;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner { animation: spin 1s linear infinite; }
+  .task-card { transition: border-color 100ms; }
+  .task-card:hover { border-color: rgba(255,255,255,0.14); }
 
   .copy-btn { border: 1px solid transparent; transition: all 100ms; }
   .copy-btn:hover { border-color: rgba(113,113,122,0.6); background: rgba(39,39,42,0.5); }
 
-  input { outline: none; }
-  input:focus { border-color: rgba(139,92,246,0.5) !important; box-shadow: 0 0 0 2px rgba(139,92,246,0.15); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { animation: spin 1s linear infinite; }
+
+  input, select { outline: none; }
+  input:focus, select:focus { border-color: rgba(139,92,246,0.5) !important; box-shadow: 0 0 0 2px rgba(139,92,246,0.15); }
+
+  /* Rep filter pill */
+  .rep-pill { font-size: 12px; font-weight: 500; padding: 5px 12px; border-radius: 20px; cursor: pointer; transition: all 100ms; border: 1px solid rgba(255,255,255,0.07); color: #71717a; background: none; }
+  .rep-pill.active { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.4); color: #c4b5fd; }
+  .rep-pill:hover:not(.active) { border-color: rgba(255,255,255,0.12); color: #a1a1aa; }
+
+  /* New Job Modal */
+  #nj-overlay {
+    display: none;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    z-index: 9999; align-items: center; justify-content: center;
+  }
+  #nj-overlay.open { display: flex; }
+
+  #nj-modal {
+    background: #111116; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
+    padding: 28px; width: 480px; max-height: 90vh; overflow-y: auto;
+    position: relative;
+  }
+
+  .nj-section { margin-bottom: 20px; }
+  .nj-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #52525b; margin-bottom: 6px; }
+
+  .nj-input {
+    width: 100%; background: rgba(10,10,15,0.7); border: 1px solid rgba(113,113,122,0.4);
+    border-radius: 8px; padding: 9px 12px; font-size: 13px; color: #e4e4e7;
+    box-sizing: border-box; font-family: inherit;
+  }
+
+  .nj-contact-card {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 14px 16px;
+  }
+
+  .nj-transcript-found {
+    background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 8px; padding: 10px 14px; display: flex; align-items: flex-start; gap: 10px;
+  }
+  .nj-transcript-missing {
+    background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 8px; padding: 10px 14px; display: flex; align-items: flex-start; gap: 10px;
+  }
+
+  .nj-generate-btn {
+    width: 100%; background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    color: #fff; font-size: 14px; font-weight: 600; padding: 11px;
+    border-radius: 10px; border: none; cursor: pointer; transition: opacity 100ms;
+  }
+  .nj-generate-btn:hover { opacity: 0.9; }
+  .nj-generate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>
 </head>
 <body class="text-zinc-100 min-h-screen">
 
 <div class="page-glow"></div>
 
+<!-- ═══════ NEW JOB MODAL OVERLAY ═══════ -->
+<div id="nj-overlay" onclick="if(event.target===this)njClose()">
+  <div id="nj-modal">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;">New Job</div>
+        <div style="font-size:12px;color:#52525b;margin-top:2px;">Look up a GHL contact to get started</div>
+      </div>
+      <button onclick="njClose()" style="width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:#71717a;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>
+    </div>
+
+    <!-- Email Search -->
+    <div class="nj-section">
+      <div class="nj-label">Contact Email (GHL)</div>
+      <div style="display:flex;gap:8px;">
+        <input id="nj-email" type="email" class="nj-input" placeholder="prospect@company.com" style="flex:1;" onkeydown="if(event.key==='Enter')njSearch()">
+        <button id="nj-search-btn" onclick="njSearch()" style="background:#27272a;border:1px solid rgba(255,255,255,0.1);color:#e4e4e7;font-size:13px;font-weight:500;padding:9px 16px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:background 100ms;font-family:inherit;" onmouseenter="this.style.background='#3f3f46'" onmouseleave="this.style.background='#27272a'">
+          Search GHL
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading state -->
+    <div id="nj-loading" style="display:none;text-align:center;padding:24px 0 8px;">
+      <svg class="spinner" style="width:20px;height:20px;color:#8b5cf6;display:inline-block;" fill="none" viewBox="0 0 24 24">
+        <circle style="opacity:0.2" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+        <path style="opacity:0.9" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
+      <div style="font-size:12px;color:#52525b;margin-top:8px;">Searching GHL & Fireflies...</div>
+    </div>
+
+    <!-- Not found state -->
+    <div id="nj-not-found" style="display:none;padding:16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;margin-bottom:16px;">
+      <div style="font-size:13px;color:#fca5a5;font-weight:500;">No contact found</div>
+      <div style="font-size:12px;color:#71717a;margin-top:3px;">No GHL contact matched that email. Double-check and try again.</div>
+    </div>
+
+    <!-- Results area (hidden until search) -->
+    <div id="nj-results" style="display:none;">
+
+      <!-- Contact Card -->
+      <div class="nj-section">
+        <div class="nj-label">GHL Contact</div>
+        <div class="nj-contact-card" style="display:flex;align-items:center;gap:14px;">
+          <div id="nj-avatar" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#6d28d9);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0;"></div>
+          <div style="flex:1;min-width:0;">
+            <div id="nj-name" style="font-size:14px;font-weight:600;color:#ffffff;"></div>
+            <div id="nj-role-company" style="font-size:12px;color:#71717a;margin-top:2px;"></div>
+            <div id="nj-website" style="font-size:11px;color:#52525b;margin-top:2px;"></div>
+          </div>
+          <div style="flex-shrink:0;">
+            <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#22c55e;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:5px;padding:3px 8px;">In GHL</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transcript Status -->
+      <div class="nj-section">
+        <div class="nj-label">Fireflies Transcript</div>
+
+        <div id="nj-transcript-found" class="nj-transcript-found" style="display:none;">
+          <svg style="width:15px;height:15px;color:#22c55e;flex-shrink:0;margin-top:1px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div>
+            <div id="nj-transcript-title" style="font-size:13px;font-weight:500;color:#e4e4e7;"></div>
+            <div id="nj-transcript-date" style="font-size:11px;color:#52525b;margin-top:2px;"></div>
+          </div>
+        </div>
+
+        <div id="nj-transcript-missing" class="nj-transcript-missing" style="display:none;">
+          <svg style="width:15px;height:15px;color:#f59e0b;flex-shrink:0;margin-top:1px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z"/></svg>
+          <div>
+            <div style="font-size:13px;font-weight:500;color:#fcd34d;">No transcript bound</div>
+            <div style="font-size:11px;color:#71717a;margin-top:2px;">No Fireflies transcript found for this email. Assets can still be generated without a Call 1 summary.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LinkedIn (optional) -->
+      <div class="nj-section">
+        <div class="nj-label">LinkedIn URL <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#3f3f46;">(optional)</span></div>
+        <input id="nj-linkedin" type="url" class="nj-input" placeholder="https://linkedin.com/in/...">
+      </div>
+
+      <!-- Rep Assignment -->
+      <div class="nj-section">
+        <div class="nj-label">Assign Rep</div>
+        <select id="nj-rep" class="nj-input" style="appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%2352525b' viewBox='0 0 24 24'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;">
+          <option value="">Select rep...</option>
+          <option value="ryan">Ryan Wilson</option>
+          <option value="james">James Carter</option>
+          <option value="doug">Doug Rich</option>
+          <option value="nicholas">Nicholas Batista</option>
+        </select>
+      </div>
+
+      <!-- Generate Button -->
+      <button id="nj-gen-btn" class="nj-generate-btn" onclick="njGenerate()">
+        Generate All 8 Assets
+      </button>
+    </div>
+
+  </div>
+</div>
+
+
 <!-- SCREEN TOGGLE -->
 <div style="position:fixed;bottom:24px;right:24px;z-index:100;display:flex;gap:8px;background:rgba(24,24,27,0.9);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:6px;">
   <button onclick="showScreen('list')" id="btn-list" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all duration-100" style="background:#27272a;color:#e4e4e7;">Job List</button>
   <button onclick="showScreen('detail')" id="btn-detail" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all duration-100" style="color:#71717a;">Job Detail</button>
 </div>
+
 
 <!-- ═══════════════════════════════════════ -->
 <!-- SCREEN 1: JOB LIST                     -->
@@ -94,87 +224,141 @@
       <div style="width:18px;height:18px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border-radius:5px;"></div>
       <span style="font-size:13px;font-weight:600;color:#e4e4e7;letter-spacing:-0.01em;">Deal Forge</span>
     </div>
-    <button style="background:#f4f4f5;color:#09090b;font-size:13px;font-weight:600;padding:6px 14px;border-radius:8px;border:none;cursor:pointer;transition:background 100ms;" onmouseenter="this.style.background='#ffffff'" onmouseleave="this.style.background='#f4f4f5'">
-      + New Job
+    <button onclick="njOpen()" style="background:#f4f4f5;color:#09090b;font-size:13px;font-weight:600;padding:6px 14px;border-radius:8px;border:none;cursor:pointer;transition:background 100ms;display:flex;align-items:center;gap:5px;" onmouseenter="this.style.background='#ffffff'" onmouseleave="this.style.background='#f4f4f5'">
+      <svg style="width:13px;height:13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14M5 12h14"/></svg>
+      New Job
     </button>
   </nav>
 
   <!-- Content -->
-  <div style="max-width:760px;margin:0 auto;padding:96px 24px 48px;">
+  <div style="max-width:800px;margin:0 auto;padding:80px 24px 48px;">
 
-    <h1 style="font-size:40px;font-weight:700;color:#ffffff;letter-spacing:-0.025em;margin-bottom:24px;">Jobs</h1>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;">
+      <h1 style="font-size:36px;font-weight:700;color:#ffffff;letter-spacing:-0.025em;">Jobs</h1>
+      <div style="font-size:12px;color:#52525b;">6 jobs</div>
+    </div>
 
-    <!-- Search + Filter -->
-    <div style="display:flex;gap:10px;margin-bottom:8px;">
-      <div style="flex:1;position:relative;">
-        <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:#52525b;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-        <input type="text" placeholder="Search by company or contact..." style="width:100%;background:rgba(10,10,15,0.7);border:1px solid rgba(113,113,122,0.4);border-radius:8px;padding:8px 12px 8px 34px;font-size:13px;color:#e4e4e7;box-sizing:border-box;" class="placeholder-zinc-700">
+    <!-- Rep Filter + Search Row -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+      <!-- Rep pills -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1;">
+        <button class="rep-pill active" onclick="filterRep('all',this)">All Reps</button>
+        <button class="rep-pill" onclick="filterRep('ryan',this)">Ryan Wilson</button>
+        <button class="rep-pill" onclick="filterRep('james',this)">James Carter</button>
+        <button class="rep-pill" onclick="filterRep('doug',this)">Doug Rich</button>
+        <button class="rep-pill" onclick="filterRep('nicholas',this)">Nicholas Batista</button>
       </div>
-      <button class="ghost-btn" style="padding:8px 14px;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:6px;">
-        Status
-        <svg style="width:12px;height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-      </button>
+      <!-- Search -->
+      <div style="position:relative;min-width:200px;">
+        <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:#52525b;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" placeholder="Search..." oninput="filterSearch(this.value)" style="width:100%;background:rgba(10,10,15,0.7);border:1px solid rgba(113,113,122,0.4);border-radius:8px;padding:7px 12px 7px 30px;font-size:13px;color:#e4e4e7;box-sizing:border-box;font-family:inherit;">
+      </div>
     </div>
 
     <!-- Job Table -->
-    <div style="border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden;margin-top:4px;">
+    <div style="border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden;">
 
-      <!-- Row -->
-      <div class="row-item" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <div style="flex:1;">
-          <div style="font-size:13px;font-weight:500;color:#ffffff;">Acme Corp</div>
-          <div style="font-size:13px;color:#71717a;margin-top:1px;">Sarah Chen</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;width:100px;">
-          <span class="status-dot dot-green"></span>
-          <span style="font-size:13px;color:#71717a;">Complete</span>
-        </div>
-        <div style="font-size:13px;color:#52525b;width:60px;text-align:right;">Jan 15</div>
-        <svg style="width:14px;height:14px;color:#3f3f46;margin-left:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <!-- Header -->
+      <div style="display:flex;align-items:center;padding:9px 20px;background:rgba(255,255,255,0.02);border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div style="flex:1;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#3f3f46;">Contact</div>
+        <div style="width:110px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#3f3f46;">Rep</div>
+        <div style="width:100px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#3f3f46;">Status</div>
+        <div style="width:60px;text-align:right;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#3f3f46;">Date</div>
+        <div style="width:30px;"></div>
       </div>
 
-      <!-- Row -->
-      <div class="row-item" style="display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <div style="flex:1;">
-          <div style="font-size:13px;font-weight:500;color:#ffffff;">TechFlow Inc</div>
-          <div style="font-size:13px;color:#71717a;margin-top:1px;">Marcus Reid</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;width:100px;">
-          <span class="status-dot dot-amber"></span>
-          <span style="font-size:13px;color:#71717a;">Running</span>
-        </div>
-        <div style="font-size:13px;color:#52525b;width:60px;text-align:right;">Jan 14</div>
-        <svg style="width:14px;height:14px;color:#3f3f46;margin-left:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-      </div>
+      <div id="job-rows">
 
-      <!-- Row -->
-      <div class="row-item" style="display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <div style="flex:1;">
-          <div style="font-size:13px;font-weight:500;color:#ffffff;">BuildRight LLC</div>
-          <div style="font-size:13px;color:#71717a;margin-top:1px;">Priya Nair</div>
+        <div class="row-item job-row" data-rep="ryan" data-name="sarah chen" data-company="acme corp" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:500;color:#ffffff;">Acme Corp</div>
+            <div style="font-size:12px;color:#71717a;margin-top:1px;">Sarah Chen · CEO</div>
+          </div>
+          <div style="width:110px;font-size:12px;color:#71717a;">Ryan Wilson</div>
+          <div style="width:100px;display:flex;align-items:center;gap:6px;">
+            <span class="status-dot dot-green"></span>
+            <span style="font-size:12px;color:#71717a;">Complete</span>
+          </div>
+          <div style="width:60px;text-align:right;font-size:12px;color:#52525b;">Jan 15</div>
+          <svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;width:100px;">
-          <span class="status-dot dot-red"></span>
-          <span style="font-size:13px;color:#71717a;">Failed</span>
-        </div>
-        <div style="font-size:13px;color:#52525b;width:60px;text-align:right;">Jan 13</div>
-        <svg style="width:14px;height:14px;color:#3f3f46;margin-left:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-      </div>
 
-      <!-- Row -->
-      <div class="row-item" style="display:flex;align-items:center;padding:16px 20px;">
-        <div style="flex:1;">
-          <div style="font-size:13px;font-weight:500;color:#ffffff;">Summit Advisors</div>
-          <div style="font-size:13px;color:#71717a;margin-top:1px;">Dan Osei</div>
+        <div class="row-item job-row" data-rep="ryan" data-name="marcus reid" data-company="techflow inc" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:500;color:#ffffff;">TechFlow Inc</div>
+            <div style="font-size:12px;color:#71717a;margin-top:1px;">Marcus Reid · VP Sales</div>
+          </div>
+          <div style="width:110px;font-size:12px;color:#71717a;">Ryan Wilson</div>
+          <div style="width:100px;display:flex;align-items:center;gap:6px;">
+            <span class="status-dot dot-amber"></span>
+            <span style="font-size:12px;color:#71717a;">Running</span>
+          </div>
+          <div style="width:60px;text-align:right;font-size:12px;color:#52525b;">Jan 14</div>
+          <svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;width:100px;">
-          <span class="status-dot dot-green"></span>
-          <span style="font-size:13px;color:#71717a;">Complete</span>
-        </div>
-        <div style="font-size:13px;color:#52525b;width:60px;text-align:right;">Jan 12</div>
-        <svg style="width:14px;height:14px;color:#3f3f46;margin-left:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-      </div>
 
+        <div class="row-item job-row" data-rep="james" data-name="priya nair" data-company="buildright llc" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:500;color:#ffffff;">BuildRight LLC</div>
+            <div style="font-size:12px;color:#71717a;margin-top:1px;">Priya Nair · Founder</div>
+          </div>
+          <div style="width:110px;font-size:12px;color:#71717a;">James Carter</div>
+          <div style="width:100px;display:flex;align-items:center;gap:6px;">
+            <span class="status-dot dot-red"></span>
+            <span style="font-size:12px;color:#71717a;">Failed</span>
+          </div>
+          <div style="width:60px;text-align:right;font-size:12px;color:#52525b;">Jan 13</div>
+          <svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="row-item job-row" data-rep="james" data-name="dan osei" data-company="summit advisors" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:500;color:#ffffff;">Summit Advisors</div>
+            <div style="font-size:12px;color:#71717a;margin-top:1px;">Dan Osei · Managing Director</div>
+          </div>
+          <div style="width:110px;font-size:12px;color:#71717a;">James Carter</div>
+          <div style="width:100px;display:flex;align-items:center;gap:6px;">
+            <span class="status-dot dot-green"></span>
+            <span style="font-size:12px;color:#71717a;">Complete</span>
+          </div>
+          <div style="width:60px;text-align:right;font-size:12px;color:#52525b;">Jan 12</div>
+          <svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="row-item job-row" data-rep="doug" data-name="linh tran" data-company="nova growth" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:500;color:#ffffff;">Nova Growth</div>
+            <div style="font-size:12px;color:#71717a;margin-top:1px;">Linh Tran · CEO</div>
+          </div>
+          <div style="width:110px;font-size:12px;color:#71717a;">Doug Rich</div>
+          <div style="width:100px;display:flex;align-items:center;gap:6px;">
+            <span class="status-dot dot-purple"></span>
+            <span style="font-size:12px;color:#71717a;">Pending</span>
+          </div>
+          <div style="width:60px;text-align:right;font-size:12px;color:#52525b;">Jan 11</div>
+          <svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="row-item job-row" data-rep="nicholas" data-name="carlos mendez" data-company="clearpath consulting" onclick="showScreen('detail')" style="display:flex;align-items:center;padding:15px 20px;">
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:500;color:#ffffff;">Clearpath Consulting</div>
+            <div style="font-size:12px;color:#71717a;margin-top:1px;">Carlos Mendez · Partner</div>
+          </div>
+          <div style="width:110px;font-size:12px;color:#71717a;">Nicholas Batista</div>
+          <div style="width:100px;display:flex;align-items:center;gap:6px;">
+            <span class="status-dot dot-amber"></span>
+            <span style="font-size:12px;color:#71717a;">Running</span>
+          </div>
+          <div style="width:60px;text-align:right;font-size:12px;color:#52525b;">Jan 10</div>
+          <svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+        <!-- Empty state (hidden) -->
+        <div id="no-results" style="display:none;padding:40px;text-align:center;color:#52525b;font-size:13px;">
+          No jobs match this filter
+        </div>
+
+      </div>
     </div>
   </div>
 </div>
@@ -198,151 +382,121 @@
         <span style="font-size:13px;font-weight:600;color:#e4e4e7;letter-spacing:-0.01em;">Deal Forge</span>
       </div>
     </div>
-    <button class="copy-btn" style="font-size:13px;color:#a1a1aa;padding:6px 14px;border-radius:8px;background:none;cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="this.innerHTML='<svg style=\'width:13px;height:13px;color:#8b5cf6;\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M5 13l4 4L19 7\'/></svg> Copied'; setTimeout(()=>{this.innerHTML='<svg style=\'width:13px;height:13px;\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3\'/></svg> Copy Portal Link'},2000)">
-        <svg style="width:13px;height:13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-        Copy Portal Link
-      </button>
+    <button class="copy-btn" style="font-size:13px;color:#a1a1aa;padding:6px 14px;border-radius:8px;background:none;cursor:pointer;display:flex;align-items:center;gap:6px;border:1px solid transparent;" onclick="this.innerHTML='<svg style=\'width:13px;height:13px;color:#8b5cf6;\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M5 13l4 4L19 7\'/></svg> Copied'; setTimeout(()=>{this.innerHTML='<svg style=\'width:13px;height:13px;\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3\'/></svg> Copy Portal Link'},2000)">
+      <svg style="width:13px;height:13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+      Copy Portal Link
+    </button>
   </nav>
 
-  <!-- Content -->
   <div style="max-width:860px;margin:0 auto;padding:88px 24px 64px;">
 
     <!-- Hero -->
     <div style="margin-bottom:48px;">
-      <h1 style="font-size:48px;font-weight:700;color:#ffffff;letter-spacing:-0.03em;margin-bottom:6px;">Acme Corp</h1>
-      <p style="font-size:15px;color:#71717a;margin-bottom:10px;">Sarah Chen · CEO · 120 employees</p>
+      <h1 style="font-size:44px;font-weight:700;color:#ffffff;letter-spacing:-0.03em;margin-bottom:6px;">Acme Corp</h1>
+      <p style="font-size:14px;color:#71717a;margin-bottom:10px;">Sarah Chen · CEO · 120 employees</p>
       <div style="display:flex;align-items:center;gap:6px;">
         <span class="status-dot dot-green"></span>
         <span style="font-size:13px;color:#52525b;">All 8 assets ready · Jan 15</span>
       </div>
     </div>
 
-    <!-- STAGE 1 -->
+    <!-- Stage 1 -->
     <div style="margin-bottom:32px;">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#52525b;">Stage 1</span>
         <div style="flex:1;height:1px;background:rgba(255,255,255,0.05);"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-        <!-- Extract -->
         <div class="task-card" style="border:1px solid rgba(255,255,255,0.07);border-radius:12px;background:rgba(255,255,255,0.03);padding:16px 18px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <span style="font-size:14px;font-weight:600;color:#ffffff;">Extract</span>
-            <div style="display:flex;align-items:center;gap:5px;">
-              <span class="status-dot dot-green"></span>
-              <span style="font-size:11px;color:#52525b;">Complete</span>
-            </div>
+            <div style="display:flex;align-items:center;gap:5px;"><span class="status-dot dot-green"></span><span style="font-size:11px;color:#52525b;">Complete</span></div>
           </div>
           <div style="display:flex;gap:6px;">
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Open</button>
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Revise</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Open</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Revise</button>
           </div>
         </div>
-        <!-- Prospect Research -->
         <div class="task-card" style="border:1px solid rgba(255,255,255,0.07);border-radius:12px;background:rgba(255,255,255,0.03);padding:16px 18px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <span style="font-size:14px;font-weight:600;color:#ffffff;">Prospect Research</span>
-            <div style="display:flex;align-items:center;gap:5px;">
-              <span class="status-dot dot-green"></span>
-              <span style="font-size:11px;color:#52525b;">Complete</span>
-            </div>
+            <div style="display:flex;align-items:center;gap:5px;"><span class="status-dot dot-green"></span><span style="font-size:11px;color:#52525b;">Complete</span></div>
           </div>
           <div style="display:flex;gap:6px;">
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Open</button>
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Revise</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Open</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Revise</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- STAGE 2 -->
+    <!-- Stage 2 -->
     <div style="margin-bottom:32px;">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#52525b;">Stage 2</span>
         <div style="flex:1;height:1px;background:rgba(255,255,255,0.05);"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-        <!-- Brand Scrape -->
         <div class="task-card" style="border:1px solid rgba(255,255,255,0.07);border-radius:12px;background:rgba(255,255,255,0.03);padding:16px 18px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <span style="font-size:14px;font-weight:600;color:#ffffff;">Brand Scrape</span>
-            <div style="display:flex;align-items:center;gap:5px;">
-              <span class="status-dot dot-green"></span>
-              <span style="font-size:11px;color:#52525b;">Complete</span>
-            </div>
+            <div style="display:flex;align-items:center;gap:5px;"><span class="status-dot dot-green"></span><span style="font-size:11px;color:#52525b;">Complete</span></div>
           </div>
           <div style="display:flex;gap:6px;">
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Open</button>
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Revise</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Open</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Revise</button>
           </div>
         </div>
-        <!-- Lead List -->
         <div class="task-card" style="border:1px solid rgba(255,255,255,0.07);border-radius:12px;background:rgba(255,255,255,0.03);padding:16px 18px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <span style="font-size:14px;font-weight:600;color:#ffffff;">Lead List</span>
-            <div style="display:flex;align-items:center;gap:5px;">
-              <span class="status-dot dot-green"></span>
-              <span style="font-size:11px;color:#52525b;">Complete</span>
-            </div>
+            <div style="display:flex;align-items:center;gap:5px;"><span class="status-dot dot-green"></span><span style="font-size:11px;color:#52525b;">Complete</span></div>
           </div>
           <div style="display:flex;gap:6px;">
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Open</button>
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Revise</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Open</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Revise</button>
           </div>
         </div>
-        <!-- Webinar Titles -->
         <div class="task-card" style="border:1px solid rgba(255,255,255,0.07);border-radius:12px;background:rgba(255,255,255,0.03);padding:16px 18px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <span style="font-size:14px;font-weight:600;color:#ffffff;">Webinar Titles</span>
-            <div style="display:flex;align-items:center;gap:5px;">
-              <span class="status-dot dot-green"></span>
-              <span style="font-size:11px;color:#52525b;">Complete</span>
-            </div>
+            <div style="display:flex;align-items:center;gap:5px;"><span class="status-dot dot-green"></span><span style="font-size:11px;color:#52525b;">Complete</span></div>
           </div>
           <div style="display:flex;gap:6px;">
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Open</button>
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Revise</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Open</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Revise</button>
           </div>
         </div>
-        <!-- ROI Model -->
         <div class="task-card" style="border:1px solid rgba(255,255,255,0.07);border-radius:12px;background:rgba(255,255,255,0.03);padding:16px 18px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <span style="font-size:14px;font-weight:600;color:#ffffff;">ROI Model</span>
-            <div style="display:flex;align-items:center;gap:5px;">
-              <span class="status-dot dot-green"></span>
-              <span style="font-size:11px;color:#52525b;">Complete</span>
-            </div>
+            <div style="display:flex;align-items:center;gap:5px;"><span class="status-dot dot-green"></span><span style="font-size:11px;color:#52525b;">Complete</span></div>
           </div>
           <div style="display:flex;gap:6px;">
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Open</button>
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Revise</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Open</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Revise</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- STAGE 3 -->
+    <!-- Stage 3 -->
     <div style="margin-bottom:32px;">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#52525b;">Stage 3</span>
         <div style="flex:1;height:1px;background:rgba(255,255,255,0.05);"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-        <!-- Calendar Visual -->
         <div class="task-card" style="border:1px solid rgba(255,255,255,0.07);border-radius:12px;background:rgba(255,255,255,0.03);padding:16px 18px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <span style="font-size:14px;font-weight:600;color:#ffffff;">Calendar Visual</span>
-            <div style="display:flex;align-items:center;gap:5px;">
-              <span class="status-dot dot-green"></span>
-              <span style="font-size:11px;color:#52525b;">Complete</span>
-            </div>
+            <div style="display:flex;align-items:center;gap:5px;"><span class="status-dot dot-green"></span><span style="font-size:11px;color:#52525b;">Complete</span></div>
           </div>
           <div style="display:flex;gap:6px;">
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Open</button>
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;background:none;">Revise</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Open</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Revise</button>
           </div>
         </div>
-        <!-- Webinar Mock — RUNNING -->
         <div class="task-card" style="border:1px solid rgba(245,158,11,0.2);border-radius:12px;background:rgba(245,158,11,0.04);padding:16px 18px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <span style="font-size:14px;font-weight:600;color:#ffffff;">Webinar Mock</span>
@@ -355,8 +509,8 @@
             </div>
           </div>
           <div style="display:flex;gap:6px;opacity:0.3;pointer-events:none;">
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;background:none;">Open</button>
-            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;background:none;">Revise</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Open</button>
+            <button class="ghost-btn" style="font-size:12px;padding:5px 10px;border-radius:6px;">Revise</button>
           </div>
         </div>
       </div>
@@ -365,16 +519,153 @@
   </div>
 </div>
 
+
 <script>
+
+// ─── DEMO DATA ───────────────────────────────────────
+const DEMO_GHL = {
+  'sarah@acmecorp.com': {
+    name: 'Sarah Chen', role: 'CEO', company: 'Acme Corp', website: 'acmecorp.com',
+    transcript: { title: 'Discovery Call — Sarah Chen / Acme Corp', date: 'Jan 14, 2026' }
+  },
+  'marcus@techflow.io': {
+    name: 'Marcus Reid', role: 'VP Sales', company: 'TechFlow Inc', website: 'techflow.io',
+    transcript: null
+  },
+  'priya@buildright.com': {
+    name: 'Priya Nair', role: 'Founder', company: 'BuildRight LLC', website: 'buildright.com',
+    transcript: { title: 'Strategy Call — Priya Nair', date: 'Jan 12, 2026' }
+  },
+};
+
+// ─── SCREEN TOGGLE ───────────────────────────────────
 function showScreen(name) {
   document.getElementById('screen-list').style.display = name === 'list' ? 'block' : 'none';
   document.getElementById('screen-detail').style.display = name === 'detail' ? 'block' : 'none';
-  document.getElementById('btn-list').style.background = name === 'list' ? '#27272a' : 'transparent';
-  document.getElementById('btn-list').style.color = name === 'list' ? '#e4e4e7' : '#71717a';
-  document.getElementById('btn-detail').style.background = name === 'detail' ? '#27272a' : 'transparent';
-  document.getElementById('btn-detail').style.color = name === 'detail' ? '#e4e4e7' : '#71717a';
+  var bl = document.getElementById('btn-list'), bd = document.getElementById('btn-detail');
+  bl.style.background = name === 'list' ? '#27272a' : 'transparent';
+  bl.style.color = name === 'list' ? '#e4e4e7' : '#71717a';
+  bd.style.background = name === 'detail' ? '#27272a' : 'transparent';
+  bd.style.color = name === 'detail' ? '#e4e4e7' : '#71717a';
 }
-showScreen('detail');
+
+// ─── REP FILTER ──────────────────────────────────────
+var activeRep = 'all';
+var activeSearch = '';
+
+function filterRep(rep, btn) {
+  activeRep = rep;
+  document.querySelectorAll('.rep-pill').forEach(function(p) { p.classList.remove('active'); });
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function filterSearch(val) {
+  activeSearch = val.toLowerCase().trim();
+  applyFilters();
+}
+
+function applyFilters() {
+  var rows = document.querySelectorAll('.job-row');
+  var anyVisible = false;
+  rows.forEach(function(row) {
+    var repMatch = activeRep === 'all' || row.dataset.rep === activeRep;
+    var searchMatch = activeSearch === '' ||
+      row.dataset.name.indexOf(activeSearch) !== -1 ||
+      row.dataset.company.indexOf(activeSearch) !== -1;
+    var show = repMatch && searchMatch;
+    row.style.display = show ? 'flex' : 'none';
+    if (show) anyVisible = true;
+  });
+  document.getElementById('no-results').style.display = anyVisible ? 'none' : 'block';
+}
+
+// ─── NEW JOB MODAL ───────────────────────────────────
+function njOpen() {
+  njReset();
+  document.getElementById('nj-overlay').classList.add('open');
+  setTimeout(function() { document.getElementById('nj-email').focus(); }, 60);
+}
+
+function njClose() {
+  document.getElementById('nj-overlay').classList.remove('open');
+}
+
+function njReset() {
+  document.getElementById('nj-email').value = '';
+  document.getElementById('nj-linkedin').value = '';
+  document.getElementById('nj-rep').value = '';
+  document.getElementById('nj-loading').style.display = 'none';
+  document.getElementById('nj-not-found').style.display = 'none';
+  document.getElementById('nj-results').style.display = 'none';
+  document.getElementById('nj-transcript-found').style.display = 'none';
+  document.getElementById('nj-transcript-missing').style.display = 'none';
+}
+
+function njSearch() {
+  var email = document.getElementById('nj-email').value.trim().toLowerCase();
+  if (!email) return;
+
+  document.getElementById('nj-not-found').style.display = 'none';
+  document.getElementById('nj-results').style.display = 'none';
+  document.getElementById('nj-loading').style.display = 'block';
+
+  // Simulate API latency
+  setTimeout(function() {
+    document.getElementById('nj-loading').style.display = 'none';
+    var contact = DEMO_GHL[email] || null;
+
+    if (!contact) {
+      document.getElementById('nj-not-found').style.display = 'block';
+      return;
+    }
+
+    // Populate contact card
+    var initials = contact.name.split(' ').map(function(w){ return w[0]; }).join('').toUpperCase();
+    document.getElementById('nj-avatar').textContent = initials;
+    document.getElementById('nj-name').textContent = contact.name;
+    document.getElementById('nj-role-company').textContent = contact.role + ' · ' + contact.company;
+    document.getElementById('nj-website').textContent = contact.website;
+
+    // Transcript status
+    if (contact.transcript) {
+      document.getElementById('nj-transcript-title').textContent = contact.transcript.title;
+      document.getElementById('nj-transcript-date').textContent = contact.transcript.date;
+      document.getElementById('nj-transcript-found').style.display = 'flex';
+      document.getElementById('nj-transcript-missing').style.display = 'none';
+    } else {
+      document.getElementById('nj-transcript-found').style.display = 'none';
+      document.getElementById('nj-transcript-missing').style.display = 'flex';
+    }
+
+    document.getElementById('nj-results').style.display = 'block';
+  }, 1400);
+}
+
+function njGenerate() {
+  var btn = document.getElementById('nj-gen-btn');
+  var rep = document.getElementById('nj-rep').value;
+  if (!rep) {
+    document.getElementById('nj-rep').focus();
+    document.getElementById('nj-rep').style.borderColor = 'rgba(239,68,68,0.6)';
+    setTimeout(function(){ document.getElementById('nj-rep').style.borderColor = ''; }, 1500);
+    return;
+  }
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><svg class="spinner" style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.2" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle><path style="opacity:0.9" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Generating assets...</span>';
+  setTimeout(function() {
+    njClose();
+    showScreen('detail');
+  }, 2200);
+}
+
+// Escape key closes modal
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') njClose();
+});
+
+// Default screen
+showScreen('list');
 </script>
 
 </body>
