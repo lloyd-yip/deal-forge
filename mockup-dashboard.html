@@ -384,9 +384,9 @@
         <span style="font-size:13px;font-weight:600;color:#e4e4e7;letter-spacing:-0.01em;">Deal Forge</span>
       </div>
     </div>
-    <button class="copy-btn" style="font-size:13px;color:#a1a1aa;padding:6px 14px;border-radius:8px;background:none;cursor:pointer;display:flex;align-items:center;gap:6px;border:1px solid transparent;" onclick="this.innerHTML='<svg style=\'width:13px;height:13px;color:#8b5cf6;\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M5 13l4 4L19 7\'/></svg> Copied'; setTimeout(()=>{this.innerHTML='<svg style=\'width:13px;height:13px;\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3\'/></svg> Copy Portal Link'},2000)">
-      <svg style="width:13px;height:13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-      Copy Portal Link
+    <button class="copy-btn" style="font-size:13px;color:#a1a1aa;padding:6px 14px;border-radius:8px;background:none;cursor:pointer;display:flex;align-items:center;gap:6px;border:1px solid transparent;" onclick="openPortalLink(this)">
+      <svg style="width:13px;height:13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+      Open Portal
     </button>
   </nav>
 
@@ -698,6 +698,13 @@ function njGenerate() {
     njClose();
     window.open('/', '_blank');
   }, 2200);
+}
+
+function openPortalLink(btn) {
+  window.open('/', '_blank');
+  var orig = btn.innerHTML;
+  btn.innerHTML = '<svg style="width:13px;height:13px;color:#8b5cf6;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Opened';
+  setTimeout(function(){ btn.innerHTML = orig; }, 2000);
 }
 
 // Escape key closes modal
