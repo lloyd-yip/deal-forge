@@ -1,0 +1,12 @@
+{
+  "name": "deal-forge-mockup",
+  "version": "1.0.0",
+  "description": "Deal Forge prospect portal mockup",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

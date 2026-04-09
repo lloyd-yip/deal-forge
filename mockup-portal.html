@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deal Forge — Prospect Portal</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; color: #e4e4e7; min-height: 100vh; }
+
+.portal-nav { height: 52px; background: rgba(13,13,18,0.92); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; padding: 0 32px; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.wordmark { display: flex; align-items: center; gap: 8px; }
+.wordmark-icon { width: 20px; height: 20px; background: linear-gradient(135deg, #8b5cf6, #6d28d9); border-radius: 6px; }
+.wordmark-text { font-size: 13px; font-weight: 600; color: #e4e4e7; letter-spacing: -0.01em; }
+.prepared-for { font-size: 12px; color: #52525b; }
+
+.tab-bar { border-bottom: 1px solid rgba(255,255,255,0.06); padding: 0 32px; display: flex; background: rgba(13,13,18,0.7); position: sticky; top: 52px; z-index: 99; }
+.tab { font-size: 13px; padding: 14px 20px; color: #71717a; cursor: pointer; border-bottom: 2px solid transparent; transition: all 100ms; white-space: nowrap; background: none; border-left: none; border-right: none; border-top: none; }
+.tab:hover { color: #a1a1aa; }
+.tab.active { color: #ffffff; border-bottom-color: #8b5cf6; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ═══ TAB 1: LEAD LIST ═══ */
+.lead-list-wrap { max-width: 1100px; margin: 0 auto; padding: 48px 32px; }
+.section-title { font-size: 28px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; margin-bottom: 6px; }
+.section-sub { font-size: 14px; color: #71717a; margin-bottom: 28px; }
+
+/* TAM block */
+.tam-block { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 24px 28px; margin-bottom: 28px; }
+.tam-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; margin-bottom: 20px; }
+.tam-stat-group { display: flex; gap: 40px; }
+.tam-stat-value { font-size: 30px; font-weight: 700; color: #ffffff; letter-spacing: -0.03em; line-height: 1; }
+.tam-stat-label { font-size: 11px; color: #52525b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 5px; }
+.tam-cycle-badge { display: flex; align-items: center; gap: 10px; background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.18); border-radius: 12px; padding: 12px 18px; flex-shrink: 0; max-width: 340px; }
+.tam-cycle-dot { width: 7px; height: 7px; background: #34d399; border-radius: 50%; flex-shrink: 0; margin-top: 2px; }
+.tam-cycle-text { font-size: 13px; color: #34d399; font-weight: 500; line-height: 1.5; }
+.tam-filters-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+.filter-group-label { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #3f3f46; margin-right: 2px; }
+.filter-tag { font-size: 11px; font-weight: 500; color: #a1a1aa; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; padding: 3px 9px; }
+.filter-sep { color: #3f3f46; font-size: 12px; }
+.tam-blurb { font-size: 13px; color: #71717a; line-height: 1.65; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); }
+.tam-blurb strong { color: #a1a1aa; }
+
+.lead-table { width: 100%; border-collapse: collapse; }
+.lead-table th { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #52525b; padding: 0 14px 12px; text-align: left; }
+.lead-table tr.data-row { border-top: 1px solid rgba(255,255,255,0.05); transition: background 100ms; }
+.lead-table tr.data-row:hover { background: rgba(255,255,255,0.025); }
+.lead-table td { padding: 11px 14px; font-size: 13px; }
+.td-name { font-weight: 500; color: #e4e4e7; white-space: nowrap; }
+.td-title, .td-company { color: #a1a1aa; }
+.td-size { color: #71717a; white-space: nowrap; }
+.li-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #71717a; text-decoration: none; border: 1px solid transparent; padding: 3px 8px; border-radius: 6px; transition: all 100ms; }
+.li-link:hover { border-color: rgba(113,113,122,0.5); color: #a1a1aa; background: rgba(39,39,42,0.5); }
+.web-link { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #52525b; text-decoration: none; padding: 3px 8px; border-radius: 6px; border: 1px solid transparent; transition: all 100ms; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.web-link:hover { border-color: rgba(113,113,122,0.4); color: #a1a1aa; background: rgba(39,39,42,0.4); }
+
+/* ═══ TAB 2: CALENDAR ═══ */
+.cal-wrap { min-height: calc(100vh - 108px); display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; padding: 48px 40px; }
+.cal-bg { position: absolute; inset: 0; background: #1a1a2e; overflow: hidden; }
+.cal-grid-line { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.04); }
+.cal-time-label { position: absolute; left: 12px; font-size: 10px; color: rgba(255,255,255,0.15); transform: translateY(-50%); }
+
+/* Side-by-side layout for modal + email panel */
+.cal-content-row { position: relative; z-index: 10; display: flex; align-items: flex-start; gap: 0; }
+
+.cal-modal { background: #ffffff; border-radius: 16px; padding: 28px; width: 460px; box-shadow: 0 32px 80px rgba(0,0,0,0.6); color: #1a1a1a; flex-shrink: 0; }
+.cal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
+.cal-event-color { width: 14px; height: 14px; background: #4285f4; border-radius: 3px; margin-top: 3px; flex-shrink: 0; }
+.cal-event-title { font-size: 17px; font-weight: 600; color: #1a1a1a; line-height: 1.35; margin-left: 10px; flex: 1; }
+.cal-close { font-size: 18px; color: #9aa0a6; cursor: pointer; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 100ms; flex-shrink: 0; }
+.cal-close:hover { background: #f1f3f4; }
+.cal-meta { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
+.cal-meta-row { display: flex; align-items: flex-start; gap: 12px; font-size: 13px; color: #3c4043; }
+.cal-meta-icon { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; color: #70757a; }
+.cal-desc { font-size: 13px; color: #3c4043; line-height: 1.6; padding: 14px 0; border-top: 1px solid #e8eaed; border-bottom: 1px solid #e8eaed; margin-bottom: 18px; }
+.rsvp-label { font-size: 12px; color: #70757a; margin-bottom: 10px; font-weight: 500; }
+.rsvp-buttons { display: flex; gap: 8px; }
+.rsvp-btn { padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid #dadce0; background: #fff; color: #3c4043; transition: all 100ms; }
+.rsvp-btn:hover { background: #f1f3f4; }
+.rsvp-btn.confirmed { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+.rsvp-btn.confirmed:hover { background: #1557b0; }
+.rsvp-confirmed { font-size: 12px; color: #1a73e8; font-weight: 500; margin-top: 10px; display: none; }
+
+/* Email side panel */
+.email-side-panel { overflow: hidden; width: 0; opacity: 0; transition: width 350ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease; flex-shrink: 0; }
+.email-side-panel.open { width: 340px; opacity: 1; }
+.email-side-inner { width: 340px; background: #ffffff; border-radius: 16px; margin-left: 16px; padding: 24px; box-shadow: 0 32px 80px rgba(0,0,0,0.5); }
+.email-panel-title { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #70757a; margin-bottom: 14px; }
+.email-item { padding: 12px 14px; border: 1px solid #e8eaed; border-radius: 10px; margin-bottom: 10px; background: #f8f9fa; }
+.email-item:last-child { margin-bottom: 0; }
+.email-when { font-size: 11px; color: #70757a; font-weight: 500; margin-bottom: 3px; }
+.email-subject { font-size: 12px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; line-height: 1.4; }
+.email-preview { font-size: 11px; color: #5f6368; line-height: 1.5; }
+
+/* ═══ TAB 3: WEBINAR ═══ */
+.webinar-wrap { background: #0a0a12; min-height: calc(100vh - 108px); display: flex; flex-direction: column; }
+.webinar-top-bar { background: #111118; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+.live-badge { display: flex; align-items: center; gap: 6px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 20px; padding: 4px 10px; }
+.live-dot { width: 6px; height: 6px; background: #ef4444; border-radius: 50%; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.live-text { font-size: 11px; font-weight: 600; color: #ef4444; letter-spacing: 0.05em; }
+.attendee-count { font-size: 12px; color: #71717a; }
+.webinar-body { display: flex; flex: 1; }
+.slide-area { flex: 1; padding: 24px; display: flex; flex-direction: column; }
+.slide-nav { display: flex; gap: 8px; margin-bottom: 16px; }
+.slide-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.15); cursor: pointer; transition: background 100ms; }
+.slide-dot.active { background: #34d399; }
+.slide { display: none; flex: 1; border-radius: 14px; overflow: hidden; min-height: 380px; }
+.slide.active { display: flex; }
+
+/* Slide 1: Hero — real QS brand */
+.slide-1 {
+  background: linear-gradient(160deg, #050a0a 0%, #061510 40%, #071a10 70%, #050a0a 100%);
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+.slide-1-glow-tl { position: absolute; top: -80px; left: -80px; width: 400px; height: 400px; background: radial-gradient(circle, rgba(52,211,153,0.15) 0%, transparent 70%); pointer-events: none; }
+.slide-1-glow-br { position: absolute; bottom: -60px; right: -60px; width: 300px; height: 300px; background: radial-gradient(circle, rgba(16,185,129,0.10) 0%, transparent 70%); pointer-events: none; }
+.slide-1-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 48px 52px 24px; position: relative; z-index: 1; }
+.slide-1-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #34d399; margin-bottom: 20px; }
+.slide-1-title { font-size: 30px; font-weight: 700; color: #ffffff; line-height: 1.2; letter-spacing: -0.025em; max-width: 640px; margin-bottom: 0; }
+.slide-1-footer { border-top: 1px solid rgba(255,255,255,0.07); padding: 18px 52px; position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; }
+.slide-1-host { display: flex; align-items: center; gap: 12px; }
+.host-avatar { width: 44px; height: 44px; border-radius: 50%; border: 2px solid rgba(52,211,153,0.5); overflow: hidden; background: #0d2a1e; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #34d399; letter-spacing: -0.01em; }
+.host-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.host-name { font-size: 13px; font-weight: 600; color: #e4e4e7; }
+.host-title { font-size: 11px; color: #71717a; margin-top: 1px; }
+.slide-1-stats { display: flex; gap: 28px; }
+.stat-item { text-align: right; }
+.stat-value { font-size: 15px; font-weight: 700; color: #ffffff; letter-spacing: -0.01em; }
+.stat-label { font-size: 10px; color: #52525b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1px; }
+
+/* Slide 2: Client results — real data */
+.slide-2 {
+  background: linear-gradient(160deg, #050a0a 0%, #071510 100%);
+  flex-direction: column;
+  padding: 40px 52px;
+  position: relative;
+}
+.slide-2-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #34d399; margin-bottom: 10px; }
+.slide-2-heading { font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; margin-bottom: 28px; }
+.result-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+.result-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 16px; }
+.result-arrow { font-size: 20px; font-weight: 700; color: #34d399; margin-bottom: 8px; }
+.result-numbers { font-size: 13px; font-weight: 700; color: #ffffff; margin-bottom: 4px; line-height: 1.3; }
+.result-name { font-size: 11px; color: #71717a; }
+.result-detail { font-size: 11px; color: #52525b; margin-top: 6px; line-height: 1.4; }
+.slide-2-avg { display: flex; gap: 32px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+.avg-item { font-size: 12px; color: #a1a1aa; }
+.avg-item strong { color: #34d399; }
+
+/* Chat panel */
+.chat-panel { width: 280px; border-left: 1px solid rgba(255,255,255,0.06); background: #0e0e16; display: flex; flex-direction: column; }
+.chat-header { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.chat-title { font-size: 12px; font-weight: 600; color: #e4e4e7; }
+.chat-subtitle { font-size: 11px; color: #52525b; margin-top: 2px; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; max-height: 400px; }
+.chat-name { font-size: 11px; font-weight: 600; color: #8b5cf6; margin-bottom: 3px; }
+.chat-name.support { color: #34d399; }
+.chat-text { font-size: 12px; color: #a1a1aa; line-height: 1.4; }
+
+/* ═══ TAB 4: ROI MODEL ═══ */
+.roi-wrap { max-width: 1080px; margin: 0 auto; padding: 44px 32px; }
+.roi-layout { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+
+.roi-inputs-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 24px; }
+.roi-card-title { font-size: 13px; font-weight: 600; color: #ffffff; margin-bottom: 20px; }
+.roi-field { margin-bottom: 16px; }
+.roi-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #52525b; margin-bottom: 6px; display: block; }
+.roi-input-wrap { display: flex; align-items: center; background: rgba(10,10,15,0.8); border: 1px solid rgba(113,113,122,0.3); border-radius: 8px; overflow: hidden; transition: border-color 100ms; }
+.roi-input-wrap:focus-within { border-color: rgba(139,92,246,0.5); }
+.roi-prefix { font-size: 13px; color: #71717a; padding: 8px 10px 8px 12px; background: rgba(255,255,255,0.03); border-right: 1px solid rgba(255,255,255,0.05); }
+.roi-suffix { font-size: 13px; color: #71717a; padding: 8px 12px 8px 10px; background: rgba(255,255,255,0.03); border-left: 1px solid rgba(255,255,255,0.05); }
+.roi-input { background: none; border: none; outline: none; font-size: 13px; font-weight: 500; color: #e4e4e7; padding: 8px 10px; flex: 1; width: 100%; }
+.roi-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 16px 0; }
+.program-blank { border: 1px dashed rgba(139,92,246,0.3); border-radius: 8px; padding: 11px 14px; font-size: 12px; color: #52525b; font-style: italic; background: rgba(139,92,246,0.04); }
+
+.roi-right { display: flex; flex-direction: column; gap: 16px; }
+
+/* Funnel waterfall */
+.funnel-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; }
+.funnel-header { padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.funnel-title { font-size: 13px; font-weight: 600; color: #ffffff; }
+.funnel-sub { font-size: 11px; color: #52525b; margin-top: 2px; }
+.funnel-table { width: 100%; border-collapse: collapse; }
+.funnel-table th { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #52525b; padding: 10px 20px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.funnel-table th:first-child { text-align: left; }
+.funnel-table th:nth-child(2) { text-align: center; }
+.funnel-table td { padding: 9px 20px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.funnel-table tr:last-child td { border-bottom: none; }
+.funnel-table td:first-child { color: #a1a1aa; }
+.funnel-table td:nth-child(2) { text-align: center; color: #52525b; font-size: 11px; }
+.funnel-table td:nth-child(3), .funnel-table td:nth-child(4) { text-align: right; font-weight: 500; color: #e4e4e7; font-variant-numeric: tabular-nums; }
+.funnel-table tr.funnel-revenue td { background: rgba(52,211,153,0.06); }
+.funnel-table tr.funnel-revenue td:nth-child(3), .funnel-table tr.funnel-revenue td:nth-child(4) { color: #34d399; font-weight: 600; font-size: 13px; }
+.funnel-arrow { font-size: 10px; color: #3f3f46; margin-right: 4px; }
+
+/* Monthly ramp */
+.ramp-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; }
+.ramp-header { padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: baseline; }
+.ramp-title { font-size: 13px; font-weight: 600; color: #ffffff; }
+.ramp-total { font-size: 13px; font-weight: 700; color: #34d399; }
+.ramp-table { width: 100%; border-collapse: collapse; }
+.ramp-table th { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #52525b; padding: 8px 16px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.ramp-table th:first-child { text-align: left; }
+.ramp-table td { padding: 7px 16px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); color: #a1a1aa; text-align: right; font-variant-numeric: tabular-nums; }
+.ramp-table td:first-child { text-align: left; color: #71717a; }
+.ramp-table td.has-revenue { color: #e4e4e7; }
+.ramp-table td.cumul { color: #8b5cf6; font-weight: 500; }
+.ramp-table tr:last-child td { border-bottom: none; }
+.phase-tag { display: inline-block; font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle; }
+.p1-tag { background: rgba(139,92,246,0.2); color: #a78bfa; }
+.p2-tag { background: rgba(52,211,153,0.15); color: #34d399; }
+</style>
+</head>
+<body>
+
+<!-- PORTAL NAV -->
+<nav class="portal-nav">
+  <div class="wordmark">
+    <div class="wordmark-icon"></div>
+    <span class="wordmark-text">Deal Forge</span>
+  </div>
+  <span class="prepared-for">Prepared for Acme Corp</span>
+</nav>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="switchTab(0)">Lead List</button>
+  <button class="tab" onclick="switchTab(1)">Calendar Invite</button>
+  <button class="tab" onclick="switchTab(2)">Webinar Experience</button>
+  <button class="tab" onclick="switchTab(3)">ROI Model</button>
+</div>
+
+<!-- ═══════════════════════════════ -->
+<!-- TAB 1: LEAD LIST               -->
+<!-- ═══════════════════════════════ -->
+<div class="tab-content active" id="tab-0">
+  <div class="lead-list-wrap">
+    <h2 class="section-title">Your Target Market</h2>
+    <p class="section-sub">Deep research · ICP-matched · Sourced via Apollo · Sample of 25 shown below</p>
+
+    <!-- TAM Block -->
+    <div class="tam-block">
+      <div class="tam-top">
+        <div class="tam-stat-group">
+          <div>
+            <div class="tam-stat-value">87,400</div>
+            <div class="tam-stat-label">Total Addressable Market</div>
+          </div>
+          <div>
+            <div class="tam-stat-value">30–35K</div>
+            <div class="tam-stat-label">Recommended / Month</div>
+          </div>
+          <div>
+            <div class="tam-stat-value">~3 mo</div>
+            <div class="tam-stat-label">Full Market Cycle</div>
+          </div>
+        </div>
+        <div class="tam-cycle-badge">
+          <div class="tam-cycle-dot"></div>
+          <div class="tam-cycle-text">At 30K outreaches/mo, your full market cycles every <strong>3 months</strong> — run a new webinar topic each cycle to stay fresh</div>
+        </div>
+      </div>
+
+      <div style="font-size:10px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">ICP Parameters Used</div>
+      <div class="tam-filters-row">
+        <span class="filter-group-label">Titles</span>
+        <span class="filter-tag">CEO</span>
+        <span class="filter-tag">Founder</span>
+        <span class="filter-tag">Managing Director</span>
+        <span class="filter-tag">Partner</span>
+        <span class="filter-tag">President</span>
+        <span class="filter-sep">·</span>
+        <span class="filter-group-label">Company Size</span>
+        <span class="filter-tag">5–50 employees</span>
+        <span class="filter-sep">·</span>
+        <span class="filter-group-label">Industries</span>
+        <span class="filter-tag">Management Consulting</span>
+        <span class="filter-tag">Business Advisory</span>
+        <span class="filter-tag">Professional Services</span>
+        <span class="filter-sep">·</span>
+        <span class="filter-group-label">Geographies</span>
+        <span class="filter-tag">United States</span>
+        <span class="filter-tag">Canada</span>
+        <span class="filter-tag">United Kingdom</span>
+        <span class="filter-tag">Australia</span>
+      </div>
+
+      <div class="tam-blurb">
+        Based on your ICP profile, we identified <strong>87,400 reachable prospects</strong> across English-speaking markets. At a cadence of <strong>30,000–35,000 outreaches per month</strong>, you can move through your entire addressable market in approximately <strong>3 months per cycle</strong> — then recycle with a new webinar topic to re-engage the same audience. Because your TAM is above the 30K threshold, you're never limited by audience size — you have enough market to run fresh campaigns for years without duplicating. We recommend rotating webinar angles every cycle to maximize show rates across your full market.
+      </div>
+    </div>
+
+    <!-- Lead Table -->
+    <table class="lead-table">
+      <thead><tr><th>#</th><th>Name</th><th>Title</th><th>Company</th><th>Size</th><th>Website</th><th>LinkedIn</th></tr></thead>
+      <tbody>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">1</td><td class="td-name">Jordan Marsh</td><td class="td-title">CEO</td><td class="td-company">Pinnacle Growth Co.</td><td class="td-size">18 emp</td><td><a class="web-link" href="#">pinnaclegrowth.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">2</td><td class="td-name">Alicia Fontaine</td><td class="td-title">Founder</td><td class="td-company">Meridian Advisory</td><td class="td-size">7 emp</td><td><a class="web-link" href="#">meridianadvisory.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">3</td><td class="td-name">Derek Okonkwo</td><td class="td-title">Managing Director</td><td class="td-company">Vantage Partners</td><td class="td-size">31 emp</td><td><a class="web-link" href="#">vantagepartners.io</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">4</td><td class="td-name">Simone Laurent</td><td class="td-title">CEO</td><td class="td-company">Clearview Consulting</td><td class="td-size">12 emp</td><td><a class="web-link" href="#">clearviewconsulting.co</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">5</td><td class="td-name">Tyler Breckenridge</td><td class="td-title">Founder & CEO</td><td class="td-company">Northbrook Digital</td><td class="td-size">9 emp</td><td><a class="web-link" href="#">northbrookdigital.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">6</td><td class="td-name">Priya Menon</td><td class="td-title">Co-Founder</td><td class="td-company">Apex Revenue Labs</td><td class="td-size">22 emp</td><td><a class="web-link" href="#">apexrevenuelabs.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">7</td><td class="td-name">Marcus Webb</td><td class="td-title">President</td><td class="td-company">Sterling Growth</td><td class="td-size">15 emp</td><td><a class="web-link" href="#">sterlinggrowth.co</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">8</td><td class="td-name">Nadia Caruso</td><td class="td-title">CEO</td><td class="td-company">Lumina Strategies</td><td class="td-size">6 emp</td><td><a class="web-link" href="#">luminastrategies.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">9</td><td class="td-name">Ryan Calloway</td><td class="td-title">Founder</td><td class="td-company">Calloway Advisors</td><td class="td-size">4 emp</td><td><a class="web-link" href="#">callowayadvisors.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">10</td><td class="td-name">Sophie Whitfield</td><td class="td-title">CEO</td><td class="td-company">Whitfield & Co.</td><td class="td-size">11 emp</td><td><a class="web-link" href="#">whitfieldco.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">11</td><td class="td-name">David Nakamura</td><td class="td-title">Managing Partner</td><td class="td-company">Horizon Strategy Group</td><td class="td-size">28 emp</td><td><a class="web-link" href="#">horizonstrategygroup.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">12</td><td class="td-name">Camille Rousseau</td><td class="td-title">Founder</td><td class="td-company">Rousseau Consulting</td><td class="td-size">5 emp</td><td><a class="web-link" href="#">rousseauconsulting.ca</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">13</td><td class="td-name">Ben Harrington</td><td class="td-title">CEO</td><td class="td-company">Harrington Advisory</td><td class="td-size">8 emp</td><td><a class="web-link" href="#">harringtonadvisory.co.uk</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">14</td><td class="td-name">Leila Ahmadi</td><td class="td-title">Principal</td><td class="td-company">Ahmadi Growth Partners</td><td class="td-size">14 emp</td><td><a class="web-link" href="#">ahmadigrowth.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">15</td><td class="td-name">James Osei</td><td class="td-title">Founder & CEO</td><td class="td-company">Osei Business Partners</td><td class="td-size">20 emp</td><td><a class="web-link" href="#">oseibp.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">16</td><td class="td-name">Rachel Thornton</td><td class="td-title">CEO</td><td class="td-company">Thornton & Associates</td><td class="td-size">10 emp</td><td><a class="web-link" href="#">thorntonassociates.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">17</td><td class="td-name">Mike Fitzgerald</td><td class="td-title">Managing Director</td><td class="td-company">FitzStrategy Group</td><td class="td-size">19 emp</td><td><a class="web-link" href="#">fitzstrategy.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">18</td><td class="td-name">Yuki Tanaka</td><td class="td-title">Co-Founder</td><td class="td-company">Tanaka Advisory Group</td><td class="td-size">6 emp</td><td><a class="web-link" href="#">tanakaadvisory.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">19</td><td class="td-name">Carlos Mendez</td><td class="td-title">President</td><td class="td-company">Mendez Consulting LLC</td><td class="td-size">13 emp</td><td><a class="web-link" href="#">mendezconsulting.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">20</td><td class="td-name">Hannah Bryce</td><td class="td-title">CEO</td><td class="td-company">Bryce Growth Advisory</td><td class="td-size">8 emp</td><td><a class="web-link" href="#">brycegrowth.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">21</td><td class="td-name">Oliver Grant</td><td class="td-title">Founder</td><td class="td-company">Grant Strategic Partners</td><td class="td-size">16 emp</td><td><a class="web-link" href="#">grantstrategic.co.uk</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">22</td><td class="td-name">Fatima Al-Hassan</td><td class="td-title">Managing Partner</td><td class="td-company">Al-Hassan & Partners</td><td class="td-size">23 emp</td><td><a class="web-link" href="#">alhassan-partners.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">23</td><td class="td-name">Tom Elsworth</td><td class="td-title">CEO</td><td class="td-company">Elsworth & Co Strategy</td><td class="td-size">7 emp</td><td><a class="web-link" href="#">elsworthstrategy.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">24</td><td class="td-name">Isabel Vargas</td><td class="td-title">Founder & President</td><td class="td-company">Vargas Revenue Group</td><td class="td-size">9 emp</td><td><a class="web-link" href="#">vargasrevenue.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+        <tr class="data-row"><td style="color:#3f3f46;font-size:12px;">25</td><td class="td-name">Aaron Kwame</td><td class="td-title">CEO</td><td class="td-company">Kwame Advisory Ltd</td><td class="td-size">17 emp</td><td><a class="web-link" href="#">kwameadvisory.com</a></td><td><a class="li-link" href="#"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> View</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ -->
+<!-- TAB 2: CALENDAR INVITE         -->
+<!-- ═══════════════════════════════ -->
+<div class="tab-content" id="tab-1">
+  <div class="cal-wrap">
+    <div class="cal-bg">
+      <div class="cal-grid-line" style="top:15%"><span class="cal-time-label">9 AM</span></div>
+      <div class="cal-grid-line" style="top:30%"><span class="cal-time-label">10 AM</span></div>
+      <div class="cal-grid-line" style="top:45%"><span class="cal-time-label">11 AM</span></div>
+      <div class="cal-grid-line" style="top:60%"><span class="cal-time-label">12 PM</span></div>
+      <div class="cal-grid-line" style="top:75%"><span class="cal-time-label">1 PM</span></div>
+      <div style="position:absolute;left:80px;top:28%;width:200px;height:60px;background:rgba(66,133,244,0.2);border-left:3px solid #4285f4;border-radius:4px;padding:6px 10px;"><div style="font-size:11px;color:rgba(255,255,255,0.5);">Team Sync</div></div>
+      <div style="position:absolute;left:310px;top:55%;width:160px;height:45px;background:rgba(52,211,153,0.15);border-left:3px solid #34d399;border-radius:4px;padding:6px 10px;"><div style="font-size:11px;color:rgba(255,255,255,0.4);">Lunch</div></div>
+    </div>
+
+    <!-- Modal + Email side panel, side by side -->
+    <div class="cal-content-row">
+
+      <!-- Calendar Modal -->
+      <div class="cal-modal">
+        <!-- Variant selector -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <span style="font-size:10px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#9aa0a6;">Angle</span>
+          <div style="display:flex;gap:4px;">
+            <button onclick="switchVariant(0)" id="var-btn-0" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid #1a73e8;background:#1a73e8;color:#fff;cursor:pointer;transition:all 100ms;">A</button>
+            <button onclick="switchVariant(1)" id="var-btn-1" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#5f6368;cursor:pointer;transition:all 100ms;">B</button>
+            <button onclick="switchVariant(2)" id="var-btn-2" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#5f6368;cursor:pointer;transition:all 100ms;">C</button>
+          </div>
+          <span id="var-tag" style="font-size:11px;color:#9aa0a6;">Problem-aware</span>
+        </div>
+
+        <div class="cal-header">
+          <div class="cal-event-color"></div>
+          <div class="cal-event-title" id="cal-title">Why 90% of Consulting Firms Plateau at $1.5M — and the Revenue System That Actually Breaks Through</div>
+          <div class="cal-close">×</div>
+        </div>
+
+        <div class="cal-meta">
+          <div class="cal-meta-row">
+            <svg class="cal-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <div><div style="font-weight:500;">Thursday, February 6</div><div style="color:#70757a;font-size:12px;">12:00 – 1:30 PM · Live Webinar</div></div>
+          </div>
+          <div class="cal-meta-row">
+            <svg class="cal-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            <div><div style="font-weight:500;">Hosted by Lloyd Yip</div><div style="color:#70757a;font-size:12px;">Founder, Quantum Scaling · $500M+ in client revenue generated</div></div>
+          </div>
+        </div>
+
+        <div class="cal-desc" id="cal-desc">
+          Most consulting firms hit a ceiling not because of talent or delivery — but because their entire pipeline depends on referrals they can't control. In this 90-minute live session, Lloyd breaks down the three-phase revenue system that's moved 1,400+ consulting founders from referral-dependent to a fully automated, high-converting pipeline — without adding headcount, burning out on outreach, or discounting to compete.
+        </div>
+
+        <div class="rsvp-label">Will you attend?</div>
+        <div class="rsvp-buttons">
+          <button class="rsvp-btn" id="rsvp-yes-btn" onclick="rsvpYes(this)">Yes</button>
+          <button class="rsvp-btn" onclick="rsvpNo(this)">No</button>
+          <button class="rsvp-btn">Maybe</button>
+        </div>
+        <div class="rsvp-confirmed" id="rsvp-confirmed">✓ You're registered. Reminders on the way.</div>
+      </div>
+
+      <!-- Email Side Panel — slides in on Yes -->
+      <div class="email-side-panel" id="email-side-panel">
+        <div class="email-side-inner">
+          <div class="email-panel-title">Your reminder emails</div>
+          <div class="email-item">
+            <div class="email-when">1 week before · Jan 30</div>
+            <div class="email-subject">You're in — here's what we're covering on Feb 6</div>
+            <div class="email-preview">Hey Sarah — your spot is confirmed. We'll walk through the exact pipeline framework that took 3 of our clients from $1.2M to $2.4M+ last year. See you there.</div>
+          </div>
+          <div class="email-item">
+            <div class="email-when">24 hours before · Feb 5</div>
+            <div class="email-subject">Tomorrow at noon — your direct access link is inside</div>
+            <div class="email-preview">No re-registration needed — here's your direct join link. Lloyd opens the room at 11:55 AM for early questions before we go live at noon sharp.</div>
+          </div>
+          <div class="email-item">
+            <div class="email-when">1 hour before · Feb 6</div>
+            <div class="email-subject">We go live in 60 minutes — see you there, Sarah</div>
+            <div class="email-preview">Heads up — we start in one hour. 800+ registered. Lloyd will be taking live questions at the end, so come ready with yours.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ -->
+<!-- TAB 3: WEBINAR EXPERIENCE      -->
+<!-- ═══════════════════════════════ -->
+<div class="tab-content" id="tab-2">
+  <div class="webinar-wrap">
+    <div class="webinar-top-bar">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="live-badge"><div class="live-dot"></div><span class="live-text">LIVE</span></div>
+        <span class="attendee-count">847 attending</span>
+      </div>
+      <div style="font-size:12px;color:#52525b;">Quantum Scaling · Webinar Series</div>
+    </div>
+
+    <div class="webinar-body">
+      <div class="slide-area">
+        <div class="slide-nav">
+          <div class="slide-dot active" onclick="switchSlide(0)"></div>
+          <div class="slide-dot" onclick="switchSlide(1)"></div>
+        </div>
+
+        <!-- Slide 1: Hero with real QS brand -->
+        <div class="slide active" id="slide-0">
+          <div class="slide-1" style="flex:1;display:flex;flex-direction:column;">
+            <div class="slide-1-glow-tl"></div>
+            <div class="slide-1-glow-br"></div>
+            <div class="slide-1-body">
+              <div class="slide-1-tag">Live Webinar · Quantum Scaling</div>
+              <div class="slide-1-title" id="slide-title">Why 90% of Consulting Firms Plateau at $1.5M — and the Revenue System That Actually Breaks Through</div>
+            </div>
+            <div class="slide-1-footer">
+              <div class="slide-1-host">
+                <div class="host-avatar" id="host-avatar-wrap">
+                  <img src="https://media.licdn.com/dms/image/v2/C4E03AQEtIxMkjlDmyA/profile-displayphoto-shrink_200_200/0/1638042721905" alt="Lloyd Yip" onerror="document.getElementById('host-avatar-wrap').innerHTML='LY'">
+                </div>
+                <div>
+                  <div class="host-name">Lloyd Yip</div>
+                  <div class="host-title">Founder, Quantum Scaling</div>
+                </div>
+              </div>
+              <div class="slide-1-stats">
+                <div class="stat-item">
+                  <div class="stat-value">$500M+</div>
+                  <div class="stat-label">Client Revenue</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">1,400+</div>
+                  <div class="stat-label">Clients Served</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">150K+</div>
+                  <div class="stat-label">Webinar Registrations</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 2: Real client results -->
+        <div class="slide" id="slide-1">
+          <div class="slide-2" style="flex:1;">
+            <div class="slide-2-eyebrow">Proven Results</div>
+            <div class="slide-2-heading">What Clients Have Built With This System</div>
+            <div class="result-cards">
+              <div class="result-card">
+                <div class="result-arrow">4×</div>
+                <div class="result-numbers">$500K → $2M ARR</div>
+                <div class="result-name">Brooks Golden</div>
+                <div class="result-detail">4X revenue in first month · 90% cost reduction vs. prior marketing</div>
+              </div>
+              <div class="result-card">
+                <div class="result-arrow">27×</div>
+                <div class="result-numbers">$36K → $1M ARR</div>
+                <div class="result-name">Tejas Parikh</div>
+                <div class="result-detail">Four $100K deals closed in first 6 months of the program</div>
+              </div>
+              <div class="result-card">
+                <div class="result-arrow">3×</div>
+                <div class="result-numbers">€300K → €900K ARR</div>
+                <div class="result-name">Felix Petzel</div>
+                <div class="result-detail">14X pipeline growth · 95% reduction in customer acquisition cost</div>
+              </div>
+            </div>
+            <div class="slide-2-avg">
+              <div class="avg-item">Average outcome: <strong>2–5X revenue growth</strong> in 12 months</div>
+              <div class="avg-item">Average ROI: <strong>5–175X</strong> on marketing spend</div>
+              <div class="avg-item"><strong>1,400+ clients</strong> across 12 industries</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Chat -->
+      <div class="chat-panel">
+        <div class="chat-header">
+          <div class="chat-title">Live Chat</div>
+          <div class="chat-subtitle">847 participants</div>
+        </div>
+        <div class="chat-messages">
+          <div class="chat-msg"><div class="chat-name">Jordan M.</div><div class="chat-text">Referrals have been our only source for 3 years — this is exactly what we need</div></div>
+          <div class="chat-msg"><div class="chat-name">Alicia F.</div><div class="chat-text">How long until we see the first calls coming in from the webinar?</div></div>
+          <div class="chat-msg"><div class="chat-name support">QS Support</div><div class="chat-text">Alicia — typically first calls in weeks 3–4 of the campaign. Lloyd will break down the ramp on slide 4</div></div>
+          <div class="chat-msg"><div class="chat-name">Derek O.</div><div class="chat-text">We're at $1.8M and plateaued. The ceiling is real. This session is timely</div></div>
+          <div class="chat-msg"><div class="chat-name">Simone L.</div><div class="chat-text">Does this work for B2B consulting specifically or more for coaches?</div></div>
+          <div class="chat-msg"><div class="chat-name support">QS Support</div><div class="chat-text">Simone — optimized for B2B consulting and advisory, that's the core ICP. Perfect for your profile</div></div>
+          <div class="chat-msg"><div class="chat-name">Tyler B.</div><div class="chat-text">The automation piece is critical for us — our outreach is 100% manual right now</div></div>
+          <div class="chat-msg"><div class="chat-name">Priya M.</div><div class="chat-text">Is there a replay available? Our COO wants to see this but has a conflict</div></div>
+          <div class="chat-msg"><div class="chat-name support">QS Support</div><div class="chat-text">Yes — replay goes out within 24 hours to all registered attendees</div></div>
+          <div class="chat-msg"><div class="chat-name">Marcus W.</div><div class="chat-text">Most excited about the ROI model — want to see our specific numbers</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ -->
+<!-- TAB 4: ROI MODEL               -->
+<!-- ═══════════════════════════════ -->
+<div class="tab-content" id="tab-3">
+  <div class="roi-wrap">
+    <h2 class="section-title" style="margin-bottom:6px;">Your Revenue Projection</h2>
+    <p style="font-size:14px;color:#71717a;margin-bottom:32px;">Built with Acme Corp's numbers. Adjust any input to recalculate the full funnel live.</p>
+
+    <div class="roi-layout">
+      <!-- Inputs -->
+      <div class="roi-inputs-card">
+        <div class="roi-card-title">Your Numbers</div>
+
+        <div class="roi-field">
+          <label class="roi-label">Average Client LTV</label>
+          <div class="roi-input-wrap"><span class="roi-prefix">$</span><input class="roi-input" type="number" id="ltv" value="48000" oninput="recalc()"></div>
+        </div>
+
+        <div class="roi-divider"></div>
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#3f3f46;margin-bottom:12px;">Funnel Rates</div>
+
+        <div class="roi-field">
+          <label class="roi-label">Registration Rate</label>
+          <div class="roi-input-wrap"><input class="roi-input" type="number" id="reg-rate" value="8" oninput="recalc()"><span class="roi-suffix">%</span></div>
+        </div>
+        <div class="roi-field">
+          <label class="roi-label">Show Rate (of registrants)</label>
+          <div class="roi-input-wrap"><input class="roi-input" type="number" id="show-rate" value="35" oninput="recalc()"><span class="roi-suffix">%</span></div>
+        </div>
+        <div class="roi-field">
+          <label class="roi-label">Call Booking Rate (of attendees)</label>
+          <div class="roi-input-wrap"><input class="roi-input" type="number" id="call-rate" value="15" oninput="recalc()"><span class="roi-suffix">%</span></div>
+        </div>
+        <div class="roi-field">
+          <label class="roi-label">Sales Close Rate (of calls)</label>
+          <div class="roi-input-wrap"><input class="roi-input" type="number" id="close-rate" value="25" oninput="recalc()"><span class="roi-suffix">%</span></div>
+        </div>
+
+        <div class="roi-divider"></div>
+        <div>
+          <label class="roi-label">Program Investment</label>
+          <div class="program-blank">To be discussed with your rep</div>
+        </div>
+      </div>
+
+      <!-- Right column: funnel + timeline -->
+      <div class="roi-right">
+
+        <!-- Funnel Waterfall -->
+        <div class="funnel-card">
+          <div class="funnel-header">
+            <div class="funnel-title">Full Funnel Breakdown</div>
+            <div class="funnel-sub">Each conversion step, both phases — QS benchmark rates shown</div>
+          </div>
+          <table class="funnel-table">
+            <thead>
+              <tr>
+                <th>Funnel Step</th>
+                <th>Rate</th>
+                <th>Phase 1 · 7,500 prospects</th>
+                <th>Phase 2 · 50,000 prospects</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Prospects Reached</td>
+                <td>—</td>
+                <td>7,500</td>
+                <td>50,000</td>
+              </tr>
+              <tr>
+                <td><span class="funnel-arrow">↓</span>Webinar Registrations</td>
+                <td id="f-reg-rate">8%</td>
+                <td id="p1-regs">600</td>
+                <td id="p2-regs">4,000</td>
+              </tr>
+              <tr>
+                <td><span class="funnel-arrow">↓</span>Webinar Attendees</td>
+                <td id="f-show-rate">35%</td>
+                <td id="p1-shows">210</td>
+                <td id="p2-shows">1,400</td>
+              </tr>
+              <tr>
+                <td><span class="funnel-arrow">↓</span>Sales Calls Booked</td>
+                <td id="f-call-rate">15%</td>
+                <td id="p1-calls">32</td>
+                <td id="p2-calls">210</td>
+              </tr>
+              <tr>
+                <td><span class="funnel-arrow">↓</span>Clients Closed</td>
+                <td id="f-close-rate">25%</td>
+                <td id="p1-closes">8</td>
+                <td id="p2-closes">53</td>
+              </tr>
+              <tr class="funnel-revenue">
+                <td style="font-weight:600;color:#e4e4e7;">New Revenue</td>
+                <td>—</td>
+                <td id="p1-rev" style="color:#34d399;font-weight:600;">$384K</td>
+                <td id="p2-rev" style="color:#34d399;font-weight:600;">$2.5M</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Monthly Ramp -->
+        <div class="ramp-card">
+          <div class="ramp-header">
+            <div class="ramp-title">12-Month Revenue Build</div>
+            <div class="ramp-total" id="total-12m">$0</div>
+          </div>
+          <table class="ramp-table">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>New Clients</th>
+                <th>Monthly Revenue</th>
+                <th>Cumulative</th>
+              </tr>
+            </thead>
+            <tbody id="ramp-body">
+              <!-- populated by JS -->
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Tab switching ──
+function switchTab(i) {
+  document.querySelectorAll('.tab-content').forEach((t,j) => t.classList.toggle('active', i===j));
+  document.querySelectorAll('.tab').forEach((t,j) => t.classList.toggle('active', i===j));
+}
+
+// ── Slide switching ──
+function switchSlide(i) {
+  document.querySelectorAll('.slide').forEach((s,j) => s.classList.toggle('active', i===j));
+  document.querySelectorAll('.slide-dot').forEach((d,j) => d.classList.toggle('active', i===j));
+}
+
+// ── Variant switching ──
+const variants = [
+  {
+    tag: 'Problem-aware',
+    title: 'Why 90% of Consulting Firms Plateau at $1.5M — and the Revenue System That Actually Breaks Through',
+    desc: 'Most consulting firms hit a ceiling not because of talent or delivery — but because their entire pipeline depends on referrals they can\'t control. In this 90-minute live session, Lloyd breaks down the three-phase revenue system that\'s moved 1,400+ consulting founders from referral-dependent to a fully automated, high-converting pipeline — without adding headcount, burning out on outreach, or discounting to compete.'
+  },
+  {
+    tag: 'Outcome-focused',
+    title: 'The Webinar Funnel That Generated $500M+ for Consulting Firms — Live Training with Lloyd Yip',
+    desc: 'In this 90-minute live training, Lloyd walks through the exact acquisition system Quantum Scaling has deployed across 1,400+ B2B consulting and advisory firms — the same system responsible for over $500M in client revenue. You\'ll leave with the framework, the funnel math built with your specific numbers, and a clear picture of what this looks like in your business starting in the next 90 days.'
+  },
+  {
+    tag: 'Mechanism-led',
+    title: 'The 3-Phase Revenue Engine Replacing Referrals for $1M–$5M Consulting Firms',
+    desc: 'Referrals work — until they don\'t. This training reveals the three-phase automated system consulting founders are using to build a predictable, scalable pipeline that doesn\'t depend on word-of-mouth, cold calling, or paid ads. Lloyd has used this exact framework with 1,400+ clients to generate $500M+ in combined revenue — and in this session, he\'ll show you how it maps to your firm specifically.'
+  }
+];
+
+function switchVariant(i) {
+  [0,1,2].forEach(j => {
+    const btn = document.getElementById('var-btn-' + j);
+    if (j === i) {
+      btn.style.background = '#1a73e8'; btn.style.borderColor = '#1a73e8'; btn.style.color = '#fff';
+    } else {
+      btn.style.background = '#fff'; btn.style.borderColor = '#dadce0'; btn.style.color = '#5f6368';
+    }
+  });
+  document.getElementById('var-tag').textContent = variants[i].tag;
+  document.getElementById('cal-title').textContent = variants[i].title;
+  document.getElementById('cal-desc').textContent = variants[i].desc;
+  document.getElementById('slide-title').textContent = variants[i].title;
+  resetRsvp();
+}
+
+function resetRsvp() {
+  const btn = document.getElementById('rsvp-yes-btn');
+  btn.textContent = 'Yes';
+  btn.classList.remove('confirmed');
+  document.getElementById('rsvp-confirmed').style.display = 'none';
+  document.getElementById('email-side-panel').classList.remove('open');
+}
+
+function rsvpYes(btn) {
+  btn.textContent = '✓ Going';
+  btn.classList.add('confirmed');
+  document.getElementById('rsvp-confirmed').style.display = 'block';
+  document.getElementById('email-side-panel').classList.add('open');
+}
+function rsvpNo(btn) { btn.textContent = 'Not going'; }
+
+// ── ROI Calculator ──
+function fmt(n) {
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(2).replace(/\.?0+$/,'') + 'M';
+  if (n >= 1000) return '$' + Math.round(n/1000) + 'K';
+  return '$' + Math.round(n).toLocaleString();
+}
+function fmtN(n) { return Math.round(n).toLocaleString(); }
+
+function recalc() {
+  const ltv       = parseFloat(document.getElementById('ltv').value)       || 0;
+  const regRate   = (parseFloat(document.getElementById('reg-rate').value)  || 0) / 100;
+  const showRate  = (parseFloat(document.getElementById('show-rate').value) || 0) / 100;
+  const callRate  = (parseFloat(document.getElementById('call-rate').value) || 0) / 100;
+  const closeRate = (parseFloat(document.getElementById('close-rate').value)|| 0) / 100;
+
+  // Update rate display in funnel table
+  document.getElementById('f-reg-rate').textContent   = Math.round(regRate*100)   + '%';
+  document.getElementById('f-show-rate').textContent  = Math.round(showRate*100)  + '%';
+  document.getElementById('f-call-rate').textContent  = Math.round(callRate*100)  + '%';
+  document.getElementById('f-close-rate').textContent = Math.round(closeRate*100) + '%';
+
+  // Phase 1: 7,500 prospects
+  const p1Regs   = Math.round(7500 * regRate);
+  const p1Shows  = Math.round(p1Regs * showRate);
+  const p1Calls  = Math.round(p1Shows * callRate);
+  const p1Closes = Math.round(p1Calls * closeRate);
+  const p1Rev    = p1Closes * ltv;
+
+  // Phase 2: 50,000 prospects
+  const p2Regs   = Math.round(50000 * regRate);
+  const p2Shows  = Math.round(p2Regs * showRate);
+  const p2Calls  = Math.round(p2Shows * callRate);
+  const p2Closes = Math.round(p2Calls * closeRate);
+  const p2Rev    = p2Closes * ltv;
+
+  // Update funnel waterfall
+  document.getElementById('p1-regs').textContent   = fmtN(p1Regs);
+  document.getElementById('p1-shows').textContent  = fmtN(p1Shows);
+  document.getElementById('p1-calls').textContent  = fmtN(p1Calls);
+  document.getElementById('p1-closes').textContent = fmtN(p1Closes);
+  document.getElementById('p1-rev').textContent    = fmt(p1Rev);
+  document.getElementById('p2-regs').textContent   = fmtN(p2Regs);
+  document.getElementById('p2-shows').textContent  = fmtN(p2Shows);
+  document.getElementById('p2-calls').textContent  = fmtN(p2Calls);
+  document.getElementById('p2-closes').textContent = fmtN(p2Closes);
+  document.getElementById('p2-rev').textContent    = fmt(p2Rev);
+
+  // Monthly ramp
+  // P1 (90-day campaign): closes distributed M2–M5
+  //   M2: 15%, M3: 45%, M4: 30%, M5: 10%
+  // P2 (starts M4, ramps to velocity by M6):
+  //   Monthly velocity = p2Closes / 12
+  //   M4: 20%, M5: 50%, M6: 90%, M7+: 100%
+  const p2Monthly = p2Closes / 12;
+  const p1Dist = [0, 0, 0.15, 0.45, 0.30, 0.10, 0, 0, 0, 0, 0, 0, 0]; // index = month
+  const p2Ramp = [0, 0, 0, 0, 0.20, 0.50, 0.90, 1, 1, 1, 1, 1, 1];
+
+  const tbody = document.getElementById('ramp-body');
+  tbody.innerHTML = '';
+  let cumulative = 0;
+
+  for (let m = 1; m <= 12; m++) {
+    const p1c = p1Closes * (p1Dist[m] || 0);
+    const p2c = p2Monthly * (p2Ramp[m] || 0);
+    const clients = p1c + p2c;
+    const revenue = clients * ltv;
+    cumulative += revenue;
+
+    const hasP1 = p1c > 0.1;
+    const hasP2 = p2c > 0.1;
+    const hasRev = revenue > 0;
+
+    let phaseTag = '';
+    if (hasP1 && hasP2) phaseTag = '<span class="phase-tag p1-tag">P1</span><span class="phase-tag p2-tag">P2</span>';
+    else if (hasP1) phaseTag = '<span class="phase-tag p1-tag">P1</span>';
+    else if (hasP2) phaseTag = '<span class="phase-tag p2-tag">P2</span>';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>Month ${m}${phaseTag}</td>
+      <td class="${hasRev ? 'has-revenue' : ''}">${hasRev ? Math.round(clients) : '—'}</td>
+      <td class="${hasRev ? 'has-revenue' : ''}">${hasRev ? fmt(revenue) : '—'}</td>
+      <td class="${cumulative > 0 ? 'cumul' : ''}">${cumulative > 0 ? fmt(cumulative) : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  document.getElementById('total-12m').textContent = fmt(cumulative);
+}
+
+recalc();
+</script>
+</body>
+</html>
