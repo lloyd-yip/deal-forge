@@ -925,6 +925,20 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
           <h2 class="roi-timeline-title">12-Month Revenue Build</h2>
           <p class="roi-timeline-sub">Month 1 is onboarding — no outreach yet. System ramps through Month 5. Full velocity from Month 6.</p>
 
+          <!-- Return summary stats -->
+          <div style="display:flex;gap:12px;margin-bottom:14px;">
+            <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:16px 20px;">
+              <div style="font-size:10px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#52525b;margin-bottom:6px;">Return at 6 Months</div>
+              <div id="ret-6m" style="font-size:26px;font-weight:700;color:#f97316;letter-spacing:-0.02em;">—</div>
+              <div style="font-size:11px;color:#52525b;margin-top:3px;">Cumulative revenue</div>
+            </div>
+            <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:16px 20px;">
+              <div style="font-size:10px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#52525b;margin-bottom:6px;">Return at 12 Months</div>
+              <div id="ret-12m" style="font-size:26px;font-weight:700;color:#f97316;letter-spacing:-0.02em;">—</div>
+              <div style="font-size:11px;color:#52525b;margin-top:3px;">Cumulative revenue</div>
+            </div>
+          </div>
+
           <div class="ramp-card">
             <div class="ramp-header">
               <div class="ramp-title">Monthly Projection</div>
@@ -1435,12 +1449,13 @@ function roiCalc() {
   // Build 12-month ramp table
   const tbody = document.getElementById('ramp-body');
   tbody.innerHTML = '';
-  let cumulative = 0;
+  let cumulative = 0; let cum6 = 0;
   for (let m = 1; m <= 12; m++) {
     const ramp      = RAMP[m] || 0;
     const mClients  = clients * ramp;
     const mRev      = mClients * ltv;
     cumulative += mRev;
+    if (m === 6) cum6 = cumulative;
     const hasRev        = mRev > 0.5;
     const isOnboarding  = m === 1;
     const isRamp        = !isOnboarding && ramp > 0 && ramp < 1;
@@ -1457,6 +1472,8 @@ function roiCalc() {
     tbody.appendChild(tr);
   }
   document.getElementById('total-12m').textContent = cumulative > 0 ? fmt(cumulative) : '—';
+  document.getElementById('ret-6m').textContent  = cum6      > 0 ? fmt(cum6)      : '—';
+  document.getElementById('ret-12m').textContent = cumulative > 0 ? fmt(cumulative) : '—';
 }
 
 function roiCalcAndNext() {
