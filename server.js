@@ -373,7 +373,7 @@ async function websiteQualityCheck(url) {
     const res = await fetch(url, {
       method: 'GET',
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(5000),  // 5s per site — 10s was too generous at batch scale
       redirect: 'follow'
     });
     if (!res.ok) return false;
@@ -428,7 +428,7 @@ async function classifyLeadsWithHaiku(leads, icp) {
   }
 }
 
-// ── Apollo People Search — pages 1–4 + quality gate + Haiku classification ───
+// ── Apollo People Search — pages 1–2 + batched quality gate + Haiku classification ───
 async function fetchLeadsFromApollo(icp) {
   const APOLLO_KEY = process.env.APOLLO_API_KEY;
   if (!APOLLO_KEY) { console.log('[Apollo] No API key — skipping'); return null; }
@@ -443,77 +443,92 @@ async function fetchLeadsFromApollo(icp) {
   if (icp?.company_size) baseBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
   if (icp?.geography)  baseBody.person_locations = [icp.geography];
 
-  console.log('[Apollo] Searching pages 1–4:', JSON.stringify({ role, industry, size: icp?.company_size, geo: icp?.geography }));
+  console.log('[Apollo] Searching pages 1–2:', JSON.stringify({ role, industry, size: icp?.company_size, geo: icp?.geography }));
 
-  // Step 1: Fetch pages 1–4 (up to 100 raw leads)
-  const allPeople = [];
-  let total = null;
-  try {
-    for (let page = 1; page <= 4; page++) {
-      const res = await fetch('https://api.apollo.io/api/v1/mixed_people_search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ ...baseBody, page }),
-        signal: AbortSignal.timeout(25000)
-      });
-      if (!res.ok) { console.warn(`[Apollo] HTTP ${res.status} on page ${page}`); break; }
-      const data = await res.json();
-      if (!total) total = data.pagination?.total_entries || null;
-      const people = (data.people || []).filter(p => p.name && p.title && p.organization?.name);
-      allPeople.push(...people);
-      console.log(`[Apollo] Page ${page}: ${people.length} leads (total so far: ${allPeople.length})`);
-      if (people.length < 25) break; // end of results
+  // 35s wall-clock safety net — if anything hangs, return null and let Stage 2 degrade gracefully
+  const timeout35s = new Promise(resolve => setTimeout(() => {
+    console.warn('[Apollo] 35s wall clock hit — returning null');
+    resolve(null);
+  }, 35000));
+
+  const apolloCore = async () => {
+    // Step 1: Fetch pages 1–2 (50 raw leads max — 4 pages × 25s was the hang root cause)
+    const allPeople = [];
+    let total = null;
+    try {
+      for (let page = 1; page <= 2; page++) {
+        const res = await fetch('https://api.apollo.io/api/v1/mixed_people_search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ ...baseBody, page }),
+          signal: AbortSignal.timeout(12000)
+        });
+        if (!res.ok) { console.warn(`[Apollo] HTTP ${res.status} on page ${page}`); break; }
+        const data = await res.json();
+        if (!total) total = data.pagination?.total_entries || null;
+        const people = (data.people || []).filter(p => p.name && p.title && p.organization?.name);
+        allPeople.push(...people);
+        console.log(`[Apollo] Page ${page}: ${people.length} leads (total so far: ${allPeople.length})`);
+        if (people.length < 25) break;
+      }
+    } catch(e) {
+      console.warn('[Apollo] Fetch error:', e.message);
+      if (!allPeople.length) return null;
     }
-  } catch(e) {
-    console.warn('[Apollo] Fetch error:', e.message);
-    if (!allPeople.length) return null;
-  }
 
-  if (!allPeople.length) { console.warn('[Apollo] No leads returned'); return null; }
+    if (!allPeople.length) { console.warn('[Apollo] No leads returned'); return null; }
 
-  // Step 2: Map to lead objects
-  const rawLeads = allPeople.map(p => ({
-    name: p.name,
-    title: p.title,
-    company: p.organization?.name || '',
-    company_size: fmtEmp(p.organization?.estimated_num_employees),
-    website: p.organization?.primary_domain ? `https://${p.organization.primary_domain}` : null,
-    linkedin_url: p.linkedin_url || null
-  }));
+    // Step 2: Map to lead objects
+    const rawLeads = allPeople.map(p => ({
+      name: p.name,
+      title: p.title,
+      company: p.organization?.name || '',
+      company_size: fmtEmp(p.organization?.estimated_num_employees),
+      website: p.organization?.primary_domain ? `https://${p.organization.primary_domain}` : null,
+      linkedin_url: p.linkedin_url || null
+    }));
 
-  // Step 3: Quality gate — parallel checks (drop leads with bad/no website)
-  console.log(`[Apollo] Running quality gate on ${rawLeads.length} raw leads...`);
-  const qualityResults = await Promise.all(rawLeads.map(l => websiteQualityCheck(l.website)));
-  const qualifiedLeads = rawLeads
-    .map((l, i) => qualityResults[i] ? { ...l, _excerpt: qualityResults[i].excerpt } : null)
-    .filter(Boolean);
-  console.log(`[Apollo] Quality gate: ${qualifiedLeads.length}/${rawLeads.length} passed`);
+    // Step 3: Quality gate — 10 at a time (firing 50+ simultaneous fetches saturated connections)
+    console.log(`[Apollo] Running quality gate on ${rawLeads.length} raw leads (batches of 10)...`);
+    const qualityResults = [];
+    for (let i = 0; i < rawLeads.length; i += 10) {
+      const batch = rawLeads.slice(i, i + 10);
+      const batchResults = await Promise.all(batch.map(l => websiteQualityCheck(l.website)));
+      qualityResults.push(...batchResults);
+    }
+    const qualifiedLeads = rawLeads
+      .map((l, i) => qualityResults[i] ? { ...l, _excerpt: qualityResults[i].excerpt } : null)
+      .filter(Boolean);
+    console.log(`[Apollo] Quality gate: ${qualifiedLeads.length}/${rawLeads.length} passed`);
 
-  if (!qualifiedLeads.length) {
-    console.warn('[Apollo] No leads passed quality gate — returning raw top-25 as fallback');
-    return { leads: rawLeads.slice(0, 25).map(l => ({ ...l, confidence: 'medium' })), total };
-  }
+    if (!qualifiedLeads.length) {
+      console.warn('[Apollo] No leads passed quality gate — returning raw top-25 as fallback');
+      return { leads: rawLeads.slice(0, 25).map(l => ({ ...l, confidence: 'medium' })), total };
+    }
 
-  // Step 4: Claude Haiku ICP classification
-  console.log(`[Apollo] Running Haiku ICP classification on ${qualifiedLeads.length} leads...`);
-  const classifications = await classifyLeadsWithHaiku(qualifiedLeads, icp);
-  const classMap = {};
-  classifications.forEach(c => { classMap[c.index] = c; });
+    // Step 4: Claude Haiku ICP classification
+    console.log(`[Apollo] Running Haiku ICP classification on ${qualifiedLeads.length} leads...`);
+    const classifications = await classifyLeadsWithHaiku(qualifiedLeads, icp);
+    const classMap = {};
+    classifications.forEach(c => { classMap[c.index] = c; });
 
-  const classified = qualifiedLeads
-    .map((l, i) => {
-      const c = classMap[i+1] || { match: true, confidence: 'medium', reason: '' };
-      return { ...l, _match: c.match, confidence: c.confidence, match_reason: c.reason };
-    })
-    .filter(l => l._match);
+    const classified = qualifiedLeads
+      .map((l, i) => {
+        const c = classMap[i+1] || { match: true, confidence: 'medium', reason: '' };
+        return { ...l, _match: c.match, confidence: c.confidence, match_reason: c.reason };
+      })
+      .filter(l => l._match);
 
-  // Sort high → medium → low, take top 25
-  const ORDER = { high: 0, medium: 1, low: 2 };
-  classified.sort((a, b) => (ORDER[a.confidence] || 1) - (ORDER[b.confidence] || 1));
-  const finalLeads = classified.slice(0, 25).map(({ _match, _excerpt, ...l }) => l);
+    // Sort high → medium → low, take top 25
+    const ORDER = { high: 0, medium: 1, low: 2 };
+    classified.sort((a, b) => (ORDER[a.confidence] || 1) - (ORDER[b.confidence] || 1));
+    const finalLeads = classified.slice(0, 25).map(({ _match, _excerpt, ...l }) => l);
 
-  console.log(`[Apollo] Final: ${finalLeads.length} ICP-matched leads (TAM total_entries: ${total})`);
-  return { leads: finalLeads, total };
+    console.log(`[Apollo] Final: ${finalLeads.length} ICP-matched leads (TAM total_entries: ${total})`);
+    return { leads: finalLeads, total };
+  };
+
+  return Promise.race([apolloCore(), timeout35s]);
 }
 
 // ── Webinar title generation (Claude Sonnet) — prompts loaded from files ──────
