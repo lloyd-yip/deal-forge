@@ -7,6 +7,23 @@ const Anthropic = require('@anthropic-ai/sdk');
 const PORT = process.env.PORT || 3000;
 const MIME = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.png': 'image/png', '.jpg': 'image/jpeg' };
 
+// ── Prompt templates — loaded from files at startup ───────────────────────────
+const PROMPTS_DIR = path.join(__dirname, 'prompts');
+let WEBINAR_SYSTEM_TEMPLATE = '';
+let WEBINAR_USER_TEMPLATE   = '';
+let WEBINAR_FALLBACK_FORMAT = '';
+try {
+  WEBINAR_SYSTEM_TEMPLATE = fs.readFileSync(path.join(PROMPTS_DIR, 'webinar_titles_system.txt'), 'utf8');
+  WEBINAR_USER_TEMPLATE   = fs.readFileSync(path.join(PROMPTS_DIR, 'webinar_titles_user.txt'), 'utf8');
+  WEBINAR_FALLBACK_FORMAT = fs.readFileSync(path.join(PROMPTS_DIR, 'webinar_titles_fallback_format.txt'), 'utf8');
+  console.log('[Prompts] Loaded webinar title templates from files');
+} catch(e) {
+  console.warn('[Prompts] Could not load template files — using inline fallback:', e.message);
+}
+function interpolate(template, vars) {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] !== undefined ? vars[k] : '');
+}
+
 // ── Session store — Supabase persistent + in-memory fallback ─────────────────
 const sessions = new Map(); // fallback when Supabase not configured
 function generateToken() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
@@ -346,7 +363,72 @@ function fmtEmp(n) {
   return `${Math.round(n/1000)}K+ emp`;
 }
 
-// ── Apollo People Search ──────────────────────────────────────────────────────
+// ── Lead quality gate (deterministic — no model) ─────────────────────────────
+const PARKING_SIGNALS = ['domain for sale', 'this domain is for sale', 'buy this domain',
+  'coming soon', 'under construction', 'parked by', 'domain parking'];
+
+async function websiteQualityCheck(url) {
+  if (!url) return false;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(10000),
+      redirect: 'follow'
+    });
+    if (!res.ok) return false;
+    const html = await res.text();
+    const lower = html.toLowerCase();
+    // Parking page signal
+    if (PARKING_SIGNALS.some(s => lower.includes(s))) return false;
+    // Must have a non-empty title
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (!titleMatch || !titleMatch[1].trim()) return false;
+    // Must have meaningful body text (strip tags, count words)
+    const bodyText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (bodyText.split(' ').length < 50) return false;
+    return { title: titleMatch[1].trim(), excerpt: bodyText.slice(0, 500) };
+  } catch(e) {
+    return false;
+  }
+}
+
+// ── Claude Haiku ICP classification ──────────────────────────────────────────
+async function classifyLeadsWithHaiku(leads, icp) {
+  if (!leads.length) return [];
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const icpDesc = [
+    icp.industry ? `Industry: ${icp.industry}` : '',
+    icp.role     ? `Role: ${icp.role}` : '',
+    icp.company_size ? `Company size: ${icp.company_size}` : '',
+    icp.geography ? `Geography: ${icp.geography}` : ''
+  ].filter(Boolean).join('\n');
+
+  const leadLines = leads.map((l, i) =>
+    `Lead ${i+1}: ${l.name} | ${l.title} | ${l.company} (${l.company_size || 'unknown size'})` +
+    (l._excerpt ? ` | Site: ${l._excerpt.slice(0, 200)}` : '')
+  ).join('\n');
+
+  const userMsg = `Target ICP:\n${icpDesc}\n\nLeads to classify:\n${leadLines}\n\nReturn a JSON array where each element is { "index": N, "match": true/false, "confidence": "high"|"medium"|"low", "reason": "one sentence" }. Valid JSON only, no markdown.`;
+
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1200,
+      temperature: 0,
+      system: 'You are an ICP classifier. Return valid JSON only. No markdown.',
+      messages: [{ role: 'user', content: userMsg }]
+    });
+    const raw = msg.content[0].text;
+    const parsed = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] || raw);
+    return parsed;
+  } catch(e) {
+    console.warn('[Haiku classify] Failed:', e.message);
+    return leads.map((_, i) => ({ index: i+1, match: true, confidence: 'medium', reason: 'classification unavailable' }));
+  }
+}
+
+// ── Apollo People Search — pages 1–4 + quality gate + Haiku classification ───
 async function fetchLeadsFromApollo(icp) {
   const APOLLO_KEY = process.env.APOLLO_API_KEY;
   if (!APOLLO_KEY) { console.log('[Apollo] No API key — skipping'); return null; }
@@ -355,111 +437,150 @@ async function fetchLeadsFromApollo(icp) {
   const industry = icp?.industry;
   if (!role && !industry) { console.log('[Apollo] No ICP role/industry — skipping'); return null; }
 
-  const body = { api_key: APOLLO_KEY, per_page: 25, page: 1 };
-  if (role) body.person_titles = [role];
-  if (industry) body.q_organization_keyword_tags = [industry];
-  if (icp?.company_size) body.organization_num_employees_ranges = mapCompanySize(icp.company_size);
-  if (icp?.geography) body.person_locations = [icp.geography];
+  const baseBody = { api_key: APOLLO_KEY, per_page: 25 };
+  if (role)            baseBody.person_titles = [role];
+  if (industry)        baseBody.q_organization_keyword_tags = [industry];
+  if (icp?.company_size) baseBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
+  if (icp?.geography)  baseBody.person_locations = [icp.geography];
 
-  console.log('[Apollo] Searching:', JSON.stringify({ role, industry, size: icp?.company_size, geo: icp?.geography }));
+  console.log('[Apollo] Searching pages 1–4:', JSON.stringify({ role, industry, size: icp?.company_size, geo: icp?.geography }));
 
+  // Step 1: Fetch pages 1–4 (up to 100 raw leads)
+  const allPeople = [];
+  let total = null;
   try {
-    const res = await fetch('https://api.apollo.io/api/v1/mixed_people_search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(25000)
-    });
-    if (!res.ok) { console.warn('[Apollo] HTTP', res.status); return null; }
-
-    const data = await res.json();
-    const people = data.people || [];
-    const total = data.pagination?.total_entries || null;
-    console.log(`[Apollo] ${people.length} raw leads, total_entries=${total}`);
-
-    const leads = people
-      .filter(p => p.name && p.title && p.organization?.name)
-      .slice(0, 25)
-      .map(p => ({
-        name: p.name,
-        title: p.title,
-        company: p.organization?.name || '',
-        company_size: fmtEmp(p.organization?.estimated_num_employees),
-        website: p.organization?.primary_domain ? `https://${p.organization.primary_domain}` : null,
-        linkedin_url: p.linkedin_url || null,
-        confidence: 'high'
-      }));
-
-    console.log(`[Apollo] Returning ${leads.length} qualified leads`);
-    return { leads, total };
+    for (let page = 1; page <= 4; page++) {
+      const res = await fetch('https://api.apollo.io/api/v1/mixed_people_search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ ...baseBody, page }),
+        signal: AbortSignal.timeout(25000)
+      });
+      if (!res.ok) { console.warn(`[Apollo] HTTP ${res.status} on page ${page}`); break; }
+      const data = await res.json();
+      if (!total) total = data.pagination?.total_entries || null;
+      const people = (data.people || []).filter(p => p.name && p.title && p.organization?.name);
+      allPeople.push(...people);
+      console.log(`[Apollo] Page ${page}: ${people.length} leads (total so far: ${allPeople.length})`);
+      if (people.length < 25) break; // end of results
+    }
   } catch(e) {
-    console.warn('[Apollo] Error:', e.message);
-    return null;
+    console.warn('[Apollo] Fetch error:', e.message);
+    if (!allPeople.length) return null;
   }
+
+  if (!allPeople.length) { console.warn('[Apollo] No leads returned'); return null; }
+
+  // Step 2: Map to lead objects
+  const rawLeads = allPeople.map(p => ({
+    name: p.name,
+    title: p.title,
+    company: p.organization?.name || '',
+    company_size: fmtEmp(p.organization?.estimated_num_employees),
+    website: p.organization?.primary_domain ? `https://${p.organization.primary_domain}` : null,
+    linkedin_url: p.linkedin_url || null
+  }));
+
+  // Step 3: Quality gate — parallel checks (drop leads with bad/no website)
+  console.log(`[Apollo] Running quality gate on ${rawLeads.length} raw leads...`);
+  const qualityResults = await Promise.all(rawLeads.map(l => websiteQualityCheck(l.website)));
+  const qualifiedLeads = rawLeads
+    .map((l, i) => qualityResults[i] ? { ...l, _excerpt: qualityResults[i].excerpt } : null)
+    .filter(Boolean);
+  console.log(`[Apollo] Quality gate: ${qualifiedLeads.length}/${rawLeads.length} passed`);
+
+  if (!qualifiedLeads.length) {
+    console.warn('[Apollo] No leads passed quality gate — returning raw top-25 as fallback');
+    return { leads: rawLeads.slice(0, 25).map(l => ({ ...l, confidence: 'medium' })), total };
+  }
+
+  // Step 4: Claude Haiku ICP classification
+  console.log(`[Apollo] Running Haiku ICP classification on ${qualifiedLeads.length} leads...`);
+  const classifications = await classifyLeadsWithHaiku(qualifiedLeads, icp);
+  const classMap = {};
+  classifications.forEach(c => { classMap[c.index] = c; });
+
+  const classified = qualifiedLeads
+    .map((l, i) => {
+      const c = classMap[i+1] || { match: true, confidence: 'medium', reason: '' };
+      return { ...l, _match: c.match, confidence: c.confidence, match_reason: c.reason };
+    })
+    .filter(l => l._match);
+
+  // Sort high → medium → low, take top 25
+  const ORDER = { high: 0, medium: 1, low: 2 };
+  classified.sort((a, b) => (ORDER[a.confidence] || 1) - (ORDER[b.confidence] || 1));
+  const finalLeads = classified.slice(0, 25).map(({ _match, _excerpt, ...l }) => l);
+
+  console.log(`[Apollo] Final: ${finalLeads.length} ICP-matched leads (TAM total_entries: ${total})`);
+  return { leads: finalLeads, total };
 }
 
-// ── Webinar title generation (Claude Sonnet) ──────────────────────────────────
+// ── Webinar title generation (Claude Sonnet) — prompts loaded from files ──────
 async function generateWebinarTitles(extracted, companyName) {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const icp = extracted.icp || {};
-  const role = icp.role || 'business owners';
-  const industry = icp.industry || 'B2B';
-  const size = icp.company_size ? ` (${icp.company_size} companies)` : '';
-  const pain = extracted.customer_pain || 'unpredictable client acquisition';
-  const result = extracted.result_delivered || 'predictable revenue growth';
-  const cs = extracted.case_study;
+  const role     = icp.role         || 'business owners';
+  const industry = icp.industry     || 'B2B';
+  const size     = icp.company_size || '';
+  const geo      = icp.geography;
+  const pain     = extracted.customer_pain   || 'unpredictable client acquisition';
+  const result   = extracted.result_delivered || 'predictable revenue growth';
+  const cs       = extracted.case_study;
 
-  const systemPrompt = `You are a direct-response copywriter writing calendar blocker copy for a B2B webinar. The webinar is hosted BY ${companyName} FOR their ideal clients — ${role}s in ${industry}.
-
-Write titles and hooks that make a ${role} think "that's exactly my problem." Write as if ${companyName} is the speaker.
-
-Return valid JSON only. No markdown, no explanation.`;
-
-  const userPrompt = `Generate 3 calendar blocker variants for ${companyName}'s webinar targeting ${role}s in ${industry}${size}.
-
-Context:
-- Pain their clients face: ${pain}
-- Result ${companyName} delivers: ${result}
-${cs?.numbers ? `- Proof: ${cs.client_description || 'A client'} — ${cs.result || ''} (${cs.numbers})` : ''}
-${extracted.webinar_angle ? `- Webinar angle: ${extracted.webinar_angle}` : ''}
-
-Return this exact JSON:
+  // Output schema override — injected at end of system prompt.
+  // The template files use {description}, but we need the richer hook/bullets/for_line schema.
+  const outputSchema = `
+IMPORTANT: Use this exact output schema (overrides the schema above):
 {
   "variants": [
-    {
-      "variant": "A",
-      "style": "Curiosity-first",
-      "title": "string — max 60 chars",
-      "hook": "string — 2 sentences opening with the client pain. First person from ${companyName}.",
-      "bullets": ["string — specific outcome 1", "string — specific outcome 2", "string — specific outcome 3"],
-      "for_line": "string — exactly who should attend, 1 sentence"
-    },
-    {
-      "variant": "B",
-      "style": "Outcome-first",
-      "title": "string — max 60 chars, lead with the result",
-      "hook": "string — 2 sentences opening with the outcome/promise",
-      "bullets": ["string", "string", "string"],
-      "for_line": "string"
-    },
-    {
-      "variant": "C",
-      "style": "Mechanism-first",
-      "title": "string — max 60 chars, lead with the system",
-      "hook": "string — 2 sentences opening with how the mechanism works",
-      "bullets": ["string", "string", "string"],
-      "for_line": "string"
-    }
+    { "variant": "A", "style": "Curiosity-first (Revealed style)",  "title": "max 60 chars", "hook": "2 sentences — open with client pain, write as ${companyName}", "bullets": ["outcome 1","outcome 2","outcome 3"], "for_line": "who should attend, 1 sentence" },
+    { "variant": "B", "style": "Outcome-first (Hormozi style)",     "title": "max 60 chars — lead with result", "hook": "2 sentences — open with outcome/promise", "bullets": ["...","...","..."], "for_line": "..." },
+    { "variant": "C", "style": "Mechanism-first (Kennedy style)",   "title": "max 60 chars — lead with the system", "hook": "2 sentences — open with how the mechanism works", "bullets": ["...","...","..."], "for_line": "..." }
   ]
 }
+Additional rules: titles HARD LIMIT 60 chars • bullets = specific transformations, not topics • write as ${companyName} hosting, NEVER as Quantum Scaling • ${cs?.numbers ? 'proof numbers verbatim: ' + cs.numbers : 'no fabricated numbers'}`;
 
-Rules:
-- Titles HARD LIMIT: 60 characters. Count carefully.
-- Bullets: 3 specific outcomes per variant, concrete and measurable
-- Write as if ${companyName} is hosting — NOT Quantum Scaling
-- ${cs?.numbers ? `Use proof numbers verbatim: ${cs.numbers}` : 'No fabricated numbers'}`;
+  let systemPrompt, userPrompt;
 
-  console.log('[webinar_titles] Calling Claude Sonnet...');
+  if (WEBINAR_SYSTEM_TEMPLATE) {
+    const businessContext = [
+      `- Company: ${companyName}`,
+      `- Their clients are: ${role}s at ${size ? size + ' ' : ''}companies in ${industry}`,
+      `- Core pain they solve: ${pain}`,
+      `- Result they deliver: ${result}`,
+      cs?.numbers ? `- Client proof: ${cs.client_description || 'A client'} — ${cs.result || 'strong results'} (${cs.numbers})` : null,
+      extracted.webinar_angle ? `- Webinar angle: ${extracted.webinar_angle}` : null
+    ].filter(Boolean).join('\n');
+
+    systemPrompt = interpolate(WEBINAR_SYSTEM_TEMPLATE, {
+      prospect_company_name: companyName,
+      icp_role:              role,
+      icp_industry:          industry,
+      business_context_block: businessContext,
+      format_rules_block:    WEBINAR_FALLBACK_FORMAT || '(use best-practice direct-response structure)',
+      principles_block:      '- Write as the prospect company hosting, never Quantum Scaling\n- Front-load ICP role in title first 40 chars\n- Every bullet is a transformation promise, not a topic',
+      examples_block:        '(none loaded — generate based on context and format rules)'
+    }) + outputSchema;
+
+    userPrompt = interpolate(WEBINAR_USER_TEMPLATE, {
+      prospect_company_name: companyName,
+      icp_role:              role,
+      icp_company_size:      size,
+      icp_industry:          industry,
+      icp_geography_line:    geo ? `\n**Geography:** ${geo}` : '',
+      customer_pain:         pain,
+      result_delivered:      result,
+      case_study_block:      cs?.result ? `**Client proof:** ${cs.client_description || 'A client'} — ${cs.result}${cs.numbers ? ' (' + cs.numbers + ')' : ''}` : '',
+      webinar_angle_block:   extracted.webinar_angle ? `**Webinar angle:** ${extracted.webinar_angle}` : ''
+    });
+  } else {
+    // Inline fallback if prompt files unavailable
+    systemPrompt = `You are a direct-response copywriter writing calendar blocker copy for ${companyName}'s webinar targeting ${role}s in ${industry}. Write as ${companyName} hosting — never as Quantum Scaling. Return valid JSON only.` + outputSchema;
+    userPrompt   = `Generate 3 calendar blocker variants for ${companyName}'s webinar targeting ${role}s in ${industry}${size ? ' (' + size + ' companies)' : ''}.\nPain: ${pain}\nResult: ${result}${cs?.numbers ? '\nProof: ' + cs.numbers : ''}`;
+  }
+
+  console.log(`[webinar_titles] Calling Claude Sonnet (prompts from ${WEBINAR_SYSTEM_TEMPLATE ? 'files' : 'inline fallback'})...`);
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 2000,
