@@ -1,0 +1,42 @@
+# Fallback Format Rules — Calendar Blocker Description (9-Part Structure)
+
+Use this structure when the Deal Forge format brain is unavailable at runtime.
+Max 300 words total. Each part is one tight sentence or short paragraph.
+
+1. CONDITIONAL OPENER — "If you run [segment] and your growth still depends on [painful
+   current state] — this will fix it." Qualifies the reader, diagnoses their pain, makes
+   a bold promise. Frame as invitation to self-identify, not a declaration of pain.
+
+2. CLIENT PROOF STORY — One client. Segment-matched. Specific before/after numbers.
+   Structure: [Name] → [before state] → [used the system] → [result with verbatim numbers].
+   Never fabricate numbers. If no case study, skip to Part 3.
+
+3. CONTRAST FRAME — "Instead of [what they stopped doing], [name] built [new system] —
+   [what that system does]." Names the old way vs. the new way. Crystallises the value prop.
+
+4. SESSION PROMISE — "[Prospect company] will show you exactly how [they/client name] did
+   this." Commits to a specific mechanism. Educational framing, not a pitch.
+
+5. YES / MAYBE / UNSUBSCRIBE / REGISTRATION LINK (non-negotiable) — Comes BEFORE bullets.
+   Include all three elements:
+   "Click 'YES' or 'MAYBE' to confirm your attendance. Click Unsubscribe and we won't
+   reach out again. Or visit the official registration page to sign up there."
+   YES/MAYBE = low-friction conversion (one click, no form). Unsubscribe = compliance +
+   trust signal. Registration page = second pathway for standard funnel tracking.
+
+6. DISCOVERY BULLETS — 4–5 bullets. Each is a transformation promise, not a topic.
+   Wrong: "Webinar structure" (topic). Right: "Structure your webinar so prospects show up
+   already convinced and ready to buy" (transformation). Prefix with 💥 or 🚀.
+
+7. REFRAME LINE — "Most [segment] don't have a [obvious problem] — they have a [real
+   underlying problem]." Pattern interrupt. Repositions the host as a diagnostician.
+
+8. COMPETITIVE URGENCY CLOSE — "The [segment] winning in 2026 aren't doing [old approach]…
+   They're building [new system] that generates [result] on repeat." No false scarcity.
+
+9. P.S. REPLAY HOOK — "P.S. Want the replay? Just register through the official page."
+   Removes FOMO friction. Increases total registrations.
+
+---
+Note: This fallback is used only when the Deal Forge Supabase format brain is unreachable.
+The live format brain takes precedence and may differ from this fallback.

@@ -1,0 +1,8 @@
+Generate calendar blocker copy for this prospect's webinar.
+
+**Prospect company:** {{prospect_company_name}}
+**Target segment:** {{icp_role}}s at {{icp_company_size}} {{icp_industry}} companies{{icp_geography_line}}
+**Core pain they solve:** {{customer_pain}}
+**Result they deliver:** {{result_delivered}}
+{{case_study_block}}
+{{webinar_angle_block}}

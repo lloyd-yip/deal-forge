@@ -178,6 +178,12 @@
         </div>
       </div>
 
+      <!-- Website URL (important for branding + scraping) -->
+      <div class="nj-section">
+        <div class="nj-label">Website URL <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#3f3f46;">(recommended — used for branding &amp; context)</span></div>
+        <input id="nj-website-url" type="url" class="nj-input" placeholder="https://xeleratio.com">
+      </div>
+
       <!-- LinkedIn (optional) -->
       <div class="nj-section">
         <div class="nj-label">LinkedIn URL <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#3f3f46;">(optional)</span></div>
@@ -624,6 +630,7 @@ function njOpen() {
 }
 
 function njClose() {
+  document.getElementById('nj-website-url').value = '';
   document.getElementById('nj-overlay').classList.remove('open');
 }
 
@@ -662,6 +669,11 @@ function njSearch() {
     document.getElementById('nj-name').textContent = contact.name;
     document.getElementById('nj-role-company').textContent = contact.role + ' · ' + contact.company;
     document.getElementById('nj-website').textContent = contact.website;
+    // Pre-fill website URL input if we have a domain
+    if (contact.website) {
+      var wsInput = document.getElementById('nj-website-url');
+      if (wsInput && !wsInput.value) wsInput.value = 'https://' + contact.website;
+    }
 
     // Auto-assign rep from GHL opp owner
     if (contact.rep) {
@@ -704,16 +716,42 @@ function njGenerate() {
   btn.disabled = true;
   btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><svg class="spinner" style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.2" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle><path style="opacity:0.9" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Researching prospect...</span>';
 
+  var websiteUrl = (document.getElementById('nj-website-url').value || '').trim();
+  var contactName = document.getElementById('nj-name').textContent || '';
+  var contactRoleCompany = document.getElementById('nj-role-company').textContent || '';
+
   fetch('/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email })
+    body: JSON.stringify({ email: email, websiteUrl: websiteUrl || undefined })
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {
     if (data.error) throw new Error(data.error);
-    // Store portal URL for the "Open Portal" button on the job card
-    window._lastPortalUrl = data.portalUrl;
+
+    // Inject new job row at top of list
+    var jobRows = document.getElementById('job-rows');
+    if (jobRows) {
+      var repName = rep === 'melissa' ? 'Melissa F.' : 'Ryan Matsumori';
+      var today = new Date();
+      var dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      var portalUrl = data.portalUrl;
+      var rowHtml = '<div class="row-item job-row" data-rep="' + rep + '" data-name="' + (contactName || data.name || data.company || '').toLowerCase() + '" data-company="' + (data.company || '').toLowerCase() + '" onclick="window.open(\'' + portalUrl + '\',\'_blank\')" style="display:flex;align-items:center;padding:15px 20px;">'
+        + '<div style="flex:1;">'
+        + '<div style="font-size:13px;font-weight:500;color:#ffffff;">' + (data.company || email) + '</div>'
+        + '<div style="font-size:12px;color:#71717a;margin-top:1px;">' + (data.name ? data.name + ' · ' : '') + (data.industry || '') + '</div>'
+        + '</div>'
+        + '<div style="width:110px;font-size:12px;color:#71717a;">' + repName + '</div>'
+        + '<div style="width:100px;display:flex;align-items:center;gap:6px;">'
+        + '<span class="status-dot dot-green"></span>'
+        + '<span style="font-size:12px;color:#71717a;">Complete</span>'
+        + '</div>'
+        + '<div style="width:60px;text-align:right;font-size:12px;color:#52525b;">' + dateStr + '</div>'
+        + '<svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>'
+        + '</div>';
+      jobRows.insertAdjacentHTML('afterbegin', rowHtml);
+    }
+
     njClose();
     window.open(data.portalUrl, '_blank');
   })
