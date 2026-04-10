@@ -619,18 +619,18 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
           <div class="email-panel-title">Your reminder emails</div>
           <div class="email-item">
             <div class="email-when">1 week before · Jan 30</div>
-            <div class="email-subject">You're in — here's what we're covering on Feb 6</div>
-            <div class="email-preview">Hey Sarah — your spot is confirmed. We'll walk through the exact pipeline framework that took 3 of our clients from $1.2M to $2.4M+ last year. See you there.</div>
+            <div class="email-subject" id="email-1-subject">You're in — here's what we're covering on Feb 6</div>
+            <div class="email-preview" id="email-1-preview">Hey — your spot is confirmed. We'll walk through the exact pipeline framework that took 3 of our clients from $1.2M to $2.4M+ last year. See you there.</div>
           </div>
           <div class="email-item">
             <div class="email-when">24 hours before · Feb 5</div>
             <div class="email-subject">Tomorrow at noon — your direct access link is inside</div>
-            <div class="email-preview">No re-registration needed — here's your direct join link. Lloyd opens the room at 11:55 AM for early questions before we go live at noon sharp.</div>
+            <div class="email-preview" id="email-2-preview">No re-registration needed — here's your direct join link. Your host opens the room at 11:55 AM for early questions before we go live at noon sharp.</div>
           </div>
           <div class="email-item">
             <div class="email-when">1 hour before · Feb 6</div>
-            <div class="email-subject">We go live in 60 minutes — see you there, Sarah</div>
-            <div class="email-preview">Heads up — we start in one hour. 800+ registered. Lloyd will be taking live questions at the end, so come ready with yours.</div>
+            <div class="email-subject" id="email-3-subject">We go live in 60 minutes — see you there</div>
+            <div class="email-preview" id="email-3-preview">Heads up — we start in one hour. 800+ registered. Your host will be taking live questions at the end, so come ready with yours.</div>
           </div>
         </div>
       </div>
@@ -746,7 +746,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
         <div class="chat-messages">
           <div class="chat-msg"><div class="chat-name">Jordan M.</div><div class="chat-text">Referrals have been our only source for 3 years — this is exactly what we need</div></div>
           <div class="chat-msg"><div class="chat-name">Alicia F.</div><div class="chat-text">How long until we see the first calls coming in from the webinar?</div></div>
-          <div class="chat-msg"><div class="chat-name support">QS Support</div><div class="chat-text">Alicia — typically first calls in weeks 3–4 of the campaign. Lloyd will break down the ramp on slide 4</div></div>
+          <div class="chat-msg"><div class="chat-name support">QS Support</div><div class="chat-text">Alicia — typically first calls in weeks 3–4 of the campaign. Your host will break down the ramp in the funnel section</div></div>
           <div class="chat-msg"><div class="chat-name">Derek O.</div><div class="chat-text">We're at $1.8M and plateaued. The ceiling is real. This session is timely</div></div>
           <div class="chat-msg"><div class="chat-name">Simone L.</div><div class="chat-text">Does this work for B2B consulting specifically or more for coaches?</div></div>
           <div class="chat-msg"><div class="chat-name support">QS Support</div><div class="chat-text">Simone — optimized for B2B consulting and advisory, that's the core ICP. Perfect for your profile</div></div>
@@ -1744,6 +1744,12 @@ function applyProspectBranding() {
       const cycleMonths = tamTotal > 60000 ? '~3 mo' : tamTotal > 20000 ? '~2 mo' : '~1 mo';
       const cycleEl = document.getElementById('tam-cycle-val');
       if (cycleEl) cycleEl.textContent = cycleMonths;
+      // Recommended outreach/month ≈ TAM ÷ cycle length, rounded to nearest 5K, shown as a range
+      const monthlyRaw = Math.max(1000, Math.round(tamTotal / (tamTotal > 60000 ? 3 : tamTotal > 20000 ? 2 : 1) / 5000) * 5000);
+      const monthlyLo = Math.round(monthlyRaw * 0.85 / 1000);
+      const monthlyHi = Math.round(monthlyRaw * 1.15 / 1000);
+      const monthlyEl = document.getElementById('tam-monthly-val');
+      if (monthlyEl) monthlyEl.textContent = monthlyLo + '–' + monthlyHi + 'K';
     }
 
     // ── Calendar invite personalization ──────────────────────────────────────
@@ -1878,6 +1884,31 @@ function applyProspectBranding() {
         return '<div class="' + cls + '"><div class="' + nameCls + '">' + nameText + '</div><div class="chat-text">' + m.text + '</div></div>';
       }).join('');
     }
+
+    // ── Reminder emails — personalize prospect name + host ────────────────────
+    const prospectFirst = (prospect.name || '').split(' ')[0] ||
+                          (session.email || '').split('@')[0] || '';
+    const hostFirst = prospect.name ? prospect.name.split(' ')[0] :
+                      (prospect.company ? prospect.company.split(' ')[0] : 'Your host');
+
+    const e1preview = document.getElementById('email-1-preview');
+    if (e1preview) e1preview.textContent =
+      (prospectFirst ? 'Hey ' + prospectFirst + ' — ' : 'Hey — ') +
+      'your spot is confirmed. We\'ll walk through the exact pipeline framework that took 3 of our clients from $1.2M to $2.4M+ last year. See you there.';
+
+    const e2preview = document.getElementById('email-2-preview');
+    if (e2preview) e2preview.textContent =
+      'No re-registration needed — here\'s your direct join link. ' + hostFirst +
+      ' opens the room at 11:55 AM for early questions before we go live at noon sharp.';
+
+    const e3subject = document.getElementById('email-3-subject');
+    if (e3subject) e3subject.textContent =
+      'We go live in 60 minutes — see you there' + (prospectFirst ? ', ' + prospectFirst : '');
+
+    const e3preview = document.getElementById('email-3-preview');
+    if (e3preview) e3preview.textContent =
+      'Heads up — we start in one hour. 800+ registered. ' + hostFirst +
+      ' will be taking live questions at the end, so come ready with yours.';
 
     // ── Override variants with generated webinar titles ──────────────────────
     const generated = ext._generated || {};

@@ -286,6 +286,9 @@ async function extractWithClaude(content) {
 
 Return valid JSON only. No markdown, no explanation, no preamble.
 
+CRITICAL — Who is the prospect:
+The "prospect" is the CLIENT company — the external business that is being pitched to or exploring Quantum Scaling's services. The prospect is NOT Lloyd Yip, NOT Quantum Scaling, and NOT any QS team member. In a transcript, Lloyd Yip (or anyone from QS) is the SELLER — the other attendee and their company are the PROSPECT. Extract the client's information as the prospect fields.
+
 Null rules (critical):
 - If a field was not discussed or found in the content, return null — never infer or hallucinate
 - If numbers are vague ("a lot", "significant"), return null for that field — only extract verbatim figures
