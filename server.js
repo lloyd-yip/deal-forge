@@ -528,18 +528,10 @@ async function generateWebinarTitles(extracted, companyName) {
   const result   = extracted.result_delivered || 'predictable revenue growth';
   const cs       = extracted.case_study;
 
-  // Output schema override — injected at end of system prompt.
-  // The template files use {description}, but we need the richer hook/bullets/for_line schema.
+  // Runtime rules injected at end of system prompt (company name + proof constraint are runtime values).
   const outputSchema = `
-IMPORTANT: Use this exact output schema (overrides the schema above):
-{
-  "variants": [
-    { "variant": "A", "style": "Curiosity-first (Revealed style)",  "title": "max 60 chars", "hook": "2 sentences — open with client pain, write as ${companyName}", "bullets": ["outcome 1","outcome 2","outcome 3"], "for_line": "who should attend, 1 sentence" },
-    { "variant": "B", "style": "Outcome-first (Hormozi style)",     "title": "max 60 chars — lead with result", "hook": "2 sentences — open with outcome/promise", "bullets": ["...","...","..."], "for_line": "..." },
-    { "variant": "C", "style": "Mechanism-first (Kennedy style)",   "title": "max 60 chars — lead with the system", "hook": "2 sentences — open with how the mechanism works", "bullets": ["...","...","..."], "for_line": "..." }
-  ]
-}
-Additional rules: titles HARD LIMIT 60 chars • bullets = specific transformations, not topics • write as ${companyName} hosting, NEVER as Quantum Scaling • ${cs?.numbers ? 'proof numbers verbatim: ' + cs.numbers : 'no fabricated numbers'}`;
+Runtime rules: write as ${companyName} hosting — NEVER as Quantum Scaling • titles HARD LIMIT 60 chars • bullets = specific transformations, not topics • ${cs?.numbers ? 'proof numbers verbatim from brief: ' + cs.numbers : 'no fabricated proof numbers'}
+Return valid JSON only matching the Output Format schema above.`;
 
   let systemPrompt, userPrompt;
 

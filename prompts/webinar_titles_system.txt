@@ -24,20 +24,26 @@ Respond with valid JSON only. No markdown, no explanation, no preamble.
     {
       "variant": "A",
       "style": "Curiosity-first (Revealed style)",
-      "title": "...",
-      "description": "..."
+      "title": "max 60 chars — front-load ICP role or core outcome in first 40 chars",
+      "hook": "2 sentences — open with the client pain; write as the prospect company hosting, never as QS",
+      "bullets": ["specific transformation promise 1", "specific transformation promise 2", "specific transformation promise 3"],
+      "for_line": "who should attend — 1 sentence"
     },
     {
       "variant": "B",
       "style": "Outcome-first (Hormozi style)",
-      "title": "...",
-      "description": "..."
+      "title": "max 60 chars — lead with the result",
+      "hook": "2 sentences — open with the outcome or promise",
+      "bullets": ["...", "...", "..."],
+      "for_line": "..."
     },
     {
       "variant": "C",
       "style": "Mechanism-first (Kennedy style)",
-      "title": "...",
-      "description": "..."
+      "title": "max 60 chars — lead with the system or mechanism",
+      "hook": "2 sentences — open with how the mechanism works",
+      "bullets": ["...", "...", "..."],
+      "for_line": "..."
     }
   ]
 }

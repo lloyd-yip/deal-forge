@@ -167,24 +167,30 @@ Stored in `tasks.output_data` (JSONB column on `tasks` table).
     {
       "variant": "A",
       "style": "Curiosity-first (Revealed style)",
-      "title": "string — max 60 chars",
-      "description": "string — max 300 words"
+      "title": "string — max 60 chars, first 40 must make sense if truncated",
+      "hook": "string — 2 sentences, opens with client pain, written as prospect company hosting",
+      "bullets": ["string — transformation promise", "string", "string"],
+      "for_line": "string — who should attend, 1 sentence"
     },
     {
       "variant": "B",
       "style": "Outcome-first (Hormozi style)",
-      "title": "string — max 60 chars",
-      "description": "string — max 300 words"
+      "title": "string — max 60 chars, leads with the result",
+      "hook": "string — 2 sentences, opens with outcome or promise",
+      "bullets": ["string", "string", "string"],
+      "for_line": "string"
     },
     {
       "variant": "C",
       "style": "Mechanism-first (Kennedy style)",
-      "title": "string — max 60 chars",
-      "description": "string — max 300 words"
+      "title": "string — max 60 chars, leads with the system or mechanism",
+      "hook": "string — 2 sentences, opens with how the mechanism works",
+      "bullets": ["string", "string", "string"],
+      "for_line": "string"
     }
   ],
   "generated_at": "ISO timestamp",
-  "model": "claude-sonnet-4-5",
+  "model": "claude-sonnet-4-6",
   "format_brain_version": "integer — snapshot of format brain version used"
 }
 ```
