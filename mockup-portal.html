@@ -1733,6 +1733,206 @@ function applyProspectBranding() {
       preparedBadge.innerHTML = 'Prepared for <span style="color:#e4e4e7;font-weight:700;">' + prospect.company + '</span>';
     }
 
+    // ── Calendar invite personalization ──────────────────────────────────────
+    const calTitle = document.getElementById('cal-title');
+    const calDesc = document.getElementById('cal-desc');
+
+    if (calTitle && ext.personalized_title) {
+      calTitle.textContent = ext.personalized_title;
+    }
+
+    if (calDesc) {
+      const companyName = prospect.company || 'your firm';
+      const icpRole = icp.role || 'decision-makers';
+      const icpIndustry = icp.industry || 'your industry';
+      const icpGeo = icp.geography;
+      const pain = ext.customer_pain || '';
+      const result = ext.result_delivered || 'build predictable client acquisition';
+      const goals = ext.goals || 'grow revenue';
+      const caseStudy = ext.case_study;
+
+      let caseStudiesHTML = '';
+      if (caseStudy && caseStudy.result) {
+        const nums = caseStudy.numbers ? ': ' + caseStudy.numbers : '';
+        caseStudiesHTML = `
+          <div class="cal-desc-cases">
+            <div class="cal-desc-cases-label">What clients like you achieved</div>
+            <div class="cal-desc-case"><strong>${caseStudy.client_description || 'A similar firm'}</strong> — ${caseStudy.result}${nums}</div>
+          </div>`;
+      }
+
+      const forLine = icpGeo
+        ? `${icpIndustry} consultants targeting ${icpGeo}`
+        : `${icpIndustry} consulting founders`;
+
+      let hookText = '';
+      if (pain) {
+        const painLower = pain.charAt(0).toLowerCase() + pain.slice(1);
+        const resultLower = result.charAt(0).toLowerCase() + result.slice(1);
+        hookText = `If ${painLower}, you're not alone — and there's a proven system to fix it. In 90 minutes, we'll walk through exactly how to ${resultLower} without cold calling or depending on who you know.`;
+      } else {
+        hookText = `In 90 minutes, discover the exact system ${companyName} can use to build a predictable client acquisition engine targeting ${icpRole} in ${icpIndustry}.`;
+      }
+
+      calDesc.innerHTML = `
+        <div class="cal-desc-cta">
+          This session is prepared specifically for <strong>${companyName}</strong>. The examples, funnel math, and case studies have been selected based on your firm's profile and ICP.
+        </div>
+        <div class="cal-desc-hook">${hookText}</div>
+        ${caseStudiesHTML}
+        <div class="cal-desc-section">
+          <div class="cal-desc-section-label">What You'll Walk Away With</div>
+          <ul class="cal-desc-bullets">
+            <li>A client acquisition system built specifically for ${icpIndustry} consulting</li>
+            <li>How to run 30,000+ automated outreaches per month — targeting ${icpRole}</li>
+            <li>Live funnel math modeled on ${companyName}'s specific numbers</li>
+          </ul>
+        </div>
+        <div class="cal-desc-meta">
+          <span><strong>For:</strong> ${forLine} · looking to ${goals}</span>
+          <span><strong>Host:</strong> ${prospect.company || companyName}</span>
+          <span><strong>Duration:</strong> 90 min + live Q&amp;A · Join link sent on confirmation</span>
+        </div>
+      `;
+    }
+
+    // ── Lead list ICP parameters ──────────────────────────────────────────────
+    const icpFiltersRow = document.querySelector('.tam-filters-row');
+    if (icpFiltersRow && (icp.role || icp.industry || icp.company_size || icp.geography)) {
+      function makeFilterTags(str) {
+        if (!str) return '';
+        return str.split(/[\/,;]|\s+and\s+/i)
+          .map(function(s) { return s.trim(); })
+          .filter(function(s) { return s.length > 0 && s.length < 80; })
+          .map(function(s) { return '<span class="filter-tag">' + s + '</span>'; })
+          .join('');
+      }
+
+      let filtersHTML = '';
+      if (icp.role) {
+        filtersHTML += '<span class="filter-group-label">Titles</span>';
+        filtersHTML += makeFilterTags(icp.role);
+        filtersHTML += '<span class="filter-sep">·</span>';
+      }
+      if (icp.company_size) {
+        filtersHTML += '<span class="filter-group-label">Company Size</span>';
+        filtersHTML += '<span class="filter-tag">' + icp.company_size + '</span>';
+        filtersHTML += '<span class="filter-sep">·</span>';
+      }
+      if (icp.industry) {
+        filtersHTML += '<span class="filter-group-label">Industries</span>';
+        filtersHTML += makeFilterTags(icp.industry);
+        filtersHTML += '<span class="filter-sep">·</span>';
+      }
+      if (icp.geography) {
+        filtersHTML += '<span class="filter-group-label">Geographies</span>';
+        filtersHTML += makeFilterTags(icp.geography);
+      } else {
+        // Remove trailing separator
+        filtersHTML = filtersHTML.replace(/<span class="filter-sep">·<\/span>$/, '');
+      }
+      icpFiltersRow.innerHTML = filtersHTML;
+    }
+
+    // ── Live chat personalization ─────────────────────────────────────────────
+    const chatPanel = document.querySelector('.chat-messages');
+    if (chatPanel) {
+      const companyName = prospect.company || 'your firm';
+      const icpIndustry2 = icp.industry || 'consulting';
+      const icpRole2 = icp.role || 'decision-makers';
+
+      const chatMsgs = [
+        { name: 'Jordan M.', text: 'We\'ve been 90% referral-based for years — this is exactly the system we needed for ' + icpIndustry2 },
+        { name: 'Alicia F.', text: 'How long until we see the first qualified calls from the ' + icpRole2 + ' targeting?' },
+        { name: null, support: true, text: 'Alicia — typically first calls in weeks 3–4 of the campaign. Lloyd will walk through the ramp in the funnel section' },
+        { name: 'Derek O.', text: 'We\'re plateaued and manual outreach to ' + icpIndustry2 + ' firms just doesn\'t scale anymore' },
+        { name: 'Simone L.', text: 'Does this work specifically for ' + icpIndustry2 + ' consulting or more general B2B?' },
+        { name: null, support: true, text: 'Simone — this session is tailored to ' + icpIndustry2 + '. The targeting, messaging templates, and case studies are all from that vertical' },
+        { name: 'Tyler B.', text: 'The automation piece is critical — our outreach to ' + icpRole2 + ' is completely manual right now' },
+        { name: 'Priya M.', text: 'Is there a replay? Our partners want to see this but have a conflict' },
+        { name: null, support: true, text: 'Yes — replay goes out within 24 hours to all registered attendees' },
+        { name: 'Marcus W.', text: 'Most excited about the ROI model — want to see what 30K outreaches means for our specific pipeline' },
+        { name: null, support: true, booking: true, text: '🎉 Nadia Caruso just booked a strategy call — excited to walk through your ' + icpIndustry2 + ' funnel with you, Nadia!' },
+        { name: 'Ryan C.', text: 'We\'ve been stuck at the same revenue for two years. This feels like the system we\'ve been missing' },
+        { name: null, support: true, booking: true, text: '✅ Sophie Whitfield — call confirmed! Looking forward to mapping this to Whitfield & Co., Sophie' },
+        { name: 'James O.', text: '30K automated outreaches targeting ' + icpRole2 + ' specifically — didn\'t know this was possible without a massive team' },
+      ];
+
+      chatPanel.innerHTML = chatMsgs.map(function(m) {
+        var cls = 'chat-msg' + (m.booking ? ' chat-booking' : '');
+        var nameCls = 'chat-name' + (m.support ? ' support' : '');
+        var nameText = m.support ? 'QS Support' : m.name;
+        return '<div class="' + cls + '"><div class="' + nameCls + '">' + nameText + '</div><div class="chat-text">' + m.text + '</div></div>';
+      }).join('');
+    }
+
+    // ── Override variants with generated webinar titles ──────────────────────
+    const generated = ext._generated || {};
+
+    if (generated.webinarTitles?.variants?.length === 3) {
+      const gtv = generated.webinarTitles.variants;
+      const hostLabel = prospect.company || companyName;
+
+      function buildGeneratedDesc(v) {
+        const cta = `<div class="cal-desc-cta">
+  👉 <strong>Click Yes or Maybe</strong> to reserve your spot.<br>
+  Click <strong>No</strong> and we'll remove you from this invite series.
+</div>`;
+        const hook = `<div class="cal-desc-hook">${v.hook || ''}</div>`;
+        const bullets = v.bullets?.length ? `<div class="cal-desc-section">
+  <div class="cal-desc-section-label">What You'll Walk Away With</div>
+  <ul class="cal-desc-bullets">${v.bullets.map(function(b){ return '<li>' + b + '</li>'; }).join('')}</ul>
+</div>` : '';
+        const meta = `<div class="cal-desc-meta">
+  <span><strong>For:</strong> ${v.for_line || (icp.role + 's in ' + icp.industry)}</span>
+  <span><strong>Host:</strong> ${hostLabel}</span>
+  <span><strong>Duration:</strong> 90 min + live Q&amp;A · Join link sent on confirmation</span>
+</div>`;
+        return cta + hook + bullets + meta;
+      }
+
+      variants[0] = { tag: 'Curiosity-first', title: gtv[0].title, desc: buildGeneratedDesc(gtv[0]) };
+      variants[1] = { tag: 'Outcome-first',   title: gtv[1].title, desc: buildGeneratedDesc(gtv[1]) };
+      variants[2] = { tag: 'Mechanism-first', title: gtv[2].title, desc: buildGeneratedDesc(gtv[2]) };
+
+      // Re-apply with generated data
+      switchVariant(0);
+
+      // Sync slide 1 title with generated variant A
+      var slideTitleEl2 = document.getElementById('slide-title');
+      if (slideTitleEl2) slideTitleEl2.textContent = gtv[0].title;
+
+      console.log('[Deal Forge] Webinar titles applied — Variant A:', gtv[0].title);
+    }
+
+    // ── Replace lead table with Apollo leads ─────────────────────────────────
+    if (generated.leads?.length) {
+      var tbody = document.querySelector('.lead-table tbody');
+      if (tbody) {
+        var liSvg = '<svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>';
+        tbody.innerHTML = generated.leads.slice(0, 25).map(function(lead, idx) {
+          var websiteDomain = lead.website ? lead.website.replace(/^https?:\/\//, '') : '';
+          var websiteCell = lead.website
+            ? '<a class="web-link" href="' + lead.website + '" target="_blank">' + websiteDomain + '</a>'
+            : '<span style="color:#9ca3af">—</span>';
+          var liCell = lead.linkedin_url
+            ? '<a class="li-link" href="' + lead.linkedin_url + '" target="_blank">' + liSvg + ' View</a>'
+            : '<span style="color:#9ca3af">—</span>';
+          return '<tr class="data-row">' +
+            '<td style="color:#3f3f46;font-size:12px;">' + (idx + 1) + '</td>' +
+            '<td class="td-name">' + lead.name + '</td>' +
+            '<td class="td-title">' + lead.title + '</td>' +
+            '<td class="td-company">' + lead.company + '</td>' +
+            '<td class="td-size">' + (lead.company_size || '—') + '</td>' +
+            '<td>' + websiteCell + '</td>' +
+            '<td>' + liCell + '</td>' +
+            '</tr>';
+        }).join('');
+
+        console.log('[Deal Forge] Lead table populated with', generated.leads.length, 'Apollo leads');
+      }
+    }
+
     console.log('[Deal Forge] Portal personalized for:', PROSPECT.name, '| Industry:', industry,
       '| Title:', ext.personalized_title?.slice(0,50), '| LTV:', ltv,
       '| Transcript:', session.transcript?.found, '| Website:', session.website?.scraped);
