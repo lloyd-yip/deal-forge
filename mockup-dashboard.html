@@ -686,18 +686,50 @@ function njSearch() {
 function njGenerate() {
   var btn = document.getElementById('nj-gen-btn');
   var rep = document.getElementById('nj-rep').value;
+  var email = document.getElementById('nj-email').value.trim().toLowerCase();
+
   if (!rep) {
     document.getElementById('nj-rep').focus();
     document.getElementById('nj-rep').style.borderColor = 'rgba(239,68,68,0.6)';
     setTimeout(function(){ document.getElementById('nj-rep').style.borderColor = ''; }, 1500);
     return;
   }
+  if (!email || email.indexOf('@') < 0) {
+    document.getElementById('nj-email').focus();
+    document.getElementById('nj-email').style.borderColor = 'rgba(239,68,68,0.6)';
+    setTimeout(function(){ document.getElementById('nj-email').style.borderColor = ''; }, 1500);
+    return;
+  }
+
   btn.disabled = true;
-  btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><svg class="spinner" style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.2" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle><path style="opacity:0.9" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Generating assets...</span>';
-  setTimeout(function() {
+  btn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:8px;"><svg class="spinner" style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.2" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle><path style="opacity:0.9" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Researching prospect...</span>';
+
+  fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.error) throw new Error(data.error);
+    // Store portal URL for the "Open Portal" button on the job card
+    window._lastPortalUrl = data.portalUrl;
     njClose();
-    window.open('/', '_blank');
-  }, 2200);
+    window.open(data.portalUrl, '_blank');
+  })
+  .catch(function(err) {
+    console.error('Generate error:', err);
+    btn.disabled = false;
+    btn.innerHTML = 'Generate All 8 Assets';
+    var errDiv = document.getElementById('nj-gen-error');
+    if (!errDiv) {
+      errDiv = document.createElement('div');
+      errDiv.id = 'nj-gen-error';
+      errDiv.style.cssText = 'color:#ef4444;font-size:13px;margin-top:8px;text-align:center;';
+      btn.parentNode.insertBefore(errDiv, btn.nextSibling);
+    }
+    errDiv.textContent = 'Error: ' + (err.message || 'Pipeline failed. Check console.');
+  });
 }
 
 function openPortalLink(btn) {

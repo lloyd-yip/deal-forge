@@ -1613,14 +1613,128 @@ document.addEventListener('click', function(e) {
 
 switchVariant(0);
 
-// Load prospect branding into webinar bar
-(function() {
+// ── Prospect branding (static default) ───────────────────────────────────────
+function applyProspectBranding() {
   const label = document.getElementById('prospect-label');
   const favicon = document.getElementById('prospect-favicon');
+  const preparedFor = document.querySelector('.prepared-for');
   if (label) label.textContent = PROSPECT.name;
-  if (favicon) {
+  if (preparedFor) preparedFor.textContent = 'Prepared for ' + PROSPECT.name;
+  if (favicon && PROSPECT.domain) {
     favicon.src = `https://www.google.com/s2/favicons?domain=${PROSPECT.domain}&sz=64`;
     favicon.onload = () => { favicon.style.display = 'inline'; };
+  }
+}
+
+// ── Personalization from session data ────────────────────────────────────────
+(async function() {
+  const params = new URLSearchParams(window.location.search);
+  const sessionToken = params.get('session');
+
+  if (!sessionToken) {
+    // No session — apply static defaults and exit
+    applyProspectBranding();
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/portal-data?session=' + encodeURIComponent(sessionToken));
+    if (!res.ok) {
+      applyProspectBranding();
+      return;
+    }
+    const session = await res.json();
+    const ext = session.extracted || {};
+    const prospect = ext.prospect || {};
+    const icp = ext.icp || {};
+    const business = ext.business || {};
+
+    // Override PROSPECT object
+    if (prospect.company) PROSPECT.name = prospect.company;
+    if (prospect.website) PROSPECT.domain = prospect.website.replace(/^https?:\/\//, '').split('/')[0];
+    else if (session.domain) PROSPECT.domain = session.domain;
+
+    // Apply branding
+    applyProspectBranding();
+
+    // ── Pre-fill ROI inputs ──────────────────────────────────────────────────
+    // Parse LTV: "$48,000" or "48000" or "$48K"
+    function parseDollar(str) {
+      if (!str) return null;
+      const s = str.replace(/[$,\s]/g, '');
+      const m = s.match(/^(\d+(?:\.\d+)?)(k|m)?$/i);
+      if (!m) return null;
+      let n = parseFloat(m[1]);
+      if (m[2]?.toLowerCase() === 'k') n *= 1000;
+      if (m[2]?.toLowerCase() === 'm') n *= 1000000;
+      return Math.round(n);
+    }
+    function parsePercent(str) {
+      if (!str) return null;
+      const m = str.replace(/%/g, '').trim().match(/^(\d+(?:\.\d+)?)/);
+      return m ? parseFloat(m[1]) : null;
+    }
+
+    const ltvEl = document.getElementById('ltv');
+    const showRateEl = document.getElementById('show-rate');
+    const closeRateEl = document.getElementById('close-rate');
+
+    const ltv = parseDollar(business.ltv || business.deal_size);
+    const showRate = parsePercent(business.show_rate);
+    const closeRate = parsePercent(business.close_rate);
+
+    if (ltv && ltvEl) { ltvEl.value = ltv; ltvEl.dispatchEvent(new Event('input')); }
+    if (showRate && showRateEl) { showRateEl.value = showRate; showRateEl.dispatchEvent(new Event('input')); }
+    if (closeRate && closeRateEl) { closeRateEl.value = closeRate; closeRateEl.dispatchEvent(new Event('input')); }
+
+    // Trigger ROI recalculation if function exists
+    if (typeof roiCompute === 'function') roiCompute();
+
+    // ── Filter case studies by industry ──────────────────────────────────────
+    const industry = (icp.industry || '').toLowerCase();
+    const industryMap = {
+      'consulting': 'consulting',
+      'software': 'software',
+      'saas': 'software',
+      'coaching': 'coaching',
+      'agency': 'agencies',
+      'agencies': 'agencies',
+      'ecommerce': 'software',
+      'healthcare': 'consulting',
+      'real_estate': 'consulting',
+      'finance': 'consulting'
+    };
+    const filterTag = industryMap[industry];
+    if (filterTag) {
+      // Click the matching filter button if it exists
+      const filterBtns = document.querySelectorAll('.cs-filter-btn');
+      filterBtns.forEach(function(btn) {
+        if (btn.textContent.trim().toLowerCase() === filterTag ||
+            btn.dataset.filter === filterTag) {
+          btn.click();
+        }
+      });
+    }
+
+    // ── Personalized headline on slide 1 ──────────────────────────────────────
+    const slideTitleEl = document.getElementById('slide-title');
+    if (slideTitleEl && ext.customer_pain && prospect.company) {
+      const pain = ext.customer_pain;
+      const industry_label = industry === 'software' ? 'SaaS' :
+                             industry === 'agency' || industry === 'agencies' ? 'Agency' :
+                             industry === 'coaching' ? 'Coaching' : 'Consulting';
+      // Only override if we have meaningful data
+      if (pain.length > 20) {
+        slideTitleEl.textContent = `Why Most ${industry_label} Businesses Plateau — and the Revenue System That Actually Breaks Through`;
+      }
+    }
+
+    console.log('[Deal Forge] Portal personalized for:', PROSPECT.name, '| Industry:', industry,
+      '| LTV:', ltv, '| Transcript:', session.transcript?.found, '| Website:', session.website?.scraped);
+
+  } catch(err) {
+    console.warn('[Deal Forge] Session load failed, using defaults:', err.message);
+    applyProspectBranding();
   }
 })();
 </script>
