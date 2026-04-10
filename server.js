@@ -27,71 +27,109 @@ function setCors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-// ── Fireflies: find transcript by attendee email ─────────────────────────────
-async function findFirefliesTranscript(email) {
-  const query = `
-    query GetTranscripts($participants: [String]) {
-      transcripts(participants: $participants, limit: 20) {
-        id
-        title
-        dateString
-        notes
-        summary { short_summary action_items }
-        meeting_attendees { email displayName }
-        sentences { text speaker_name }
-      }
-    }
-  `;
-
+// ── Fireflies GraphQL helper ──────────────────────────────────────────────────
+async function firefliesQuery(gql, variables) {
   const res = await fetch('https://api.fireflies.ai/graphql', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${process.env.FIREFLIES_API_KEY}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ query, variables: { participants: [email] } }),
+    body: JSON.stringify({ query: gql, variables }),
     signal: AbortSignal.timeout(12000)
   });
-
-  if (!res.ok) {
-    console.error('Fireflies HTTP error:', res.status);
-    return null;
-  }
-
+  if (!res.ok) { console.error('Fireflies HTTP error:', res.status); return null; }
   const data = await res.json();
-  if (data.errors) {
-    console.error('Fireflies GraphQL errors:', JSON.stringify(data.errors));
-    return null;
-  }
+  if (data.errors) { console.error('Fireflies errors:', JSON.stringify(data.errors)); return null; }
+  return data.data;
+}
 
-  const transcripts = data.data?.transcripts || [];
-  console.log(`Fireflies returned ${transcripts.length} transcripts for ${email}`);
+// Transcript fields we need
+// NOTE: 'notes' does not exist on Transcript type in Fireflies GraphQL
+// Use summary sub-fields instead: shorthand_bullet has richest structured data
+const TRANSCRIPT_FIELDS = `
+  id title dateString duration
+  summary { short_summary overview action_items shorthand_bullet }
+  meeting_attendees { email displayName }
+`;
 
-  // Filter: this exact email must appear as an attendee
-  const exact = transcripts.filter(t => {
-    const attendees = (t.meeting_attendees || []).map(a => (a.email || '').toLowerCase());
-    return attendees.includes(email.toLowerCase());
-  });
-
-  if (exact.length) {
-    console.log(`Found ${exact.length} exact match(es). Using: "${exact[0].title}"`);
-    return exact[0];
-  }
-
-  // Fallback: if no exact match, check if Fireflies returned ANY transcript from their domain
-  // (some orgs have Fireflies join calls under different email aliases)
+// ── Fireflies: find transcript by attendee email ─────────────────────────────
+// NOTE: The Fireflies `participants` filter is broken — it ignores the email
+// and returns recent meetings regardless. We use keyword search on the prospect's
+// name/domain extracted from their email, then exact-match the email in attendees.
+async function findFirefliesTranscript(email) {
+  const local = email.split('@')[0];
   const domain = email.split('@')[1];
-  const domainMatch = transcripts.filter(t => {
-    const attendees = (t.meeting_attendees || []).map(a => (a.email || '').toLowerCase());
-    return attendees.some(a => a.endsWith('@' + domain));
-  });
 
-  if (domainMatch.length) {
-    console.log(`No exact email match, using domain match: "${domainMatch[0].title}"`);
-    return domainMatch[0];
+  // Non-personal email prefixes — skip name search for these
+  const NON_PERSONAL = new Set(['info', 'admin', 'contact', 'hello', 'sales', 'support', 'team', 'office', 'mail', 'noreply', 'no-reply']);
+
+  // Extract first name from email local part:
+  // karsten → karsten, john.doe → john, scottb → scottb (try as-is), j.doe → skip
+  let rawFirst = local.split(/[._\-+]/)[0].toLowerCase();
+  // Strip trailing digits only (john2 → john), not letters (don't mangle karsten → karste)
+  rawFirst = rawFirst.replace(/\d+$/, '');
+  const firstName = (rawFirst.length >= 3 && !NON_PERSONAL.has(rawFirst)) ? rawFirst : null;
+
+  // Extract domain company name
+  const domainBase = domain.split('.')[0].toLowerCase();
+
+  // Check exact attendee match in results from a keyword search
+  function findExact(transcripts) {
+    return transcripts.filter(t => {
+      const attendees = (t.meeting_attendees || []).map(a => (a.email || '').toLowerCase());
+      return attendees.includes(email.toLowerCase());
+    });
   }
 
-  console.log('No transcript found for', email);
+  // Strategy 1: keyword search on first name (most reliable)
+  if (firstName && firstName.length >= 3) {
+    const gql = `query Search($keyword: String) {
+      transcripts(keyword: $keyword, limit: 20) { ${TRANSCRIPT_FIELDS} }
+    }`;
+    const data = await firefliesQuery(gql, { keyword: firstName });
+    const results = data?.transcripts || [];
+    console.log(`Fireflies keyword "${firstName}": ${results.length} results`);
+    const exact = findExact(results);
+    if (exact.length) {
+      console.log(`Found by first name: "${exact[0].title}"`);
+      return exact[0];
+    }
+  }
+
+  // Strategy 2: keyword search on domain company name
+  if (domainBase && domainBase.length >= 4 && domainBase !== 'gmail' && domainBase !== 'yahoo') {
+    const gql = `query Search($keyword: String) {
+      transcripts(keyword: $keyword, limit: 20) { ${TRANSCRIPT_FIELDS} }
+    }`;
+    const data = await firefliesQuery(gql, { keyword: domainBase });
+    const results = data?.transcripts || [];
+    console.log(`Fireflies keyword "${domainBase}": ${results.length} results`);
+    const exact = findExact(results);
+    if (exact.length) {
+      console.log(`Found by domain: "${exact[0].title}"`);
+      return exact[0];
+    }
+  }
+
+  // Strategy 3: domain fallback — any attendee from same domain
+  if (domainBase && domainBase.length >= 4 && domainBase !== 'gmail' && domainBase !== 'yahoo') {
+    const gql = `query Search($keyword: String) {
+      transcripts(keyword: $keyword, limit: 20) { ${TRANSCRIPT_FIELDS} }
+    }`;
+    const data = await firefliesQuery(gql, { keyword: domainBase });
+    const results = data?.transcripts || [];
+    const domainMatch = results.filter(t => {
+      const attendees = (t.meeting_attendees || []).map(a => (a.email || '').toLowerCase());
+      return attendees.some(a => a.endsWith('@' + domain));
+    });
+    if (domainMatch.length) {
+      console.log(`Found by domain attendee: "${domainMatch[0].title}"`);
+      return domainMatch[0];
+    }
+  }
+
+  console.log('No Fireflies transcript found for', email);
   return null;
 }
 
@@ -173,7 +211,8 @@ Return this exact JSON structure:
   "customer_pain": "string | null — the core problem their ICP experiences, in customer language",
   "result_delivered": "string | null — the transformation the prospect delivers to their clients",
   "goals": "string | null — what the prospect wants to achieve in next 6-12 months",
-  "webinar_angle": "string | null — topic or teaching angle for their webinar if discussed"
+  "webinar_angle": "string | null — topic or teaching angle for their webinar if discussed",
+  "personalized_title": "string — a compelling webinar title written specifically for this company. Reference their exact industry, their clients' specific pain point, or their specific growth goal. Make it feel like it was written just for them. Format: How [specific type of company] [achieve specific outcome] Without [the frustration they face]. Example for a life sciences consultant: 'How Life Sciences Consultancies Add $2M Without Growing Their Field Sales Team'. Max 90 characters. REQUIRED — always generate one even if data is sparse."
 }`;
 
   const message = await anthropic.messages.create({
@@ -232,20 +271,14 @@ const server = http.createServer(async (req, res) => {
       let extractionParts = [];
 
       if (transcript) {
-        const notes = transcript.notes || '';
-        const summary = transcript.summary?.short_summary || '';
-        const actions = transcript.summary?.action_items || '';
-        const sentences = (transcript.sentences || [])
-          .slice(0, 80)
-          .map(s => `${s.speaker_name || 'Speaker'}: ${s.text}`)
-          .join('\n');
-
+        const s = transcript.summary || {};
+        // shorthand_bullet is the richest source — timestamped, structured, includes numbers
         const transcriptContent = [
           `MEETING: ${transcript.title}`,
-          notes ? `NOTES:\n${notes}` : '',
-          summary ? `SUMMARY:\n${summary}` : '',
-          actions ? `ACTION ITEMS:\n${actions}` : '',
-          sentences ? `TRANSCRIPT EXCERPT:\n${sentences}` : ''
+          s.shorthand_bullet ? `DETAILED NOTES (structured):\n${s.shorthand_bullet}` : '',
+          s.overview        ? `KEY METRICS OVERVIEW:\n${s.overview}` : '',
+          s.short_summary   ? `SUMMARY:\n${s.short_summary}` : '',
+          s.action_items    ? `ACTION ITEMS:\n${s.action_items}` : ''
         ].filter(Boolean).join('\n\n');
 
         extractionParts.push(transcriptContent);

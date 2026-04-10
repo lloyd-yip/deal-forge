@@ -691,7 +691,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
             <div class="slide-1-glow-tl"></div>
             <div class="slide-1-glow-br"></div>
             <div class="slide-1-body">
-              <div class="slide-1-tag">Live Webinar · Quantum Scaling</div>
+              <div class="slide-1-tag" id="slide-tag">Live Webinar · Quantum Scaling</div>
               <div class="slide-1-title" id="slide-title">Why 90% of Consulting Firms Plateau at $1.5M — and the Revenue System That Actually Breaks Through</div>
             </div>
             <div class="slide-1-footer">
@@ -1718,19 +1718,24 @@ function applyProspectBranding() {
 
     // ── Personalized headline on slide 1 ──────────────────────────────────────
     const slideTitleEl = document.getElementById('slide-title');
-    if (slideTitleEl && ext.customer_pain && prospect.company) {
-      const pain = ext.customer_pain;
-      const industry_label = industry === 'software' ? 'SaaS' :
-                             industry === 'agency' || industry === 'agencies' ? 'Agency' :
-                             industry === 'coaching' ? 'Coaching' : 'Consulting';
-      // Only override if we have meaningful data
-      if (pain.length > 20) {
-        slideTitleEl.textContent = `Why Most ${industry_label} Businesses Plateau — and the Revenue System That Actually Breaks Through`;
-      }
+    const slideTagEl = document.getElementById('slide-tag');
+    if (ext.personalized_title && slideTitleEl) {
+      slideTitleEl.textContent = ext.personalized_title;
+    }
+    // Update slide tag to show company name
+    if (slideTagEl && prospect.company) {
+      slideTagEl.textContent = 'Prepared for ' + prospect.company + ' · Quantum Scaling';
+    }
+
+    // ── Add personalization indicator in "Prepared for" nav badge ─────────────
+    const preparedBadge = document.querySelector('.prepared-for');
+    if (preparedBadge && prospect.company) {
+      preparedBadge.innerHTML = 'Prepared for <span style="color:#e4e4e7;font-weight:700;">' + prospect.company + '</span>';
     }
 
     console.log('[Deal Forge] Portal personalized for:', PROSPECT.name, '| Industry:', industry,
-      '| LTV:', ltv, '| Transcript:', session.transcript?.found, '| Website:', session.website?.scraped);
+      '| Title:', ext.personalized_title?.slice(0,50), '| LTV:', ltv,
+      '| Transcript:', session.transcript?.found, '| Website:', session.website?.scraped);
 
   } catch(err) {
     console.warn('[Deal Forge] Session load failed, using defaults:', err.message);
