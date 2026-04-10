@@ -374,7 +374,8 @@ async function fetchLeadsFromApollo(icp) {
 
     const data = await res.json();
     const people = data.people || [];
-    console.log(`[Apollo] ${people.length} raw leads returned`);
+    const total = data.pagination?.total_entries || null;
+    console.log(`[Apollo] ${people.length} raw leads, total_entries=${total}`);
 
     const leads = people
       .filter(p => p.name && p.title && p.organization?.name)
@@ -390,7 +391,7 @@ async function fetchLeadsFromApollo(icp) {
       }));
 
     console.log(`[Apollo] Returning ${leads.length} qualified leads`);
-    return leads;
+    return { leads, total };
   } catch(e) {
     console.warn('[Apollo] Error:', e.message);
     return null;
@@ -562,13 +563,15 @@ const server = http.createServer(async (req, res) => {
       if (titlesResult.status === 'rejected') console.warn('[webinar_titles] Failed:', titlesResult.reason?.message);
       else console.log('[webinar_titles] Generated', titlesResult.value?.variants?.length, 'variants');
 
+      const apolloResult = leadsResult.status === 'fulfilled' ? leadsResult.value : null;
       if (leadsResult.status === 'rejected') console.warn('[lead_list] Failed:', leadsResult.reason?.message);
-      else console.log('[lead_list] Got', leadsResult.value?.length ?? 0, 'leads');
+      else console.log('[lead_list] Got', apolloResult?.leads?.length ?? 0, 'leads, TAM:', apolloResult?.total);
 
       // Embed generated assets in extracted JSONB (no schema change needed)
       extracted._generated = {
         webinarTitles: titlesResult.status === 'fulfilled' ? titlesResult.value : null,
-        leads: leadsResult.status === 'fulfilled' ? leadsResult.value : null
+        leads: apolloResult?.leads || null,
+        apolloTotal: apolloResult?.total || null
       };
 
       // Step 6: Build and store session

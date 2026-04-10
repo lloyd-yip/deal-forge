@@ -469,15 +469,15 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
       <div class="tam-top">
         <div class="tam-stat-group">
           <div>
-            <div class="tam-stat-value">87,400</div>
+            <div class="tam-stat-value" id="tam-total-val">—</div>
             <div class="tam-stat-label">Total Addressable Market</div>
           </div>
           <div>
-            <div class="tam-stat-value">30–35K</div>
+            <div class="tam-stat-value" id="tam-monthly-val">30–35K</div>
             <div class="tam-stat-label">Recommended / Month</div>
           </div>
           <div>
-            <div class="tam-stat-value">~3 mo</div>
+            <div class="tam-stat-value" id="tam-cycle-val">~3 mo</div>
             <div class="tam-stat-label">Full Market Cycle</div>
           </div>
         </div>
@@ -591,7 +591,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
           </div>
           <div class="cal-meta-row">
             <svg class="cal-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-            <div><div style="font-weight:500;">Hosted by Lloyd Yip</div><div style="color:#70757a;font-size:12px;">Founder, Quantum Scaling · $500M+ in client revenue generated</div></div>
+            <div><div style="font-weight:500;" id="cal-host-name">Hosted by Your Speaker</div><div style="color:#70757a;font-size:12px;" id="cal-host-sub">Webinar Host</div></div>
           </div>
         </div>
 
@@ -691,17 +691,17 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
             <div class="slide-1-glow-tl"></div>
             <div class="slide-1-glow-br"></div>
             <div class="slide-1-body">
-              <div class="slide-1-tag" id="slide-tag">Live Webinar · Quantum Scaling</div>
+              <div class="slide-1-tag" id="slide-tag">Live Webinar</div>
               <div class="slide-1-title" id="slide-title">Why 90% of Consulting Firms Plateau at $1.5M — and the Revenue System That Actually Breaks Through</div>
             </div>
             <div class="slide-1-footer">
               <div class="slide-1-host">
                 <div class="host-avatar" id="host-avatar-wrap">
-                  <img src="/lloyd-avatar" alt="Lloyd Yip" onerror="document.getElementById('host-avatar-wrap').innerHTML='LY'">
+                  <span id="host-avatar-initials" style="font-size:14px;font-weight:700;color:#34d399;">?</span>
                 </div>
                 <div>
-                  <div class="host-name">Lloyd Yip</div>
-                  <div class="host-title">Founder, Quantum Scaling</div>
+                  <div class="host-name" id="host-name-el">Your Host</div>
+                  <div class="host-title" id="host-title-el">Webinar Host</div>
                 </div>
               </div>
               <div class="slide-1-stats">
@@ -1274,7 +1274,6 @@ function descHTML(hook, cases, bullets) {
 </div>
 <div class="cal-desc-meta">
   <span><strong>For:</strong> B2B consulting &amp; advisory founders · $1M–$5M revenue</span>
-  <span><strong>Host:</strong> Lloyd Yip · Founder, Quantum Scaling · $500M+ in client revenue</span>
   <span><strong>Duration:</strong> 90 min + live Q&amp;A · Join link sent on confirmation</span>
 </div>`;
 }
@@ -1300,7 +1299,7 @@ const variants = [
   },
   {
     tag: 'Outcome-focused',
-    title: 'The Webinar Funnel That Generated $500M+ for Consulting Firms — Live Training with Lloyd Yip',
+    title: 'The Webinar Funnel That Generated $500M+ for Consulting Firms — Live Training',
     desc: descHTML(
       'The same acquisition system behind $500M+ in client revenue — now live, with your numbers built in.',
       [clientCase(QS_CLIENTS[3]), clientCase(QS_CLIENTS[4]), clientCase(QS_CLIENTS[5])],
@@ -1724,13 +1723,40 @@ function applyProspectBranding() {
     }
     // Update slide tag to show company name
     if (slideTagEl && prospect.company) {
-      slideTagEl.textContent = 'Prepared for ' + prospect.company + ' · Quantum Scaling';
+      slideTagEl.textContent = 'Live Webinar · Prepared for ' + prospect.company;
     }
 
     // ── Add personalization indicator in "Prepared for" nav badge ─────────────
     const preparedBadge = document.querySelector('.prepared-for');
     if (preparedBadge && prospect.company) {
       preparedBadge.innerHTML = 'Prepared for <span style="color:#e4e4e7;font-weight:700;">' + prospect.company + '</span>';
+    }
+
+    // ── Host elements (calendar event + webinar slide) ────────────────────────
+    const hostName = prospect.name || prospect.company || 'Your Host';
+    const hostCompany = prospect.company || '';
+
+    const calHostName = document.getElementById('cal-host-name');
+    const calHostSub  = document.getElementById('cal-host-sub');
+    if (calHostName) calHostName.textContent = 'Hosted by ' + hostName;
+    if (calHostSub)  calHostSub.textContent  = hostCompany + (icp.industry ? ' · ' + icp.industry + ' specialist' : '');
+
+    const hostNameEl    = document.getElementById('host-name-el');
+    const hostTitleEl   = document.getElementById('host-title-el');
+    const hostInitials  = document.getElementById('host-avatar-initials');
+    if (hostNameEl)   hostNameEl.textContent  = hostName;
+    if (hostTitleEl)  hostTitleEl.textContent  = hostCompany;
+    if (hostInitials) hostInitials.textContent = hostName.split(/\s+/).map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
+
+    // ── TAM stats from Apollo total ───────────────────────────────────────────
+    const gen = (session.extracted || {})._generated || {};
+    const tamTotal = gen.apolloTotal;
+    if (tamTotal) {
+      const tamEl = document.getElementById('tam-total-val');
+      if (tamEl) tamEl.textContent = tamTotal >= 1000 ? Math.round(tamTotal / 100) / 10 + 'K' : tamTotal.toLocaleString();
+      const cycleMonths = tamTotal > 60000 ? '~3 mo' : tamTotal > 20000 ? '~2 mo' : '~1 mo';
+      const cycleEl = document.getElementById('tam-cycle-val');
+      if (cycleEl) cycleEl.textContent = cycleMonths;
     }
 
     // ── Calendar invite personalization ──────────────────────────────────────
