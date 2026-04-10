@@ -489,26 +489,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 
       <div style="font-size:10px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">ICP Parameters Used</div>
       <div class="tam-filters-row">
-        <span class="filter-group-label">Titles</span>
-        <span class="filter-tag">CEO</span>
-        <span class="filter-tag">Founder</span>
-        <span class="filter-tag">Managing Director</span>
-        <span class="filter-tag">Partner</span>
-        <span class="filter-tag">President</span>
-        <span class="filter-sep">·</span>
-        <span class="filter-group-label">Company Size</span>
-        <span class="filter-tag">5–50 employees</span>
-        <span class="filter-sep">·</span>
-        <span class="filter-group-label">Industries</span>
-        <span class="filter-tag">Management Consulting</span>
-        <span class="filter-tag">Business Advisory</span>
-        <span class="filter-tag">Professional Services</span>
-        <span class="filter-sep">·</span>
-        <span class="filter-group-label">Geographies</span>
-        <span class="filter-tag">United States</span>
-        <span class="filter-tag">Canada</span>
-        <span class="filter-tag">United Kingdom</span>
-        <span class="filter-tag">Australia</span>
+        <span class="filter-tag" style="color:#52525b;background:none;border:none;">Loading ICP parameters...</span>
       </div>
 
     </div>
@@ -618,7 +599,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
           </div>
           <div class="cal-desc-meta">
             <span><strong>For:</strong> B2B consulting &amp; advisory founders · $1M–$5M revenue</span>
-            <span><strong>Host:</strong> Lloyd Yip · Founder, Quantum Scaling · $500M+ in client revenue</span>
+            <span><strong>Host:</strong> <span id="cal-host-meta">Webinar host</span></span>
             <span><strong>Duration:</strong> 90 min + live Q&amp;A · Join link sent on confirmation</span>
           </div>
         </div>
@@ -669,7 +650,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
         <span class="attendee-count">847 attending</span>
       </div>
       <div style="font-size:12px;color:#52525b;display:flex;align-items:center;gap:10px;">
-        Quantum Scaling · Webinar Series
+        <span id="webinar-series-label">Webinar Series</span>
         <span style="color:#3f3f46">·</span>
         <span style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:3px 10px;">
           <img id="prospect-favicon" style="width:14px;height:14px;border-radius:2px;display:none" alt="" onerror="this.style.display='none'">
@@ -1748,6 +1729,12 @@ function applyProspectBranding() {
     if (hostTitleEl)  hostTitleEl.textContent  = hostCompany;
     if (hostInitials) hostInitials.textContent = hostName.split(/\s+/).map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
 
+    const seriesLabel = document.getElementById('webinar-series-label');
+    if (seriesLabel) seriesLabel.textContent = hostCompany ? hostCompany + ' · Webinar' : 'Webinar Series';
+
+    const calHostMeta = document.getElementById('cal-host-meta');
+    if (calHostMeta) calHostMeta.textContent = hostName + (hostCompany ? ' · ' + hostCompany : '');
+
     // ── TAM stats from Apollo total ───────────────────────────────────────────
     const gen = (session.extracted || {})._generated || {};
     const tamTotal = gen.apolloTotal;
@@ -1870,7 +1857,7 @@ function applyProspectBranding() {
       const chatMsgs = [
         { name: 'Jordan M.', text: 'We\'ve been 90% referral-based for years — this is exactly the system we needed for ' + icpIndustry2 },
         { name: 'Alicia F.', text: 'How long until we see the first qualified calls from the ' + icpRole2 + ' targeting?' },
-        { name: null, support: true, text: 'Alicia — typically first calls in weeks 3–4 of the campaign. Lloyd will walk through the ramp in the funnel section' },
+        { name: null, support: true, text: 'Alicia — typically first calls in weeks 3–4 of the campaign. ' + hostName + ' will walk through the ramp in the funnel section' },
         { name: 'Derek O.', text: 'We\'re plateaued and manual outreach to ' + icpIndustry2 + ' firms just doesn\'t scale anymore' },
         { name: 'Simone L.', text: 'Does this work specifically for ' + icpIndustry2 + ' consulting or more general B2B?' },
         { name: null, support: true, text: 'Simone — this session is tailored to ' + icpIndustry2 + '. The targeting, messaging templates, and case studies are all from that vertical' },
@@ -1887,7 +1874,7 @@ function applyProspectBranding() {
       chatPanel.innerHTML = chatMsgs.map(function(m) {
         var cls = 'chat-msg' + (m.booking ? ' chat-booking' : '');
         var nameCls = 'chat-name' + (m.support ? ' support' : '');
-        var nameText = m.support ? 'QS Support' : m.name;
+        var nameText = m.support ? (companyName + ' Team') : m.name;
         return '<div class="' + cls + '"><div class="' + nameCls + '">' + nameText + '</div><div class="chat-text">' + m.text + '</div></div>';
       }).join('');
     }
