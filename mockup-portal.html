@@ -1714,7 +1714,7 @@ function applyProspectBranding() {
     }
 
     // ── Host elements (calendar event + webinar slide) ────────────────────────
-    const hostName = prospect.name || prospect.company || 'Your Host';
+    const hostName = prospect.company || prospect.name || 'Your Host';
     const hostCompany = prospect.company || '';
 
     const calHostName = document.getElementById('cal-host-name');
@@ -1781,8 +1781,8 @@ function applyProspectBranding() {
       }
 
       const forLine = icpGeo
-        ? `${icpIndustry} consultants targeting ${icpGeo}`
-        : `${icpIndustry} consulting founders`;
+        ? `${icpIndustry} founders targeting ${icpGeo}`
+        : `${icpIndustry} founders`;
 
       let hookText = '';
       if (pain) {

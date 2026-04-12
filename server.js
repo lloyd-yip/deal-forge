@@ -682,6 +682,19 @@ const server = http.createServer(async (req, res) => {
       const extracted = await extractWithClaude(extractionContent);
       console.log('Extracted:', JSON.stringify(extracted, null, 2));
 
+      // Company name cleanup: if Claude extracted a description (>3 words) instead of a proper name,
+      // fall back to the domain (e.g. "projectadvisor.com" → "Projectadvisor")
+      if (extracted.prospect) {
+        const rawCompany = extracted.prospect.company || '';
+        if (rawCompany.split(/\s+/).length > 3) {
+          const domainPart = scrapeDomain.split('.')[0]
+            .replace(/-/g, ' ')
+            .replace(/\b\w/g, c => c.toUpperCase());
+          extracted.prospect.company = domainPart;
+          console.log(`[extract] Company name cleanup: "${rawCompany}" → "${domainPart}"`);
+        }
+      }
+
       const company = extracted.prospect?.company || scrapeDomain;
 
       // Step 5: Stage 2 — parallel generation (graceful degradation via allSettled)
