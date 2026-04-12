@@ -742,18 +742,24 @@ async function handleExtract(task, job) {
       website.bodyText ? `Content:\n${website.bodyText}` : ''
     ].filter(Boolean).join('\n'));
   }
+  // Always include domain-derived name as anchor for Claude
+  const domainAnchor = scrapeDomain.split('.')[0].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  parts.unshift(`DOMAIN: ${scrapeDomain}\nDERIVED NAME FROM DOMAIN: ${domainAnchor}\n(Use this as the company name if a clearer branded name is not found in the content below)`);
+
   if (!parts.length) parts.push(`Prospect email: ${email}\nDomain: ${scrapeDomain}`);
 
   // Step 4: Claude extraction
   const extracted = await extractWithClaude(parts.join('\n\n---\n\n'));
 
-  // Company name cleanup: >3 words → use domain
+  // Company name cleanup: vague descriptions → use domain
   if (extracted.prospect) {
-    const rawCompany = extracted.prospect.company || '';
-    if (rawCompany.split(/\s+/).length > 3) {
-      const domainPart = scrapeDomain.split('.')[0].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      extracted.prospect.company = domainPart;
-      console.log(`[extract] Company cleanup: "${rawCompany}" → "${domainPart}"`);
+    const rawCompany = (extracted.prospect.company || '').trim();
+    const isVague = rawCompany.split(/\s+/).length > 2 ||
+                    /name not provided|not (given|stated|mentioned|found)|unknown|n\/a/i.test(rawCompany) ||
+                    /^(a |the )?(boutique|management|project|consulting|advisory|professional|services?|company|firm|business|organization|agency)\b/i.test(rawCompany);
+    if (isVague) {
+      extracted.prospect.company = domainAnchor;
+      console.log(`[extract] Company cleanup: "${rawCompany}" → "${domainAnchor}"`);
     }
   }
 
@@ -910,11 +916,14 @@ async function handleBrandScrape(task, job) {
 
 async function handleLeadList(task, job) {
   const extracted = job.extracted_data;
-  if (!extracted?.icp) {
-    console.log('[lead_list] No ICP data — skipping');
-    return { leads: [], total: 0, skipped: true };
-  }
-  const result = await fetchLeadsFromApollo(extracted.icp);
+  // Build ICP with fallbacks so Apollo always has something to search
+  const icp = {
+    industry: extracted?.icp?.industry || 'consulting',
+    role:     extracted?.icp?.role     || null,
+    company_size: extracted?.icp?.company_size || null
+  };
+  console.log('[lead_list] ICP:', JSON.stringify(icp));
+  const result = await fetchLeadsFromApollo(icp);
   return { leads: result?.leads || [], total: result?.total || 0 };
 }
 
