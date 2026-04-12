@@ -720,7 +720,7 @@ function njGenerate() {
   var contactName = document.getElementById('nj-name').textContent || '';
   var contactRoleCompany = document.getElementById('nj-role-company').textContent || '';
 
-  fetch('/api/generate', {
+  fetch('/api/jobs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: email, websiteUrl: websiteUrl || undefined })
@@ -729,22 +729,26 @@ function njGenerate() {
   .then(function(data) {
     if (data.error) throw new Error(data.error);
 
-    // Inject new job row at top of list
+    var portalUrl = data.portal_url || ('/?job=' + data.job_id);
+    var repName = rep === 'melissa' ? 'Melissa F.' : 'Ryan Matsumori';
+    var today = new Date();
+    var dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    var displayName = contactName || email;
+    var displayCompany = email.split('@')[1] ? email.split('@')[1].split('.')[0] : email;
+    displayCompany = displayCompany.charAt(0).toUpperCase() + displayCompany.slice(1);
+
+    // Inject row immediately (processing state)
     var jobRows = document.getElementById('job-rows');
     if (jobRows) {
-      var repName = rep === 'melissa' ? 'Melissa F.' : 'Ryan Matsumori';
-      var today = new Date();
-      var dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      var portalUrl = data.portalUrl;
-      var rowHtml = '<div class="row-item job-row" data-rep="' + rep + '" data-name="' + (contactName || data.name || data.company || '').toLowerCase() + '" data-company="' + (data.company || '').toLowerCase() + '" onclick="window.open(\'' + portalUrl + '\',\'_blank\')" style="display:flex;align-items:center;padding:15px 20px;">'
+      var rowHtml = '<div class="row-item job-row" data-rep="' + rep + '" data-name="' + displayName.toLowerCase() + '" data-company="' + displayCompany.toLowerCase() + '" onclick="window.open(\'' + portalUrl + '\',\'_blank\')" style="display:flex;align-items:center;padding:15px 20px;">'
         + '<div style="flex:1;">'
-        + '<div style="font-size:13px;font-weight:500;color:#ffffff;">' + (data.company || email) + '</div>'
-        + '<div style="font-size:12px;color:#71717a;margin-top:1px;">' + (data.name ? data.name + ' · ' : '') + (data.industry || '') + '</div>'
+        + '<div style="font-size:13px;font-weight:500;color:#ffffff;">' + displayCompany + '</div>'
+        + '<div style="font-size:12px;color:#71717a;margin-top:1px;">' + displayName + '</div>'
         + '</div>'
         + '<div style="width:110px;font-size:12px;color:#71717a;">' + repName + '</div>'
         + '<div style="width:100px;display:flex;align-items:center;gap:6px;">'
-        + '<span class="status-dot dot-green"></span>'
-        + '<span style="font-size:12px;color:#71717a;">Complete</span>'
+        + '<span class="status-dot dot-purple"></span>'
+        + '<span style="font-size:12px;color:#71717a;">Processing</span>'
         + '</div>'
         + '<div style="width:60px;text-align:right;font-size:12px;color:#52525b;">' + dateStr + '</div>'
         + '<svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>'
@@ -753,7 +757,7 @@ function njGenerate() {
     }
 
     njClose();
-    window.open(data.portalUrl, '_blank');
+    window.open(portalUrl, '_blank');
   })
   .catch(function(err) {
     console.error('Generate error:', err);
@@ -782,8 +786,47 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') njClose();
 });
 
+// ─── LOAD REAL JOBS FROM SERVER ──────────────────────
+function statusDot(status) {
+  if (status === 'completed') return '<span class="status-dot dot-green"></span><span style="font-size:12px;color:#71717a;">Complete</span>';
+  if (status === 'failed')    return '<span class="status-dot dot-red"></span><span style="font-size:12px;color:#71717a;">Failed</span>';
+  return '<span class="status-dot dot-purple"></span><span style="font-size:12px;color:#71717a;">Processing</span>';
+}
+
+function loadJobsFromServer() {
+  fetch('/api/jobs')
+    .then(function(r) { return r.ok ? r.json() : []; })
+    .then(function(jobs) {
+      if (!Array.isArray(jobs) || !jobs.length) return;
+      var jobRows = document.getElementById('job-rows');
+      if (!jobRows) return;
+      // Clear demo rows, replace with real data
+      jobRows.innerHTML = '';
+      jobs.forEach(function(job) {
+        var company = job.prospect_company || (job.prospect_email || '').split('@')[1] || 'Unknown';
+        company = company.split('.')[0].charAt(0).toUpperCase() + company.split('.')[0].slice(1);
+        var name = job.prospect_name || job.prospect_email || '';
+        var portalUrl = job.portal_url || ('/?job=' + job.job_id);
+        var date = job.created_at ? new Date(job.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        var rowHtml = '<div class="row-item job-row" data-rep="all" data-name="' + name.toLowerCase() + '" data-company="' + company.toLowerCase() + '" onclick="window.open(\'' + portalUrl + '\',\'_blank\')" style="display:flex;align-items:center;padding:15px 20px;">'
+          + '<div style="flex:1;">'
+          + '<div style="font-size:13px;font-weight:500;color:#ffffff;">' + company + '</div>'
+          + '<div style="font-size:12px;color:#71717a;margin-top:1px;">' + name + '</div>'
+          + '</div>'
+          + '<div style="width:110px;font-size:12px;color:#71717a;">—</div>'
+          + '<div style="width:100px;display:flex;align-items:center;gap:6px;">' + statusDot(job.status) + '</div>'
+          + '<div style="width:60px;text-align:right;font-size:12px;color:#52525b;">' + date + '</div>'
+          + '<svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>'
+          + '</div>';
+        jobRows.insertAdjacentHTML('beforeend', rowHtml);
+      });
+    })
+    .catch(function(err) { console.warn('[Dashboard] Could not load jobs:', err.message); });
+}
+
 // Default screen
 showScreen('list');
+loadJobsFromServer();
 </script>
 
 </body>

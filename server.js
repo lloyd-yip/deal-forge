@@ -1265,6 +1265,31 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── GET /api/jobs — list recent jobs (dashboard) ─────────────────────────
+  if (req.method === 'GET' && urlPath === '/api/jobs') {
+    setCors(res);
+    try {
+      const r = await supabaseRequest('GET', '/rest/v1/jobs?order=created_at.desc&limit=100');
+      const jobs = (r.status === 200 && Array.isArray(r.body)) ? r.body : [];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(jobs.map(j => ({
+        job_id:          j.id,
+        status:          j.status,
+        prospect_email:  j.prospect_email,
+        prospect_company: j.prospect_company,
+        prospect_name:   j.prospect_name,
+        portal_url:      `/?job=${j.id}`,
+        created_at:      j.created_at,
+        updated_at:      j.updated_at
+      }))));
+    } catch(e) {
+      console.error('[GET /api/jobs]', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   // ── GET /api/jobs/:id — poll job status + task outputs ───────────────────
   if (req.method === 'GET' && urlPath.startsWith('/api/jobs/')) {
     setCors(res);
