@@ -1606,24 +1606,126 @@ function applyProspectBranding() {
   }
 }
 
-// ── Personalization from session data ────────────────────────────────────────
+// ── Asset button injector ─────────────────────────────────────────────────────
+function showAssetButton(anchorId, url, label) {
+  var existing = document.getElementById(anchorId);
+  if (existing) { existing.href = url; return; }
+  // Find the right container to attach asset links
+  const targets = {
+    'roi-asset-btn':           '.roi-section, .roi-calculator, [data-section="roi"]',
+    'calendar-asset-btn':      '.cal-section, .calendar-event, [data-section="calendar"]',
+    'webinar-mock-asset-btn':  '.webinar-section, .webinar-mock, [data-section="webinar"]'
+  };
+  const selector = targets[anchorId];
+  const container = selector ? document.querySelector(selector) : null;
+  const btn = document.createElement('a');
+  btn.id = anchorId;
+  btn.href = url;
+  btn.target = '_blank';
+  btn.rel = 'noopener';
+  btn.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:8px 16px;background:#4f46e5;color:#fff;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;';
+  btn.innerHTML = '↗ ' + label;
+  if (container) { container.appendChild(btn); }
+  else { console.log('[Deal Forge] Asset ready:', label, url); }
+}
+
+// ── Build session-compat object from new job API response ─────────────────────
+function buildCompatSession(job) {
+  const ext = Object.assign({}, job.extracted_data || {});
+  const tasks = job.tasks || {};
+  const meta = ext._meta || {};
+  ext._generated = {
+    webinarTitles: (tasks.webinar_titles && tasks.webinar_titles.output) || null,
+    leads:         (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.leads) || null,
+    apolloTotal:   (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.total) || null
+  };
+  return {
+    email:      job.prospect_email || '',
+    domain:     job.prospect_website || '',
+    transcript: meta.transcript || { found: false },
+    website:    meta.website    || { domain: job.prospect_website, scraped: false },
+    extracted:  ext
+  };
+}
+
+// ── Personalization from session / job data ───────────────────────────────────
 (async function() {
   const params = new URLSearchParams(window.location.search);
+  const jobId        = params.get('job');
   const sessionToken = params.get('session');
 
-  if (!sessionToken) {
-    // No session — apply static defaults and exit
+  // Nothing to personalize
+  if (!jobId && !sessionToken) {
     applyProspectBranding();
     return;
   }
 
-  try {
-    const res = await fetch('/api/portal-data?session=' + encodeURIComponent(sessionToken));
-    if (!res.ok) {
+  // ── Legacy session path (backwards compat) ──────────────────────────────────
+  if (!jobId && sessionToken) {
+    try {
+      const res = await fetch('/api/portal-data?session=' + encodeURIComponent(sessionToken));
+      if (!res.ok) { applyProspectBranding(); return; }
+      const session = await res.json();
+      runPersonalization(session);
+    } catch(err) {
+      console.warn('[Deal Forge] Legacy session load failed:', err.message);
       applyProspectBranding();
-      return;
     }
-    const session = await res.json();
+    return;
+  }
+
+  // ── Job polling path ────────────────────────────────────────────────────────
+  var extractApplied = false;
+  var assetsChecked  = {};
+
+  async function pollJob() {
+    try {
+      const res = await fetch('/api/jobs/' + encodeURIComponent(jobId));
+      if (!res.ok) {
+        setTimeout(pollJob, 5000);
+        return;
+      }
+      const job = await res.json();
+      const tasks = job.tasks || {};
+
+      // Extract complete → run main personalization (runs once)
+      if (!extractApplied && tasks.extract && tasks.extract.status === 'completed') {
+        extractApplied = true;
+        const session = buildCompatSession(job);
+        runPersonalization(session);
+      }
+
+      // Asset URLs → inject "Open" buttons when ready (idempotent)
+      if (!assetsChecked['roi'] && tasks.roi_model && tasks.roi_model.asset_url) {
+        assetsChecked['roi'] = true;
+        showAssetButton('roi-asset-btn', tasks.roi_model.asset_url, 'Open Interactive ROI Model');
+      }
+      if (!assetsChecked['cal'] && tasks.calendar_visual && tasks.calendar_visual.asset_url) {
+        assetsChecked['cal'] = true;
+        showAssetButton('calendar-asset-btn', tasks.calendar_visual.asset_url, 'Open Calendar Preview');
+      }
+      if (!assetsChecked['mock'] && tasks.webinar_mock && tasks.webinar_mock.asset_url) {
+        assetsChecked['mock'] = true;
+        showAssetButton('webinar-mock-asset-btn', tasks.webinar_mock.asset_url, 'Open Webinar Preview');
+      }
+
+      // Keep polling until job terminal
+      if (job.status !== 'completed' && job.status !== 'failed') {
+        setTimeout(pollJob, 3000);
+      } else if (!extractApplied) {
+        applyProspectBranding();
+      }
+    } catch(err) {
+      console.warn('[Deal Forge] Poll error:', err.message);
+      setTimeout(pollJob, 5000);
+    }
+  }
+
+  pollJob();
+})();
+
+function runPersonalization(session) {
+  try {
     const ext = session.extracted || {};
     const prospect = ext.prospect || {};
     const icp = ext.icp || {};
@@ -1985,7 +2087,7 @@ function applyProspectBranding() {
     console.warn('[Deal Forge] Session load failed, using defaults:', err.message);
     applyProspectBranding();
   }
-})();
+}
 </script>
 </body>
 </html>

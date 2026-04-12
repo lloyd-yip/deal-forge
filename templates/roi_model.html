@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revenue Projection — {{COMPANY_NAME}}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#111;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 16px}
+  .header{text-align:center;margin-bottom:28px}
+  .header h1{font-size:22px;font-weight:700;color:#111}
+  .header p{font-size:14px;color:#666;margin-top:6px}
+  .card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:28px;width:100%;max-width:860px}
+  .panels{display:grid;grid-template-columns:1fr 1fr;gap:32px}
+  @media(max-width:640px){.panels{grid-template-columns:1fr}}
+  .section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:16px}
+  .field{margin-bottom:18px}
+  .field label{display:block;font-size:13px;font-weight:500;color:#555;margin-bottom:6px}
+  .field input{width:100%;padding:10px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:16px;font-weight:600;color:#111;outline:none;transition:border-color .15s}
+  .field input:focus{border-color:#4f46e5}
+  .field .source{font-size:11px;color:#aaa;margin-top:4px}
+  .output-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid #f0f0f0}
+  .output-row:last-child{border-bottom:none}
+  .output-label{font-size:14px;color:#555}
+  .output-value{font-size:22px;font-weight:800;color:#111;font-variant-numeric:tabular-nums}
+  .output-value.green{color:#059669}
+  .roi-row{margin-top:16px;padding:16px;background:#f0fdf4;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+  .roi-label{font-size:14px;font-weight:600;color:#065f46}
+  .roi-value{font-size:28px;font-weight:900;color:#059669}
+  .toggle-btn{width:100%;margin-top:24px;padding:10px;background:none;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;font-weight:500;color:#666;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s}
+  .toggle-btn:hover{background:#f5f5f5}
+  .toggle-arrow{transition:transform .2s}
+  .phase-table{display:none;overflow-x:auto;margin-top:20px}
+  .phase-table.open{display:block}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{padding:8px 12px;text-align:right;font-weight:600;color:#888;border-bottom:2px solid #eee}
+  th:first-child{text-align:left}
+  td{padding:8px 12px;text-align:right;color:#333;border-bottom:1px solid #f0f0f0}
+  td:first-child{text-align:left;color:#666}
+  tr.highlight td{font-weight:700;color:#111}
+  .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+  .badge.phase1{background:#eff6ff;color:#2563eb}
+  .badge.phase2{background:#f0fdf4;color:#059669}
+  .disclaimer{font-size:11px;color:#aaa;text-align:center;margin-top:20px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>{{COMPANY_NAME}} — Revenue Projection</h1>
+  <p>Webinar acquisition model · Adjust inputs to see your numbers</p>
+</div>
+<div class="card">
+  <div class="panels">
+    <div>
+      <div class="section-label">Your Numbers</div>
+      <div class="field">
+        <label>Customer Lifetime Value (LTV)</label>
+        <input type="number" id="ltv" value="{{LTV}}" min="1000" step="1000">
+        <div class="source">From transcript</div>
+      </div>
+      <div class="field">
+        <label>Call Show Rate (%)</label>
+        <input type="number" id="show_rate" value="{{SHOW_RATE}}" min="1" max="100">
+        <div class="source" id="show_source">{{SHOW_RATE_SOURCE}}</div>
+      </div>
+      <div class="field">
+        <label>Closing Rate (%)</label>
+        <input type="number" id="close_rate" value="{{CLOSE_RATE}}" min="1" max="100">
+        <div class="source" id="close_source">{{CLOSE_RATE_SOURCE}}</div>
+      </div>
+      <div class="field">
+        <label>Program Investment ($)</label>
+        <input type="number" id="investment" value="" min="0" placeholder="Enter to see ROI">
+        <div class="source">Leave blank to hide ROI</div>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Projected Revenue</div>
+      <div class="output-row">
+        <span class="output-label">6 months</span>
+        <span class="output-value" id="out_6mo">${{REVENUE_6MO}}</span>
+      </div>
+      <div class="output-row">
+        <span class="output-label">12 months</span>
+        <span class="output-value" id="out_12mo">${{REVENUE_12MO}}</span>
+      </div>
+      <div class="output-row">
+        <span class="output-label">24 months</span>
+        <span class="output-value green" id="out_24mo">${{REVENUE_24MO}}</span>
+      </div>
+      <div class="roi-row" id="roi_row" style="display:none">
+        <span class="roi-label">Return on Investment</span>
+        <span class="roi-value" id="out_roi">—</span>
+      </div>
+    </div>
+  </div>
+  <button class="toggle-btn" onclick="togglePhase()">
+    <span>Show methodology breakdown</span>
+    <span class="toggle-arrow" id="arrow">▼</span>
+  </button>
+  <div class="phase-table" id="phase_table">
+    <table>
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th><span class="badge phase1">Phase 1</span></th>
+          <th><span class="badge phase2">Phase 2</span></th>
+        </tr>
+      </thead>
+      <tbody id="phase_tbody"></tbody>
+    </table>
+    <p style="font-size:12px;color:#aaa;margin-top:12px">Phase 1: Weeks 5–12 (learning). Phase 2: Week 21+ (fully ramped, bi-weekly). Ramp period interpolated weeks 13–20.</p>
+  </div>
+</div>
+<p class="disclaimer">Projections based on QS benchmark data. Actual results vary. Numbers update live as you adjust inputs above.</p>
+
+<script>
+const P1 = {prospects:7500,reg:0.005,attend:0.35,book:0.08};
+const P2 = {prospects:50000,reg:0.008,attend:0.50,book:0.18};
+
+function fmt(n){return '$'+Math.round(n).toLocaleString()}
+function fmtPct(n){return Math.round(n*100)+'%'}
+
+function calc(){
+  const ltv   = parseFloat(document.getElementById('ltv').value)||0;
+  const show  = (parseFloat(document.getElementById('show_rate').value)||70)/100;
+  const close = (parseFloat(document.getElementById('close_rate').value)||20)/100;
+  const inv   = parseFloat(document.getElementById('investment').value)||0;
+
+  const show2  = Math.min(show+0.14,1);
+  const close2 = Math.min(close+0.04,1);
+
+  const rev1    = P1.prospects*P1.reg*P1.attend*P1.book*show*close*ltv;
+  const rev2    = P2.prospects*P2.reg*P2.attend*P2.book*show2*close2*ltv;
+  const revRamp = (rev1+rev2)/2;
+
+  function total(maxWeek){
+    let t=0;
+    for(let w=5;w<=maxWeek;w+=2){
+      if(w<=12)t+=rev1;else if(w<=20)t+=revRamp;else t+=rev2;
+    }
+    return Math.round(t);
+  }
+
+  const r6=total(26),r12=total(52),r24=total(104);
+  document.getElementById('out_6mo').textContent=fmt(r6);
+  document.getElementById('out_12mo').textContent=fmt(r12);
+  document.getElementById('out_24mo').textContent=fmt(r24);
+
+  if(inv>0){
+    const roi=((r24-inv)/inv*100).toFixed(0);
+    document.getElementById('out_roi').textContent=roi+'%';
+    document.getElementById('roi_row').style.display='flex';
+  } else {
+    document.getElementById('roi_row').style.display='none';
+  }
+
+  // Phase table
+  const tbody=document.getElementById('phase_tbody');
+  const rows=[
+    ['Prospects per webinar',P1.prospects.toLocaleString(),P2.prospects.toLocaleString()],
+    ['Registration rate',fmtPct(P1.reg),fmtPct(P2.reg)],
+    ['Registrants',Math.round(P1.prospects*P1.reg).toLocaleString(),Math.round(P2.prospects*P2.reg).toLocaleString()],
+    ['Attendance rate',fmtPct(P1.attend),fmtPct(P2.attend)],
+    ['Attendees',Math.round(P1.prospects*P1.reg*P1.attend).toLocaleString(),Math.round(P2.prospects*P2.reg*P2.attend).toLocaleString()],
+    ['Booking rate',fmtPct(P1.book),fmtPct(P2.book)],
+    ['Booked calls',Math.round(P1.prospects*P1.reg*P1.attend*P1.book).toLocaleString(),Math.round(P2.prospects*P2.reg*P2.attend*P2.book).toLocaleString()],
+    ['Show rate',fmtPct(show),fmtPct(show2)],
+    ['Close rate',fmtPct(close),fmtPct(close2)],
+    ['Revenue / webinar',fmt(rev1),fmt(rev2)]
+  ];
+  tbody.innerHTML=rows.map((r,i)=>`<tr${i===rows.length-1?' class="highlight"':''}><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
+}
+
+function togglePhase(){
+  const t=document.getElementById('phase_table');
+  const a=document.getElementById('arrow');
+  const open=t.classList.toggle('open');
+  a.style.transform=open?'rotate(180deg)':'rotate(0)';
+}
+
+document.querySelectorAll('input').forEach(i=>i.addEventListener('input',calc));
+calc();
+</script>
+</body>
+</html>
