@@ -944,7 +944,7 @@ function njGenerate() {
         + '<span style="font-size:12px;color:#71717a;">Processing</span>'
         + '</div>'
         + '<div style="width:60px;text-align:right;font-size:12px;color:#52525b;">' + dateStr + '</div>'
-        + '<svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>'
+        + '<button onclick="event.stopPropagation();deleteJob(\'' + data.job_id + '\',this)" title="Delete job" style="background:none;border:none;cursor:pointer;color:#52525b;padding:4px 6px;margin-left:6px;border-radius:4px;display:flex;align-items:center;" onmouseover="this.style.color=\'#ef4444\'" onmouseout="this.style.color=\'#52525b\'">' + trashIcon + '</button>'
         + '</div>';
       jobRows.insertAdjacentHTML('afterbegin', rowHtml);
     }
@@ -980,6 +980,24 @@ function statusDot(status) {
   return '<span class="status-dot dot-purple"></span><span style="font-size:12px;color:#71717a;">Processing</span>';
 }
 
+function deleteJob(jobId, btn) {
+  if (!confirm('Delete this job? This cannot be undone.')) return;
+  var row = btn.closest('.job-row');
+  if (row) { row.style.opacity = '0.4'; row.style.pointerEvents = 'none'; }
+  fetch('/api/jobs/' + encodeURIComponent(jobId), { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.deleted && row) row.remove();
+      else if (row) { row.style.opacity = '1'; row.style.pointerEvents = ''; alert('Delete failed: ' + (data.error || 'unknown error')); }
+    })
+    .catch(function(err) {
+      if (row) { row.style.opacity = '1'; row.style.pointerEvents = ''; }
+      console.warn('[Dashboard] Delete error:', err.message);
+    });
+}
+
+var trashIcon = '<svg style="width:13px;height:13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
+
 function loadJobsFromServer() {
   fetch('/api/jobs')
     .then(function(r) { return r.ok ? r.json() : []; })
@@ -995,6 +1013,7 @@ function loadJobsFromServer() {
         var name = job.prospect_name || job.prospect_email || '';
         var portalUrl = job.portal_url || ('/?job=' + job.job_id);
         var date = job.created_at ? new Date(job.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        var jobId = job.job_id || '';
         var rowHtml = '<div class="row-item job-row" data-rep="all" data-name="' + name.toLowerCase() + '" data-company="' + company.toLowerCase() + '" onclick="window.open(\'' + portalUrl + '\',\'_blank\')" style="display:flex;align-items:center;padding:15px 20px;">'
           + '<div style="flex:1;">'
           + '<div style="font-size:13px;font-weight:500;color:#ffffff;">' + company + '</div>'
@@ -1003,7 +1022,7 @@ function loadJobsFromServer() {
           + '<div style="width:110px;font-size:12px;color:#71717a;">—</div>'
           + '<div style="width:100px;display:flex;align-items:center;gap:6px;">' + statusDot(job.status) + '</div>'
           + '<div style="width:60px;text-align:right;font-size:12px;color:#52525b;">' + date + '</div>'
-          + '<svg style="width:13px;height:13px;color:#3f3f46;margin-left:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>'
+          + '<button onclick="event.stopPropagation();deleteJob(\'' + jobId + '\',this)" title="Delete job" style="background:none;border:none;cursor:pointer;color:#52525b;padding:4px 6px;margin-left:6px;border-radius:4px;display:flex;align-items:center;" onmouseover="this.style.color=\'#ef4444\'" onmouseout="this.style.color=\'#52525b\'">' + trashIcon + '</button>'
           + '</div>';
         jobRows.insertAdjacentHTML('beforeend', rowHtml);
       });

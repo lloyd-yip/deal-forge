@@ -1566,6 +1566,25 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── DELETE /api/jobs/:id — hard delete job + tasks ───────────────────────
+  if (req.method === 'DELETE' && urlPath.startsWith('/api/jobs/')) {
+    setCors(res);
+    const jobId = urlPath.slice('/api/jobs/'.length);
+    try {
+      // Delete tasks first (avoid FK constraint violation)
+      await supabaseRequest('DELETE', `/rest/v1/tasks?job_id=eq.${jobId}`);
+      const r = await supabaseRequest('DELETE', `/rest/v1/jobs?id=eq.${jobId}`);
+      console.log(`[DELETE /api/jobs] Deleted job ${jobId} status=${r.status}`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ deleted: true }));
+    } catch(e) {
+      console.error('[DELETE /api/jobs]', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   // ── POST /api/generate — backwards-compat shim → creates job, polls extract ─
   if (req.method === 'POST' && urlPath === '/api/generate') {
     setCors(res);
