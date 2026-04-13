@@ -113,13 +113,17 @@ async function storageUpload(storagePath, content, contentType = 'text/html') {
 }
 
 // ── DB helpers — jobs & tasks ─────────────────────────────────────────────────
-async function createJob(email, websiteUrl, linkedinUrl) {
-  const domain = websiteUrl || email.split('@')[1];
+async function createJob(email, websiteUrl, brief) {
+  const domain          = websiteUrl || email.split('@')[1];
+  const prospectCompany = brief?.prospect?.company || null;
+  const prospectName    = brief?.prospect?.contact_name || null;
   const r = await supabaseRequest('POST', '/rest/v1/jobs', {
-    prospect_email:        email,
-    prospect_website:      domain || null,
-    prospect_linkedin_url: linkedinUrl || null,
-    status:                'processing'
+    prospect_email:   email,
+    prospect_website: domain || null,
+    prospect_company: prospectCompany,
+    prospect_name:    prospectName,
+    extracted_data:   brief || null,   // brief IS the extracted data
+    status:           'processing'
   }, { 'Prefer': 'return=representation' });
   if (r.status >= 400) throw new Error(`createJob failed: ${r.status} ${JSON.stringify(r.body)}`);
   return Array.isArray(r.body) ? r.body[0] : r.body;
@@ -400,55 +404,64 @@ async function scrapeWebsite(domain) {
   }
 }
 
-// ── Claude extraction ─────────────────────────────────────────────────────────
-async function extractWithClaude(content) {
+// ── Brief extraction from transcript + website ────────────────────────────────
+async function extractBriefFromTranscript(transcriptContent, websiteContent, contactInfo) {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  const systemPrompt = `You are a data extraction assistant. Extract structured business information from a sales call transcript and/or website content.
+  const knownCompany  = contactInfo.company  || null;
+  const knownName     = contactInfo.name     || null;
+  const knownWebsite  = contactInfo.website  || null;
 
-Return valid JSON only. No markdown, no explanation, no preamble.
+  const systemPrompt = `You are extracting a structured Prospect Brief from a sales call transcript.
+Extract ONLY what was explicitly stated. Return null for anything not mentioned — never infer, guess, or hallucinate.
+The prospect is the CLIENT company being pitched to — NOT Quantum Scaling, NOT Lloyd Yip, NOT any QS team member.
+Return valid JSON only. No markdown, no explanation.`;
 
-CRITICAL — Who is the prospect:
-The "prospect" is the CLIENT company — the external business being pitched to. The prospect is NOT Lloyd Yip, NOT Quantum Scaling, and NOT any QS team member. Extract the client's information as the prospect fields.
+  const userPrompt = `Known contact info (treat as ground truth if not contradicted):
+Company: ${knownCompany || 'unknown — extract from transcript'}
+Name: ${knownName || 'extract from transcript'}
+Website: ${knownWebsite || 'extract from transcript'}
 
-Null rules: If a field was not discussed or found, return null — never infer or hallucinate. If numbers are vague, return null — only extract verbatim figures. icp.geography: null unless explicitly mentioned.`;
+${transcriptContent ? `TRANSCRIPT:\n---\n${transcriptContent.slice(0, 7000)}\n---` : '(No transcript available)'}
+${websiteContent ? `\nWEBSITE CONTENT:\n---\n${websiteContent.slice(0, 2000)}\n---` : ''}
 
-  const userPrompt = `Extract the following from this sales information:
-
----
-${content}
----
-
-Return this exact JSON structure:
-
+Return this exact JSON (null for anything not found):
 {
   "prospect": {
-    "name": "string | null — prospect's full name if mentioned",
-    "company": "string — company name (required)",
-    "website": "string | null — website domain if found"
+    "company":       "string — company name. Use known value if transcript confirms or is silent",
+    "contact_name":  "string | null — full name of person on the call",
+    "contact_title": "string | null — their job title"
   },
   "icp": {
-    "industry": "string — best match: consulting, software, coaching, agency, ecommerce, healthcare, real_estate, finance, or other",
-    "role": "string | null — job title of their target buyer",
-    "company_size": "string | null — revenue range or headcount of their target clients"
+    "role":         "string | null — job title(s) of their target buyers, e.g. 'CEO, Founder'",
+    "industry":     "string — one of: consulting, software, coaching, agency, ecommerce, healthcare, real_estate, finance, other",
+    "company_size": "string | null — size of their TARGET clients, e.g. '10-50 employees' or '$1M-$5M revenue'",
+    "geography":    "string | null — only if explicitly mentioned, e.g. 'US, Canada'"
   },
-  "business": {
-    "revenue": "string | null — prospect company annual revenue if mentioned",
-    "ltv": "string | null — client lifetime value, verbatim (e.g. '$48,000')",
-    "deal_size": "string | null — average deal value, verbatim",
-    "close_rate": "string | null — current close rate, verbatim (e.g. '20%')",
-    "show_rate": "string | null — current show rate, verbatim (e.g. '70%')"
+  "metrics": {
+    "ltv":        "string | null — client lifetime value verbatim, e.g. '$48,000'",
+    "close_rate": "string | null — current close rate verbatim, e.g. '20%'",
+    "show_rate":  "string | null — current show/attendance rate verbatim, e.g. '70%'"
   },
-  "customer_pain": "string | null — the core problem their ICP experiences, in customer language",
-  "result_delivered": "string | null — the transformation the prospect delivers to their clients",
-  "goals": "string | null — what the prospect wants to achieve in next 6-12 months",
-  "webinar_angle": "string | null — topic or teaching angle for their webinar if discussed",
-  "personalized_title": "string — a compelling webinar title written specifically for this company. Reference their exact industry, their clients' specific pain point, or their specific growth goal. Make it feel like it was written just for them. Format: How [specific type of company] [achieve specific outcome] Without [the frustration they face]. Max 90 characters. REQUIRED — always generate one even if data is sparse."
+  "angle": {
+    "pain":        "string | null — core problem their clients face, in their clients' own language. 1-2 sentences.",
+    "result":      "string | null — the transformation they deliver to clients. 1 sentence.",
+    "methodology": "string | null — their named framework or system if they mentioned one",
+    "proof":       "string | null — best case study number mentioned, e.g. '$1.2M to $2.4M in 6 months'"
+  },
+  "context": {
+    "goals":       "string | null — what they want to achieve in next 6-12 months",
+    "why_webinar": "string | null — why they are exploring webinars or this system specifically"
+  },
+  "titles": {
+    "a": "string | null — compelling webinar title based on their pain + result, max 80 chars",
+    "b": "string | null — second variant with different angle, max 80 chars"
+  }
 }`;
 
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1500,
+    max_tokens: 2000,
     temperature: 0,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }]
@@ -459,8 +472,19 @@ Return this exact JSON structure:
   catch(e) {
     const m = raw.match(/\{[\s\S]*\}/);
     if (m) return JSON.parse(m[0]);
-    throw new Error('Claude returned unparseable JSON');
+    return null; // Graceful: modal opens blank for manual entry
   }
+}
+
+function emptyBrief(contactInfo) {
+  return {
+    prospect: { company: contactInfo.company || null, contact_name: contactInfo.name || null, contact_title: null },
+    icp:      { role: null, industry: 'consulting', company_size: null, geography: null },
+    metrics:  { ltv: null, close_rate: null, show_rate: null },
+    angle:    { pain: null, result: null, methodology: null, proof: null },
+    context:  { goals: null, why_webinar: null },
+    titles:   { a: null, b: null }
+  };
 }
 
 // ── Apollo helpers ────────────────────────────────────────────────────────────
@@ -914,17 +938,61 @@ async function handleBrandScrape(task, job) {
   return brandData;
 }
 
+// ── Website quality filter — verify leads match ICP ──────────────────────────
+async function filterLeadsByWebsite(leads, icpKeywords) {
+  const CONCURRENCY = 5;
+  const TIMEOUT_MS  = 4000;
+  const qualified   = [];
+
+  for (let i = 0; i < leads.length; i += CONCURRENCY) {
+    const batch = leads.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(batch.map(async (lead) => {
+      if (!lead.website) return lead; // No website — keep (benefit of doubt)
+      try {
+        const domain  = lead.website.replace(/^https?:\/\//, '').split('/')[0];
+        const scraped = await Promise.race([
+          scrapeWebsite(domain),
+          new Promise(resolve => setTimeout(() => resolve(null), TIMEOUT_MS))
+        ]);
+        if (!scraped?.bodyText) return lead; // Can't scrape — keep
+        const content = (scraped.bodyText + ' ' + (scraped.title || '') + ' ' + (scraped.metaDesc || '')).toLowerCase();
+        const hits    = icpKeywords.filter(kw => content.includes(kw));
+        if (!icpKeywords.length || hits.length > 0) return lead;
+        console.log(`[filter] Dropped: ${domain} (no ICP keyword match)`);
+        return null;
+      } catch(e) { return lead; } // Scrape error — keep
+    }));
+    qualified.push(...results.filter(Boolean));
+  }
+  return qualified.slice(0, 25);
+}
+
 async function handleLeadList(task, job) {
-  const extracted = job.extracted_data;
-  // Build ICP with fallbacks so Apollo always has something to search
-  const icp = {
-    industry: extracted?.icp?.industry || 'consulting',
-    role:     extracted?.icp?.role     || null,
-    company_size: extracted?.icp?.company_size || null
+  // Brief is stored in extracted_data — confirmed by rep before job was created
+  const brief = job.extracted_data || {};
+  const icp   = brief.icp || {};
+
+  const effectiveIcp = {
+    industry:     icp.industry     || 'consulting',
+    role:         icp.role         || null,
+    company_size: icp.company_size || null,
+    geography:    icp.geography    || null
   };
-  console.log('[lead_list] ICP:', JSON.stringify(icp));
-  const result = await fetchLeadsFromApollo(icp);
-  return { leads: result?.leads || [], total: result?.total || 0 };
+  console.log('[lead_list] ICP from brief:', JSON.stringify(effectiveIcp));
+
+  const result   = await fetchLeadsFromApollo(effectiveIcp);
+  const rawLeads = result?.leads || [];
+  if (!rawLeads.length) return { leads: [], total: result?.total || 0 };
+
+  // Build keyword list from ICP for website quality filter
+  const icpKeywords = [
+    ...(icp.industry || '').toLowerCase().split(/[,\s\/]+/),
+    ...(icp.role     || '').toLowerCase().split(/[,\s\/]+/)
+  ].filter(w => w.length > 3);
+
+  const filtered = await filterLeadsByWebsite(rawLeads, icpKeywords);
+  console.log(`[lead_list] Quality filter: ${filtered.length}/${rawLeads.length} passed`);
+  return { leads: filtered, total: result?.total || 0 };
 }
 
 async function handleWebinarTitles(task, job) {
@@ -1236,14 +1304,67 @@ const server = http.createServer(async (req, res) => {
     setCors(res); res.writeHead(204); res.end(); return;
   }
 
-  // ── POST /api/jobs — create job, return immediately ───────────────────────
+  // ── POST /api/prefetch — fetch Fireflies + extract brief (no job created) ──
+  if (req.method === 'POST' && urlPath === '/api/prefetch') {
+    setCors(res);
+    try {
+      const body    = await parseBody(req);
+      const email   = (body.email || '').trim().toLowerCase();
+      if (!email || !email.includes('@')) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Valid email required' })); return;
+      }
+      const contactInfo = {
+        name:    body.name    || null,
+        company: body.company || null,
+        website: (body.website || email.split('@')[1] || '').replace(/^https?:\/\//, '').split('/')[0]
+      };
+
+      // Parallel: Fireflies lookup + website scrape
+      const [transcript, website] = await Promise.all([
+        findFirefliesTranscript(email),
+        contactInfo.website ? scrapeWebsite(contactInfo.website) : Promise.resolve(null)
+      ]);
+
+      let brief           = null;
+      let transcriptFound = false;
+      let transcriptTitle = null;
+
+      if (transcript) {
+        transcriptFound = true;
+        transcriptTitle = transcript.title || null;
+        const s = transcript.summary || {};
+        const txContent = [s.shorthand_bullet, s.overview, s.short_summary, s.action_items].filter(Boolean).join('\n\n');
+        const webContent = website?.bodyText || '';
+        brief = await extractBriefFromTranscript(txContent, webContent, contactInfo);
+        // Promote extracted contact info back to contactInfo
+        if (brief?.prospect?.company      && !body.company) contactInfo.company = brief.prospect.company;
+        if (brief?.prospect?.contact_name && !body.name)    contactInfo.name    = brief.prospect.contact_name;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        transcript_found: transcriptFound,
+        transcript_title: transcriptTitle,
+        contact: contactInfo,
+        brief:   brief || emptyBrief(contactInfo)
+      }));
+    } catch(e) {
+      console.error('[POST /api/prefetch]', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ── POST /api/jobs — create job with confirmed brief, spawn lead_list ────
   if (req.method === 'POST' && urlPath === '/api/jobs') {
     setCors(res);
     try {
       const body       = await parseBody(req);
       const email      = (body.email || '').trim().toLowerCase();
       const websiteUrl = (body.websiteUrl || '').trim().replace(/^https?:\/\//, '').split('/')[0].toLowerCase();
-      const linkedinUrl = body.linkedinUrl || null;
+      const brief      = body.brief || null;
 
       if (!email || !email.includes('@')) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -1251,9 +1372,8 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const job = await createJob(email, websiteUrl || null, linkedinUrl);
-      // Spawn Stage 1 tasks
-      await createTasks(job.id, ['extract', 'prospect_research']);
+      const job = await createJob(email, websiteUrl || null, brief);
+      await createTasks(job.id, ['lead_list']);  // Phase 1: lead list only
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ job_id: job.id, portal_url: `/?job=${job.id}` }));
