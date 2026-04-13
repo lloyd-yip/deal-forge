@@ -71,6 +71,8 @@
     border-radius: 8px; padding: 9px 12px; font-size: 13px; color: #e4e4e7;
     box-sizing: border-box; font-family: inherit;
   }
+  /* Clearly dim placeholder so empty ≠ filled */
+  .nj-input::placeholder { color: #52525b; opacity: 1; }
 
   .nj-contact-card {
     background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
@@ -790,6 +792,12 @@ function njSearch() {
     }
 
     document.getElementById('nj-results').style.display = 'block';
+
+    // Auto-select rep if not already chosen (deterministic from email, same rule as portal)
+    var repEl = document.getElementById('nj-rep');
+    if (repEl && !repEl.value) {
+      repEl.value = (email.charCodeAt(0) % 2 === 0) ? 'melissa' : 'ryan';
+    }
   })
   .catch(function(err) {
     document.getElementById('nj-loading').style.display = 'none';

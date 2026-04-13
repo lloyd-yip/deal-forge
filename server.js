@@ -907,7 +907,7 @@ async function handleExtract(task, job) {
 
   // Update prospect_company on the job row
   const company = extracted.prospect?.company || scrapeDomain;
-  await supabaseRequest('PATCH', `/rest/v1/sales_assets.jobs?id=eq.${job.id}`, {
+  await supabaseRequest('PATCH', `/rest/v1/jobs?id=eq.${job.id}`, {
     prospect_company: company,
     prospect_name:    extracted.prospect?.name || null,
     updated_at:       new Date().toISOString()
@@ -1506,6 +1506,8 @@ const server = http.createServer(async (req, res) => {
     setCors(res);
     try {
       const r = await supabaseRequest('GET', '/rest/v1/jobs?order=created_at.desc&limit=100');
+      console.log(`[GET /api/jobs] Supabase status=${r.status} rows=${Array.isArray(r.body) ? r.body.length : 'non-array'} USE_SUPABASE=${USE_SUPABASE}`);
+      if (r.status >= 400) console.error('[GET /api/jobs] Supabase error body:', JSON.stringify(r.body));
       const jobs = (r.status === 200 && Array.isArray(r.body)) ? r.body : [];
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(jobs.map(j => ({
@@ -1514,6 +1516,7 @@ const server = http.createServer(async (req, res) => {
         prospect_email:  j.prospect_email,
         prospect_company: j.prospect_company,
         prospect_name:   j.prospect_name,
+        assigned_rep:    j.assigned_rep || null,
         portal_url:      `/?job=${j.id}`,
         created_at:      j.created_at,
         updated_at:      j.updated_at

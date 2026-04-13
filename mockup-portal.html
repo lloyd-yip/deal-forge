@@ -1688,11 +1688,24 @@ function buildCompatSession(job) {
       const job = await res.json();
       const tasks = job.tasks || {};
 
-      // Extract complete → run main personalization (runs once)
-      if (!extractApplied && tasks.extract && tasks.extract.status === 'completed') {
+      // ── Phase 1: Personalize immediately on first poll ─────────────────────
+      // The brief is in job.extracted_data from the moment the job is created.
+      // No need to wait for a separate extract task — the two-phase modal already
+      // ran the extraction before job creation.
+      if (!extractApplied) {
         extractApplied = true;
         const session = buildCompatSession(job);
         runPersonalization(session);
+      }
+
+      // ── Phase 2: Update lead table + TAM when lead_list task completes ─────
+      // On first poll lead_list may still be processing — re-apply personalization
+      // once it finishes so the real Apollo leads replace the static template rows.
+      if (!assetsChecked['leads'] && tasks.lead_list && tasks.lead_list.status === 'completed') {
+        assetsChecked['leads'] = true;
+        const session2 = buildCompatSession(job); // rebuilds with tasks.lead_list.output
+        runPersonalization(session2); // idempotent — overwrites text/leads with real data
+        console.log('[Deal Forge] Lead list complete — personalization updated with real leads');
       }
 
       // Asset URLs → inject "Open" buttons when ready (idempotent)
@@ -1712,8 +1725,6 @@ function buildCompatSession(job) {
       // Keep polling until job terminal
       if (job.status !== 'completed' && job.status !== 'failed') {
         setTimeout(pollJob, 3000);
-      } else if (!extractApplied) {
-        applyProspectBranding();
       }
     } catch(err) {
       console.warn('[Deal Forge] Poll error:', err.message);
