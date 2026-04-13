@@ -59,9 +59,15 @@
 
   #nj-modal {
     background: #111116; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
-    padding: 28px; width: 640px; max-height: 90vh; overflow-y: auto;
+    padding: 36px 44px; width: 95vw; max-width: 1100px; max-height: 92vh; overflow-y: auto;
     position: relative;
   }
+
+  /* Step 2 brief fields: 2-column layout with breathing room */
+  #nj-step2 .brief-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  #nj-step2 .brief-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  #nj-step2 .brief-full   { grid-column: 1 / -1; }
+  #nj-step2 textarea.nj-input { min-height: 80px; resize: vertical; }
 
   .nj-section { margin-bottom: 20px; }
   .nj-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #52525b; margin-bottom: 6px; }
@@ -210,80 +216,119 @@
 
     <!-- ══ STEP 2: BRIEF REVIEW ══════════════════════════════════════════ -->
     <div id="nj-step2" style="display:none;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;">
         <button onclick="njBack()" style="background:none;border:1px solid rgba(255,255,255,0.1);color:#71717a;font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:inherit;">← Back</button>
         <div>
-          <div style="font-size:14px;font-weight:600;color:#ffffff;">Prospect Brief</div>
-          <div style="font-size:11px;color:#52525b;margin-top:1px;">Review and correct — this drives all assets</div>
+          <div style="font-size:15px;font-weight:600;color:#ffffff;">Prospect Brief</div>
+          <div style="font-size:11px;color:#52525b;margin-top:1px;">Review and correct — this drives every asset</div>
         </div>
       </div>
 
-      <!-- PROSPECT -->
-      <div style="margin-bottom:18px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">Prospect</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <div><div class="nj-label">Company Name</div><input id="bf-company" class="nj-input" placeholder="Acme Corp"></div>
-          <div><div class="nj-label">Contact Name</div><input id="bf-contact-name" class="nj-input" placeholder="Jane Smith"></div>
-          <div><div class="nj-label">Contact Title</div><input id="bf-contact-title" class="nj-input" placeholder="Founder & CEO" style="grid-column:span 1;"></div>
-        </div>
-      </div>
+      <!-- Two-column layout: left = ICP + metrics + situation, right = angle + context + titles -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start;">
 
-      <!-- ICP -->
-      <div style="margin-bottom:18px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">ICP — Who They Sell To</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <div><div class="nj-label">Target Role(s)</div><input id="bf-role" class="nj-input" placeholder="CEO, Founder"></div>
-          <div><div class="nj-label">Industry</div><input id="bf-industry" class="nj-input" placeholder="consulting"></div>
-          <div><div class="nj-label">Company Size</div><input id="bf-company-size" class="nj-input" placeholder="10-50 employees"></div>
-          <div><div class="nj-label">Geography</div><input id="bf-geography" class="nj-input" placeholder="US, Canada (optional)"></div>
-        </div>
-      </div>
+        <!-- LEFT COLUMN -->
+        <div>
+          <!-- PROSPECT -->
+          <div style="margin-bottom:22px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">Prospect</div>
+            <div class="brief-grid-2">
+              <div><div class="nj-label">Company Name</div><input id="bf-company" class="nj-input" placeholder="Acme Corp"></div>
+              <div><div class="nj-label">Contact Name</div><input id="bf-contact-name" class="nj-input" placeholder="Jane Smith"></div>
+              <div class="brief-full"><div class="nj-label">Contact Title</div><input id="bf-contact-title" class="nj-input" placeholder="Founder & CEO"></div>
+            </div>
+          </div>
 
-      <!-- METRICS -->
-      <div style="margin-bottom:18px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">Business Metrics</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-          <div><div class="nj-label">LTV / Deal Value</div><input id="bf-ltv" class="nj-input" placeholder="$48,000"></div>
-          <div><div class="nj-label">Close Rate</div><input id="bf-close-rate" class="nj-input" placeholder="20%"></div>
-          <div><div class="nj-label">Show Rate</div><input id="bf-show-rate" class="nj-input" placeholder="70%"></div>
-        </div>
-      </div>
+          <!-- ICP -->
+          <div style="margin-bottom:22px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">ICP — Who They Sell To</div>
+            <div style="display:grid;gap:10px;">
+              <div><div class="nj-label">Target Role(s) <span style="color:#3f3f46;font-weight:400;">(display)</span></div><input id="bf-role" class="nj-input" placeholder="CEO, Founder, Managing Director"></div>
+              <div><div class="nj-label">Apollo Search Titles <span style="color:#3f3f46;font-weight:400;">(API — comma separated)</span></div><input id="bf-apollo-titles" class="nj-input" placeholder="CEO, Founder, Managing Director"></div>
+              <div class="brief-grid-2">
+                <div><div class="nj-label">Industry</div><input id="bf-industry" class="nj-input" placeholder="consulting"></div>
+                <div><div class="nj-label">Geography</div><input id="bf-geography" class="nj-input" placeholder="US, Canada (optional)"></div>
+              </div>
+              <div><div class="nj-label">Company Size (target clients)</div><input id="bf-company-size" class="nj-input" placeholder="10-50 employees"></div>
+            </div>
+          </div>
 
-      <!-- ANGLE -->
-      <div style="margin-bottom:18px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">Webinar Angle</div>
-        <div style="display:grid;gap:8px;">
-          <div><div class="nj-label">Client Pain (their words)</div><textarea id="bf-pain" class="nj-input" rows="2" placeholder="They struggle to generate consistent qualified meetings without relying on referrals..." style="resize:none;"></textarea></div>
-          <div><div class="nj-label">Result / Transformation</div><input id="bf-result" class="nj-input" placeholder="Build a predictable client acquisition system targeting their ICP at scale"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div><div class="nj-label">Methodology Name</div><input id="bf-methodology" class="nj-input" placeholder="The Revenue Engine (optional)"></div>
-            <div><div class="nj-label">Best Proof Number</div><input id="bf-proof" class="nj-input" placeholder="$1.2M → $2.4M in 6 months (optional)"></div>
+          <!-- METRICS -->
+          <div style="margin-bottom:22px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">Business Metrics</div>
+            <div class="brief-grid-3">
+              <div><div class="nj-label">LTV / Deal Value</div><input id="bf-ltv" class="nj-input" placeholder="—"></div>
+              <div><div class="nj-label">Close Rate</div><input id="bf-close-rate" class="nj-input" placeholder="—"></div>
+              <div><div class="nj-label">Show Rate</div><input id="bf-show-rate" class="nj-input" placeholder="—"></div>
+            </div>
+          </div>
+
+          <!-- SITUATION -->
+          <div style="margin-bottom:22px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">Their Situation</div>
+            <div style="display:grid;gap:10px;">
+              <div><div class="nj-label">How They Currently Get Clients</div><input id="bf-lead-gen" class="nj-input" placeholder="100% referrals, cold email + events..."></div>
+              <div class="brief-grid-2">
+                <div><div class="nj-label">Current Revenue</div><input id="bf-revenue" class="nj-input" placeholder="$2M ARR (if mentioned)"></div>
+                <div><div class="nj-label">Team Size</div><input id="bf-team-size" class="nj-input" placeholder="12 people (if mentioned)"></div>
+              </div>
+              <div><div class="nj-label">Biggest Challenge (their business)</div><textarea id="bf-challenge" class="nj-input" rows="2" placeholder="Their core constraint to growth..."></textarea></div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- CONTEXT -->
-      <div style="margin-bottom:18px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">Call Context</div>
-        <div style="display:grid;gap:8px;">
-          <div><div class="nj-label">Their Goal (next 6-12 months)</div><input id="bf-goals" class="nj-input" placeholder="Hit $3M ARR and reduce dependence on referrals"></div>
-          <div><div class="nj-label">Why They're Exploring This</div><input id="bf-why" class="nj-input" placeholder="Referrals drying up, need a scalable outbound system"></div>
+        <!-- RIGHT COLUMN -->
+        <div>
+          <!-- ANGLE -->
+          <div style="margin-bottom:22px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">Webinar Angle</div>
+            <div style="display:grid;gap:10px;">
+              <div><div class="nj-label">Client Pain (paraphrased)</div><textarea id="bf-pain" class="nj-input" rows="3" placeholder="Core problem their clients face..."></textarea></div>
+              <div><div class="nj-label">Result / Transformation</div><textarea id="bf-result" class="nj-input" rows="2" placeholder="The transformation they deliver to clients..."></textarea></div>
+              <div class="brief-grid-2">
+                <div><div class="nj-label">Methodology Name</div><input id="bf-methodology" class="nj-input" placeholder="The Revenue Engine (optional)"></div>
+                <div><div class="nj-label">Best Proof Number</div><input id="bf-proof" class="nj-input" placeholder="$1.2M → $2.4M in 6 months"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- VERBATIM QUOTES -->
+          <div style="margin-bottom:22px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">Verbatim Quotes <span style="color:#3f3f46;font-weight:400;text-transform:none;letter-spacing:0;">(their exact words — used in copy)</span></div>
+            <div style="display:grid;gap:10px;">
+              <div><div class="nj-label">Pain Quote</div><textarea id="bf-pain-quote" class="nj-input" rows="2" placeholder='"Their exact words describing pain..."'></textarea></div>
+              <div><div class="nj-label">Result Quote</div><textarea id="bf-result-quote" class="nj-input" rows="2" placeholder='"Their exact words on what they deliver..."'></textarea></div>
+              <div><div class="nj-label">Goal Quote</div><textarea id="bf-goal-quote" class="nj-input" rows="2" placeholder='"Their exact words on what they want to achieve..."'></textarea></div>
+            </div>
+          </div>
+
+          <!-- CONTEXT -->
+          <div style="margin-bottom:22px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">Call Context</div>
+            <div style="display:grid;gap:10px;">
+              <div><div class="nj-label">Their Goal (next 6-12 months)</div><textarea id="bf-goals" class="nj-input" rows="2" placeholder="Hit $3M ARR and reduce dependence on referrals..."></textarea></div>
+              <div><div class="nj-label">Why They're Exploring This</div><input id="bf-why" class="nj-input" placeholder="Referrals drying up, need a scalable system..."></div>
+            </div>
+          </div>
+
+          <!-- TITLES -->
+          <div style="margin-bottom:22px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">Webinar Title Candidates</div>
+            <div style="display:grid;gap:10px;">
+              <div><div class="nj-label">Title A</div><input id="bf-title-a" class="nj-input" placeholder="How [ICP] Break Through $Xm Without Cold Calling"></div>
+              <div><div class="nj-label">Title B (optional)</div><input id="bf-title-b" class="nj-input" placeholder="The Webinar Funnel Replacing Referrals for $1M–$5M Firms"></div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- TITLES -->
-      <div style="margin-bottom:22px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">Webinar Title Candidates</div>
-        <div style="display:grid;gap:8px;">
-          <div><div class="nj-label">Title A</div><input id="bf-title-a" class="nj-input" placeholder="How Consulting Firms Break Through $1.5M Without Cold Calling"></div>
-          <div><div class="nj-label">Title B (optional)</div><input id="bf-title-b" class="nj-input" placeholder="The Webinar Funnel Replacing Referrals for $1M–$5M Firms"></div>
-        </div>
-      </div>
+      </div><!-- end two-column -->
 
-      <button id="nj-gen-btn" class="nj-generate-btn" onclick="njGenerate()">
-        Generate Lead List
-      </button>
-      <div id="nj-gen-error" style="display:none;color:#ef4444;font-size:12px;margin-top:8px;text-align:center;"></div>
+      <div style="margin-top:8px;">
+        <button id="nj-gen-btn" class="nj-generate-btn" onclick="njGenerate()">
+          Generate Lead List
+        </button>
+        <div id="nj-gen-error" style="display:none;color:#ef4444;font-size:12px;margin-top:8px;text-align:center;"></div>
+      </div>
     </div>
 
   </div>
@@ -728,10 +773,12 @@ function njReset() {
   document.getElementById('nj-transcript-missing').style.display = 'none';
   document.getElementById('nj-step2').style.display = 'none';
   // Clear all brief fields
-  ['bf-company','bf-contact-name','bf-contact-title','bf-role','bf-industry',
-   'bf-company-size','bf-geography','bf-ltv','bf-close-rate','bf-show-rate',
+  ['bf-company','bf-contact-name','bf-contact-title','bf-role','bf-apollo-titles',
+   'bf-industry','bf-company-size','bf-geography','bf-ltv','bf-close-rate','bf-show-rate',
    'bf-pain','bf-result','bf-methodology','bf-proof','bf-goals','bf-why',
-   'bf-title-a','bf-title-b'].forEach(function(id) {
+   'bf-title-a','bf-title-b',
+   'bf-lead-gen','bf-revenue','bf-team-size','bf-challenge',
+   'bf-pain-quote','bf-result-quote','bf-goal-quote'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -829,10 +876,14 @@ function njShowBrief() {
     if (el) el.value = val || '';
   }
 
+  var verbatim  = brief.verbatim  || {};
+  var situation = brief.situation || {};
+
   setVal('bf-company',      prospect.company);
   setVal('bf-contact-name', prospect.contact_name);
   setVal('bf-contact-title',prospect.contact_title);
   setVal('bf-role',         icp.role);
+  setVal('bf-apollo-titles', Array.isArray(icp.apollo_titles) ? icp.apollo_titles.join(', ') : (icp.apollo_titles || ''));
   setVal('bf-industry',     icp.industry);
   setVal('bf-company-size', icp.company_size);
   setVal('bf-geography',    icp.geography);
@@ -847,6 +898,15 @@ function njShowBrief() {
   setVal('bf-why',          context.why_webinar);
   setVal('bf-title-a',      titles.a);
   setVal('bf-title-b',      titles.b);
+  // New situation fields
+  setVal('bf-lead-gen',     situation.current_lead_gen);
+  setVal('bf-revenue',      situation.revenue_range);
+  setVal('bf-team-size',    situation.team_size);
+  setVal('bf-challenge',    situation.biggest_challenge);
+  // New verbatim quote fields
+  setVal('bf-pain-quote',   verbatim.pain_quote);
+  setVal('bf-result-quote', verbatim.result_quote);
+  setVal('bf-goal-quote',   verbatim.goal_quote);
 
   // Transition to Step 2
   document.getElementById('nj-results').style.display = 'none';
@@ -874,6 +934,12 @@ function njGenerate() {
   // Read all 18 brief fields from Step 2 inputs
   function getVal(id) { var el = document.getElementById(id); return el && el.value.trim() ? el.value.trim() : null; }
 
+  // Parse apollo_titles back from comma-separated string to array
+  var apolloTitlesRaw = getVal('bf-apollo-titles');
+  var apolloTitlesArr = apolloTitlesRaw
+    ? apolloTitlesRaw.split(',').map(function(t){ return t.trim(); }).filter(function(t){ return t.length > 0; })
+    : null;
+
   var brief = {
     prospect: {
       company:       getVal('bf-company'),
@@ -881,10 +947,11 @@ function njGenerate() {
       contact_title: getVal('bf-contact-title')
     },
     icp: {
-      role:         getVal('bf-role'),
-      industry:     getVal('bf-industry') || 'consulting',
-      company_size: getVal('bf-company-size'),
-      geography:    getVal('bf-geography')
+      role:          getVal('bf-role'),
+      apollo_titles: apolloTitlesArr,
+      industry:      getVal('bf-industry') || 'consulting',
+      company_size:  getVal('bf-company-size'),
+      geography:     getVal('bf-geography')
     },
     metrics: {
       ltv:        getVal('bf-ltv'),
@@ -904,6 +971,17 @@ function njGenerate() {
     titles: {
       a: getVal('bf-title-a'),
       b: getVal('bf-title-b')
+    },
+    situation: {
+      current_lead_gen:  getVal('bf-lead-gen'),
+      revenue_range:     getVal('bf-revenue'),
+      team_size:         getVal('bf-team-size'),
+      biggest_challenge: getVal('bf-challenge')
+    },
+    verbatim: {
+      pain_quote:   getVal('bf-pain-quote'),
+      result_quote: getVal('bf-result-quote'),
+      goal_quote:   getVal('bf-goal-quote')
     }
   };
 

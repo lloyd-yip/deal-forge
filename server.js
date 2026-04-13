@@ -368,6 +368,7 @@ async function firefliesQuery(gql, variables) {
 const TRANSCRIPT_FIELDS = `
   id title dateString duration
   summary { short_summary overview action_items shorthand_bullet }
+  sentences { text speaker_name }
   meeting_attendees { email displayName }
 `;
 
@@ -524,17 +525,23 @@ async function extractBriefFromTranscript(transcriptContent, websiteContent, con
   const knownName     = contactInfo.name     || null;
   const knownWebsite  = contactInfo.website  || null;
 
-  const systemPrompt = `You are extracting a structured Prospect Brief from a sales call transcript.
-Extract ONLY what was explicitly stated. Return null for anything not mentioned — never infer, guess, or hallucinate.
-The prospect is the CLIENT company being pitched to — NOT Quantum Scaling, NOT Lloyd Yip, NOT any QS team member.
-Return valid JSON only. No markdown, no explanation.`;
+  const systemPrompt = `You are extracting a high-fidelity Prospect Brief from a sales call transcript.
+Your job is to pull out the richest possible context for creating personalized sales assets.
+
+Rules:
+- Extract ONLY what was explicitly stated. Return null for anything not mentioned.
+- Never infer, guess, or hallucinate values.
+- The PROSPECT is the CLIENT company being pitched to — NOT Quantum Scaling, NOT Lloyd Yip, NOT QS team.
+- For verbatim fields: copy exact words spoken. Do not paraphrase.
+- For apollo_titles: return ONLY clean, searchable job title strings (2-4 words max each). No descriptions, no adjectives. These go directly into a recruiting/CRM API search.
+- Return valid JSON only. No markdown, no explanation.`;
 
   const userPrompt = `Known contact info (treat as ground truth if not contradicted):
 Company: ${knownCompany || 'unknown — extract from transcript'}
 Name: ${knownName || 'extract from transcript'}
 Website: ${knownWebsite || 'extract from transcript'}
 
-${transcriptContent ? `TRANSCRIPT:\n---\n${transcriptContent.slice(0, 7000)}\n---` : '(No transcript available)'}
+${transcriptContent ? `${transcriptContent}\n---` : '(No transcript available)'}
 ${websiteContent ? `\nWEBSITE CONTENT:\n---\n${websiteContent.slice(0, 2000)}\n---` : ''}
 
 Return this exact JSON (null for anything not found):
@@ -545,10 +552,11 @@ Return this exact JSON (null for anything not found):
     "contact_title": "string | null — their job title"
   },
   "icp": {
-    "role":         "string | null — job title(s) of their target buyers, e.g. 'CEO, Founder'",
-    "industry":     "string — one of: consulting, software, coaching, agency, ecommerce, healthcare, real_estate, finance, other",
-    "company_size": "string | null — size of their TARGET clients, e.g. '10-50 employees' or '$1M-$5M revenue'",
-    "geography":    "string | null — only if explicitly mentioned, e.g. 'US, Canada'"
+    "role":          "string | null — human-readable description of their target buyers (used for display only)",
+    "apollo_titles": "array of strings | null — 3-6 CLEAN, SPECIFIC job titles of their target buyers for API search. Each title must be 2-4 words max, no descriptions. Examples: ['CEO', 'Founder', 'Managing Director', 'VP Sales']. Null if buyer titles not mentioned.",
+    "industry":      "string — single best-match industry keyword from: consulting, software, coaching, agency, ecommerce, healthcare, real_estate, finance, legal, architecture, manufacturing, other",
+    "company_size":  "string | null — size of their TARGET clients (employees or revenue), verbatim",
+    "geography":     "string | null — target geography, only if explicitly mentioned"
   },
   "metrics": {
     "ltv":        "string | null — client lifetime value, verbatim from transcript. null if not explicitly stated.",
@@ -556,24 +564,35 @@ Return this exact JSON (null for anything not found):
     "show_rate":  "string | null — current show/attendance rate, verbatim from transcript. null if not explicitly stated."
   },
   "angle": {
-    "pain":        "string | null — core problem their clients face, in their clients' own language. 1-2 sentences.",
-    "result":      "string | null — the transformation they deliver to clients. 1 sentence.",
-    "methodology": "string | null — their named framework or system if they mentioned one",
-    "proof":       "string | null — best case study number mentioned, e.g. '$1.2M to $2.4M in 6 months'"
+    "pain":        "string | null — core problem their clients face. Use their exact words where possible. 2-3 sentences.",
+    "result":      "string | null — the transformation they deliver to clients. Be specific. 1-2 sentences.",
+    "methodology": "string | null — their named framework or system if they mentioned one (exact name)",
+    "proof":       "string | null — their single best client outcome with specific numbers verbatim"
+  },
+  "verbatim": {
+    "pain_quote":   "string | null — exact verbatim quote (≤40 words) of the prospect describing their clients' biggest pain. Must be their actual spoken words. null if no clear quote.",
+    "result_quote": "string | null — exact verbatim quote (≤30 words) of the prospect describing what they deliver. null if no clear quote.",
+    "goal_quote":   "string | null — exact verbatim quote (≤30 words) of what they want to achieve. null if no clear quote."
+  },
+  "situation": {
+    "current_lead_gen": "string | null — how they currently get clients, verbatim or close paraphrase (e.g. '100% referrals', 'cold email + LinkedIn + events')",
+    "revenue_range":    "string | null — their current revenue if mentioned (e.g. '$2M ARR', '$500K-$1M/year')",
+    "team_size":        "string | null — their team/company size if mentioned",
+    "biggest_challenge":"string | null — the single most important challenge they named for their own business growth (not their clients' challenges). 1-2 sentences."
   },
   "context": {
     "goals":       "string | null — what they want to achieve in next 6-12 months",
     "why_webinar": "string | null — why they are exploring webinars or this system specifically"
   },
   "titles": {
-    "a": "string | null — compelling webinar title based on their pain + result, max 80 chars",
-    "b": "string | null — second variant with different angle, max 80 chars"
+    "a": "string | null — compelling webinar title based on their pain + result, max 70 chars",
+    "b": "string | null — second variant with different angle or audience framing, max 70 chars"
   }
 }`;
 
   const message = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 2000,
+    model: 'claude-sonnet-4-5-20251001',
+    max_tokens: 3000,
     temperature: 0,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }]
@@ -590,12 +609,14 @@ Return this exact JSON (null for anything not found):
 
 function emptyBrief(contactInfo) {
   return {
-    prospect: { company: contactInfo.company || null, contact_name: contactInfo.name || null, contact_title: null },
-    icp:      { role: null, industry: 'consulting', company_size: null, geography: null },
-    metrics:  { ltv: null, close_rate: null, show_rate: null },
-    angle:    { pain: null, result: null, methodology: null, proof: null },
-    context:  { goals: null, why_webinar: null },
-    titles:   { a: null, b: null }
+    prospect:  { company: contactInfo.company || null, contact_name: contactInfo.name || null, contact_title: null },
+    icp:       { role: null, apollo_titles: null, industry: 'consulting', company_size: null, geography: null },
+    metrics:   { ltv: null, close_rate: null, show_rate: null },
+    angle:     { pain: null, result: null, methodology: null, proof: null },
+    verbatim:  { pain_quote: null, result_quote: null, goal_quote: null },
+    situation: { current_lead_gen: null, revenue_range: null, team_size: null, biggest_challenge: null },
+    context:   { goals: null, why_webinar: null },
+    titles:    { a: null, b: null }
   };
 }
 
@@ -664,14 +685,22 @@ async function classifyLeadsWithHaiku(leads, icp) {
 async function fetchLeadsFromApollo(icp) {
   const APOLLO_KEY = process.env.APOLLO_API_KEY;
   if (!APOLLO_KEY) { console.log('[Apollo] No API key — skipping'); return null; }
-  const role = icp?.role, industry = icp?.industry;
-  if (!role && !industry) { console.log('[Apollo] No ICP — skipping'); return null; }
+
+  // apollo_titles: clean array from extraction e.g. ["CEO","Founder","Managing Director"]
+  // Fall back to splitting role string if apollo_titles not extracted
+  const apolloTitles = Array.isArray(icp?.apollo_titles) && icp.apollo_titles.length
+    ? icp.apollo_titles
+    : icp?.role ? icp.role.split(/[,\/]+/).map(t => t.trim()).filter(t => t.length > 1 && t.length < 40).slice(0, 5)
+    : null;
+  const industry = icp?.industry;
+
+  if (!apolloTitles?.length && !industry) { console.log('[Apollo] No ICP — skipping'); return null; }
   const baseBody = { api_key: APOLLO_KEY, per_page: 25 };
-  if (role)            baseBody.person_titles = [role];
-  if (industry)        baseBody.q_organization_keyword_tags = [industry];
-  if (icp?.company_size) baseBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
-  if (icp?.geography)  baseBody.person_locations = [icp.geography];
-  console.log('[Apollo] Searching pages 1–2:', JSON.stringify({ role, industry }));
+  if (apolloTitles?.length) baseBody.person_titles = apolloTitles;
+  if (industry)             baseBody.q_organization_keyword_tags = [industry];
+  if (icp?.company_size)    baseBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
+  if (icp?.geography)       baseBody.person_locations = [icp.geography];
+  console.log('[Apollo] Searching pages 1–2:', JSON.stringify({ apollo_titles: apolloTitles, industry }));
   const timeout35s = new Promise(resolve => setTimeout(() => { console.warn('[Apollo] 35s timeout'); resolve(null); }, 35000));
   const apolloCore = async () => {
     const allPeople = []; let total = null;
@@ -1085,10 +1114,11 @@ async function handleLeadList(task, job) {
   const icp   = brief.icp || {};
 
   const effectiveIcp = {
-    industry:     icp.industry     || 'consulting',
-    role:         icp.role         || null,
-    company_size: icp.company_size || null,
-    geography:    icp.geography    || null
+    industry:      icp.industry      || 'consulting',
+    role:          icp.role          || null,
+    apollo_titles: icp.apollo_titles || null,   // clean titles array e.g. ["CEO","Founder"]
+    company_size:  icp.company_size  || null,
+    geography:     icp.geography     || null
   };
   console.log('[lead_list] ICP from brief:', JSON.stringify(effectiveIcp));
 
@@ -1450,8 +1480,22 @@ const server = http.createServer(async (req, res) => {
         transcriptFound = true;
         transcriptTitle = transcript.title || null;
         const s = transcript.summary || {};
-        const txContent = [s.shorthand_bullet, s.overview, s.short_summary, s.action_items].filter(Boolean).join('\n\n');
+
+        // Build verbatim content from raw sentences (speaker-tagged, preserves exact words)
+        const rawSentences = (transcript.sentences || [])
+          .filter(s => s.text && s.text.trim().length > 0)
+          .map(s => `${s.speaker_name || 'Speaker'}: ${s.text.trim()}`)
+          .join('\n');
+
+        // Combine verbatim sentences + summary fields for max context
+        // Sentences get priority (verbatim), summaries fill if sentences empty
+        const summaryParts = [s.shorthand_bullet, s.overview, s.short_summary, s.action_items].filter(Boolean).join('\n\n');
+        const txContent = rawSentences
+          ? `VERBATIM TRANSCRIPT:\n${rawSentences.slice(0, 12000)}\n\nSUMMARY NOTES:\n${summaryParts.slice(0, 2000)}`
+          : summaryParts.slice(0, 14000);
+
         const webContent = website?.bodyText || '';
+        console.log(`[prefetch] Transcript context: ${txContent.length} chars (${rawSentences.length} verbatim + summaries)`);
         brief = await extractBriefFromTranscript(txContent, webContent, contactInfo);
         // Promote extracted contact info back to contactInfo
         if (brief?.prospect?.company      && !body.company) contactInfo.company = brief.prospect.company;
