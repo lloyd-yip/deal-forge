@@ -450,15 +450,40 @@ async function findFirefliesTranscript(email, contactInfo = {}) {
     } catch(e) { console.warn(`[FF] Pass ${source} error:`, e.message); }
   }
 
-  // ── Pass 6: recent scan — no keyword, fetch 100 most recent, check all attendees
+  // ── Pass 6a: recent scan — page 1 (most recent 50, Fireflies API max is 50)
   // Catches transcripts titled "Discovery Call" with no searchable domain/name
-  console.log('[FF] Trying recent transcript scan (100)...');
+  console.log('[FF] Trying recent transcript scan pass 6a (limit 50)...');
   try {
-    const recentGql = `{ transcripts(limit: 100) { ${TRANSCRIPT_FIELDS} } }`;
+    const recentGql = `{ transcripts(limit: 50) { ${TRANSCRIPT_FIELDS} } }`;
     const data      = await firefliesQuery(recentGql, {});
-    const found     = pickBest(data?.transcripts || [], false, 'recent_scan');
+    const transcripts = data?.transcripts || [];
+    console.log(`[FF] Pass 6a: got ${transcripts.length} transcripts`);
+    // Log all attendee emails for debugging
+    transcripts.forEach(t => {
+      const attendees = (t.meeting_attendees || []).map(a => a.email).filter(Boolean);
+      if (attendees.length) console.log(`[FF]   "${t.title}": ${attendees.join(', ')}`);
+    });
+    const found = pickBest(transcripts, false, 'recent_scan_6a');
     if (found) return found;
-  } catch(e) { console.warn('[FF] Recent scan error:', e.message); }
+    // Also try loose match (title/content keyword) in case attendees are missing
+    const foundLoose = pickBest(transcripts, true, 'recent_scan_6a_loose');
+    if (foundLoose && (foundLoose.meeting_attendees || []).length === 0) return foundLoose;
+  } catch(e) { console.warn('[FF] Pass 6a scan error:', e.message); }
+
+  // ── Pass 6b: recent scan — page 2 (transcripts 51–100 via skip)
+  console.log('[FF] Trying recent transcript scan pass 6b (skip 50, limit 50)...');
+  try {
+    const recentGql2 = `{ transcripts(limit: 50, skip: 50) { ${TRANSCRIPT_FIELDS} } }`;
+    const data2      = await firefliesQuery(recentGql2, {});
+    const transcripts2 = data2?.transcripts || [];
+    console.log(`[FF] Pass 6b: got ${transcripts2.length} transcripts`);
+    transcripts2.forEach(t => {
+      const attendees = (t.meeting_attendees || []).map(a => a.email).filter(Boolean);
+      if (attendees.length) console.log(`[FF]   "${t.title}": ${attendees.join(', ')}`);
+    });
+    const found2 = pickBest(transcripts2, false, 'recent_scan_6b');
+    if (found2) return found2;
+  } catch(e) { console.warn('[FF] Pass 6b scan error:', e.message); }
 
   console.log('[FF] No transcript found for', email, '— searched:', [...searched].join(', '));
   return null;
