@@ -341,36 +341,60 @@ async function findFirefliesTranscript(email) {
   const local = email.split('@')[0];
   const domain = email.split('@')[1];
   const NON_PERSONAL = new Set(['info','admin','contact','hello','sales','support','team','office','mail','noreply','no-reply']);
-  let rawFirst = local.split(/[._\-+]/)[0].toLowerCase().replace(/\d+$/, '');
-  const firstName = (rawFirst.length >= 3 && !NON_PERSONAL.has(rawFirst)) ? rawFirst : null;
   const domainBase = domain.split('.')[0].toLowerCase();
 
-  function findExact(transcripts) {
+  // Extract a real first name: split on separators, take first segment only if it looks like a name (alpha only, 3-10 chars)
+  const parts = local.split(/[._\-+]/);
+  const firstPart = parts[0].toLowerCase().replace(/\d+$/, '');
+  const isLikelyFirstName = /^[a-z]{3,10}$/.test(firstPart) && !NON_PERSONAL.has(firstPart) && firstPart !== domainBase;
+  const firstName = isLikelyFirstName ? firstPart : null;
+
+  function findExactEmail(transcripts) {
     return transcripts.filter(t => {
       const attendees = (t.meeting_attendees || []).map(a => (a.email || '').toLowerCase());
       return attendees.includes(email.toLowerCase());
     });
   }
 
-  const searchGql = `query Search($keyword: String) { transcripts(keyword: $keyword, limit: 20) { ${TRANSCRIPT_FIELDS} } }`;
-
-  if (firstName && firstName.length >= 3) {
-    const data = await firefliesQuery(searchGql, { keyword: firstName });
-    const results = data?.transcripts || [];
-    const exact = findExact(results);
-    if (exact.length) { console.log(`[Fireflies] Found by first name: "${exact[0].title}"`); return exact[0]; }
-  }
-
-  if (domainBase && domainBase.length >= 4 && !['gmail','yahoo'].includes(domainBase)) {
-    const data = await firefliesQuery(searchGql, { keyword: domainBase });
-    const results = data?.transcripts || [];
-    const exact = findExact(results);
-    if (exact.length) { console.log(`[Fireflies] Found by domain: "${exact[0].title}"`); return exact[0]; }
-    const domainMatch = results.filter(t => {
+  function findDomainMatch(transcripts) {
+    return transcripts.filter(t => {
       const attendees = (t.meeting_attendees || []).map(a => (a.email || '').toLowerCase());
       return attendees.some(a => a.endsWith('@' + domain));
     });
-    if (domainMatch.length) { console.log(`[Fireflies] Found by domain attendee`); return domainMatch[0]; }
+  }
+
+  const searchGql = `query Search($keyword: String) { transcripts(keyword: $keyword, limit: 20) { ${TRANSCRIPT_FIELDS} } }`;
+
+  // Pass 1: search by first name, require exact attendee email match
+  if (firstName) {
+    const data = await firefliesQuery(searchGql, { keyword: firstName });
+    const results = data?.transcripts || [];
+    const exact = findExactEmail(results);
+    if (exact.length) { console.log(`[Fireflies] Found by first name exact: "${exact[0].title}"`); return exact[0]; }
+  }
+
+  // Pass 2: search by domain base keyword, prefer exact email, then domain attendee, then any result
+  // (Fireflies often omits attendee emails — domain match is reliable enough signal)
+  if (domainBase && domainBase.length >= 4 && !['gmail','yahoo','hotmail','outlook'].includes(domainBase)) {
+    const data = await firefliesQuery(searchGql, { keyword: domainBase });
+    const results = data?.transcripts || [];
+
+    const exact = findExactEmail(results);
+    if (exact.length) { console.log(`[Fireflies] Found by domain exact: "${exact[0].title}"`); return exact[0]; }
+
+    const domainMatch = findDomainMatch(results);
+    if (domainMatch.length) { console.log(`[Fireflies] Found by domain attendee: "${domainMatch[0].title}"`); return domainMatch[0]; }
+
+    // Fallback: Fireflies frequently omits attendee emails; return most recent result from domain search
+    if (results.length) { console.log(`[Fireflies] Found by domain keyword (no attendee email): "${results[0].title}"`); return results[0]; }
+  }
+
+  // Pass 3: if first name exists but domain failed, do a broader first name search with domain fallback
+  if (firstName && firstName !== domainBase) {
+    const data = await firefliesQuery(searchGql, { keyword: firstName });
+    const results = data?.transcripts || [];
+    const domainMatch = findDomainMatch(results);
+    if (domainMatch.length) { console.log(`[Fireflies] Found by first name + domain attendee: "${domainMatch[0].title}"`); return domainMatch[0]; }
   }
 
   console.log('[Fireflies] No transcript found for', email);
