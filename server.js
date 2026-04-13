@@ -551,9 +551,9 @@ Return this exact JSON (null for anything not found):
     "geography":    "string | null — only if explicitly mentioned, e.g. 'US, Canada'"
   },
   "metrics": {
-    "ltv":        "string | null — client lifetime value verbatim, e.g. '$48,000'",
-    "close_rate": "string | null — current close rate verbatim, e.g. '20%'",
-    "show_rate":  "string | null — current show/attendance rate verbatim, e.g. '70%'"
+    "ltv":        "string | null — client lifetime value, verbatim from transcript. null if not explicitly stated.",
+    "close_rate": "string | null — current close rate, verbatim from transcript. null if not explicitly stated.",
+    "show_rate":  "string | null — current show/attendance rate, verbatim from transcript. null if not explicitly stated."
   },
   "angle": {
     "pain":        "string | null — core problem their clients face, in their clients' own language. 1-2 sentences.",
@@ -677,7 +677,7 @@ async function fetchLeadsFromApollo(icp) {
     const allPeople = []; let total = null;
     try {
       for (let page = 1; page <= 2; page++) {
-        const res = await fetch('https://api.apollo.io/api/v1/mixed_people_search', {
+        const res = await fetch('https://api.apollo.io/v1/mixed_people_search', {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify({ ...baseBody, page }), signal: AbortSignal.timeout(12000)
         });
