@@ -314,6 +314,40 @@ async function runApifyActor(actorId, input, timeoutMs = 90000) {
   return await itemsRes.json();
 }
 
+// ── GHL contact lookup ────────────────────────────────────────────────────────
+const GHL_API_KEY     = process.env.GHL_API_KEY;
+const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID;
+
+async function lookupGHLContact(email) {
+  if (!GHL_API_KEY || !GHL_LOCATION_ID) {
+    console.log('[GHL] No credentials — skipping contact lookup');
+    return null;
+  }
+  try {
+    const url = `https://services.leadconnectorhq.com/contacts/?email=${encodeURIComponent(email)}&locationId=${GHL_LOCATION_ID}`;
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${GHL_API_KEY}`,
+        'Version': '2021-07-28',
+        'Content-Type': 'application/json'
+      },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!res.ok) { console.warn('[GHL] Lookup failed:', res.status); return null; }
+    const data = await res.json();
+    const contact = (data.contacts || [])[0];
+    if (!contact) return null;
+    const name = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim() || null;
+    const company = contact.companyName || contact.company || null;
+    const website = contact.website || null;
+    console.log(`[GHL] Found contact: ${name} @ ${company}`);
+    return { name, company, website, title: contact.customField?.find(f => f.name === 'Title')?.value || null };
+  } catch(e) {
+    console.warn('[GHL] Lookup error:', e.message);
+    return null;
+  }
+}
+
 // ── Fireflies GraphQL helper ──────────────────────────────────────────────────
 async function firefliesQuery(gql, variables) {
   const res = await fetch('https://api.fireflies.ai/graphql', {
@@ -337,67 +371,96 @@ const TRANSCRIPT_FIELDS = `
   meeting_attendees { email displayName }
 `;
 
-async function findFirefliesTranscript(email) {
-  const local = email.split('@')[0];
-  const domain = email.split('@')[1];
-  const NON_PERSONAL = new Set(['info','admin','contact','hello','sales','support','team','office','mail','noreply','no-reply']);
-  const domainBase = domain.split('.')[0].toLowerCase();
+// 6-strategy exhaustive Fireflies search. Failure modes covered:
+//   1. Email prefix not a name (sgoldstucker) → use GHL name from contactInfo
+//   2. Domain keyword doesn't match title → accept any result from domain/company search
+//   3. Attendee emails missing from Fireflies → loosen match tier-by-tier
+//   4. Transcript title has no searchable keywords → Pass 6: recent scan of 100 transcripts
+//   5. Only one email part tried → all email segments are tried as keywords
+//   6. API error in one pass → try/catch per pass, continue to next strategy
+//   7. Wrong transcript returned → prefer exact email > domain attendee > loose keyword
+async function findFirefliesTranscript(email, contactInfo = {}) {
+  const domain     = (email.split('@')[1] || '').toLowerCase();
+  const domainBase = domain.split('.')[0];
+  const emailLocal = email.split('@')[0].toLowerCase();
+  const NON_GENERIC    = new Set(['info','admin','contact','hello','sales','support','team','office','mail','noreply','no-reply','hi','hey']);
+  const GENERIC_DOMAINS = new Set(['gmail','yahoo','hotmail','outlook','icloud','proton','me','live','aol']);
 
-  // Extract a real first name: split on separators, take first segment only if it looks like a name (alpha only, 3-10 chars)
-  const parts = local.split(/[._\-+]/);
-  const firstPart = parts[0].toLowerCase().replace(/\d+$/, '');
-  const isLikelyFirstName = /^[a-z]{3,10}$/.test(firstPart) && !NON_PERSONAL.has(firstPart) && firstPart !== domainBase;
-  const firstName = isLikelyFirstName ? firstPart : null;
+  // ── Build ordered search terms: best signal first ───────────────────────────
+  const terms = []; // { keyword, source, acceptLoose }
 
-  function findExactEmail(transcripts) {
-    return transcripts.filter(t => {
-      const attendees = (t.meeting_attendees || []).map(a => (a.email || '').toLowerCase());
-      return attendees.includes(email.toLowerCase());
-    });
+  // A) GHL contact first + last name (highest quality)
+  const fullName = (contactInfo.name || '').trim();
+  if (fullName) {
+    const parts = fullName.split(/\s+/);
+    const fn = parts[0]?.toLowerCase();
+    const ln = parts[parts.length - 1]?.toLowerCase();
+    if (fn && fn.length >= 3) terms.push({ keyword: fn, source: 'ghl_first', acceptLoose: false });
+    if (ln && ln !== fn && ln.length >= 3) terms.push({ keyword: ln, source: 'ghl_last', acceptLoose: false });
   }
 
-  function findDomainMatch(transcripts) {
-    return transcripts.filter(t => {
-      const attendees = (t.meeting_attendees || []).map(a => (a.email || '').toLowerCase());
-      return attendees.some(a => a.endsWith('@' + domain));
-    });
+  // B) GHL company name + first word of company
+  const company = (contactInfo.company || '').trim();
+  if (company.length >= 3) {
+    terms.push({ keyword: company.toLowerCase(), source: 'ghl_company', acceptLoose: true });
+    const compWord = company.split(/[\s,._\-]+/)[0].toLowerCase();
+    if (compWord.length >= 4 && compWord !== company.toLowerCase()) {
+      terms.push({ keyword: compWord, source: 'ghl_company_word', acceptLoose: true });
+    }
   }
 
-  const searchGql = `query Search($keyword: String) { transcripts(keyword: $keyword, limit: 20) { ${TRANSCRIPT_FIELDS} } }`;
-
-  // Pass 1: search by first name, require exact attendee email match
-  if (firstName) {
-    const data = await firefliesQuery(searchGql, { keyword: firstName });
-    const results = data?.transcripts || [];
-    const exact = findExactEmail(results);
-    if (exact.length) { console.log(`[Fireflies] Found by first name exact: "${exact[0].title}"`); return exact[0]; }
+  // C) All email local-part segments (sgoldstucker → ['sgoldstucker']; sarah.goldstucker → ['sarah','goldstucker'])
+  // acceptLoose=true for segments >= 7 chars — specific enough that Fireflies finding it means it's the right transcript
+  for (const part of emailLocal.split(/[._\-+]/)) {
+    const clean = part.replace(/\d+$/, '');
+    if (/^[a-z]{3,20}$/.test(clean) && !NON_GENERIC.has(clean) && clean !== domainBase) {
+      terms.push({ keyword: clean, source: `email:${clean}`, acceptLoose: clean.length >= 7 });
+    }
   }
 
-  // Pass 2: search by domain base keyword, prefer exact email, then domain attendee, then any result
-  // (Fireflies often omits attendee emails — domain match is reliable enough signal)
-  if (domainBase && domainBase.length >= 4 && !['gmail','yahoo','hotmail','outlook'].includes(domainBase)) {
-    const data = await firefliesQuery(searchGql, { keyword: domainBase });
-    const results = data?.transcripts || [];
-
-    const exact = findExactEmail(results);
-    if (exact.length) { console.log(`[Fireflies] Found by domain exact: "${exact[0].title}"`); return exact[0]; }
-
-    const domainMatch = findDomainMatch(results);
-    if (domainMatch.length) { console.log(`[Fireflies] Found by domain attendee: "${domainMatch[0].title}"`); return domainMatch[0]; }
-
-    // Fallback: Fireflies frequently omits attendee emails; return most recent result from domain search
-    if (results.length) { console.log(`[Fireflies] Found by domain keyword (no attendee email): "${results[0].title}"`); return results[0]; }
+  // D) Domain base — accept loose match (Fireflies often omits attendee emails)
+  if (domainBase.length >= 4 && !GENERIC_DOMAINS.has(domainBase)) {
+    terms.push({ keyword: domainBase, source: 'domain', acceptLoose: true });
   }
 
-  // Pass 3: if first name exists but domain failed, do a broader first name search with domain fallback
-  if (firstName && firstName !== domainBase) {
-    const data = await firefliesQuery(searchGql, { keyword: firstName });
-    const results = data?.transcripts || [];
-    const domainMatch = findDomainMatch(results);
-    if (domainMatch.length) { console.log(`[Fireflies] Found by first name + domain attendee: "${domainMatch[0].title}"`); return domainMatch[0]; }
+  // ── Match helpers ─────────────────────────────────────────────────────────
+  const isExactEmail  = t => (t.meeting_attendees || []).some(a => (a.email || '').toLowerCase() === email.toLowerCase());
+  const isDomainEmail = t => (t.meeting_attendees || []).some(a => (a.email || '').toLowerCase().endsWith('@' + domain));
+
+  function pickBest(results, acceptLoose, source) {
+    const exact = results.filter(isExactEmail);
+    if (exact.length)  { console.log(`[FF] ✓ exact email (${source}): "${exact[0].title}"`);  return exact[0]; }
+    const dom   = results.filter(isDomainEmail);
+    if (dom.length)    { console.log(`[FF] ✓ domain email (${source}): "${dom[0].title}"`);   return dom[0]; }
+    if (acceptLoose && results.length) { console.log(`[FF] ✓ loose match (${source}): "${results[0].title}"`); return results[0]; }
+    return null;
   }
 
-  console.log('[Fireflies] No transcript found for', email);
+  // ── Passes 1–5: keyword searches ──────────────────────────────────────────
+  const searchGql = `query Search($keyword: String) { transcripts(keyword: $keyword, limit: 30) { ${TRANSCRIPT_FIELDS} } }`;
+  const searched  = new Set();
+
+  for (const { keyword, source, acceptLoose } of terms) {
+    if (searched.has(keyword)) continue;
+    searched.add(keyword);
+    try {
+      const data  = await firefliesQuery(searchGql, { keyword });
+      const found = pickBest(data?.transcripts || [], acceptLoose, source);
+      if (found) return found;
+    } catch(e) { console.warn(`[FF] Pass ${source} error:`, e.message); }
+  }
+
+  // ── Pass 6: recent scan — no keyword, fetch 100 most recent, check all attendees
+  // Catches transcripts titled "Discovery Call" with no searchable domain/name
+  console.log('[FF] Trying recent transcript scan (100)...');
+  try {
+    const recentGql = `{ transcripts(limit: 100) { ${TRANSCRIPT_FIELDS} } }`;
+    const data      = await firefliesQuery(recentGql, {});
+    const found     = pickBest(data?.transcripts || [], false, 'recent_scan');
+    if (found) return found;
+  } catch(e) { console.warn('[FF] Recent scan error:', e.message); }
+
+  console.log('[FF] No transcript found for', email, '— searched:', [...searched].join(', '));
   return null;
 }
 
@@ -1338,15 +1401,19 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Valid email required' })); return;
       }
+      // Step 0: GHL lookup to get real contact name/company (used to improve Fireflies matching)
+      const ghlContact = await lookupGHLContact(email);
+
       const contactInfo = {
-        name:    body.name    || null,
-        company: body.company || null,
-        website: (body.website || email.split('@')[1] || '').replace(/^https?:\/\//, '').split('/')[0]
+        name:    body.name    || ghlContact?.name    || null,
+        company: body.company || ghlContact?.company || null,
+        title:   ghlContact?.title || null,
+        website: (body.website || ghlContact?.website || email.split('@')[1] || '').replace(/^https?:\/\//, '').split('/')[0]
       };
 
-      // Parallel: Fireflies lookup + website scrape
+      // Parallel: Fireflies lookup (with contact info for better matching) + website scrape
       const [transcript, website] = await Promise.all([
-        findFirefliesTranscript(email),
+        findFirefliesTranscript(email, contactInfo),
         contactInfo.website ? scrapeWebsite(contactInfo.website) : Promise.resolve(null)
       ]);
 
