@@ -365,12 +365,32 @@ async function firefliesQuery(gql, variables) {
   return data.data;
 }
 
-const TRANSCRIPT_FIELDS = `
+// Used in search/list passes — NO sentences (would be enormous for 30-50 transcripts)
+const TRANSCRIPT_LIST_FIELDS = `
+  id title dateString duration
+  summary { short_summary overview action_items shorthand_bullet }
+  meeting_attendees { email displayName }
+`;
+
+// Used for single-transcript detail fetch after match is found
+const TRANSCRIPT_DETAIL_FIELDS = `
   id title dateString duration
   summary { short_summary overview action_items shorthand_bullet }
   sentences { text speaker_name }
   meeting_attendees { email displayName }
 `;
+
+// Fetch a single transcript by ID to get full sentences (called after match is confirmed)
+async function fetchTranscriptDetail(id) {
+  try {
+    const gql  = `query Detail($id: String!) { transcript(id: $id) { ${TRANSCRIPT_DETAIL_FIELDS} } }`;
+    const data = await firefliesQuery(gql, { id });
+    return data?.transcript || null;
+  } catch(e) {
+    console.warn('[FF] Detail fetch failed for', id, ':', e.message);
+    return null;
+  }
+}
 
 // 6-strategy exhaustive Fireflies search. Failure modes covered:
 //   1. Email prefix not a name (sgoldstucker) → use GHL name from contactInfo
@@ -438,7 +458,7 @@ async function findFirefliesTranscript(email, contactInfo = {}) {
   }
 
   // ── Passes 1–5: keyword searches ──────────────────────────────────────────
-  const searchGql = `query Search($keyword: String) { transcripts(keyword: $keyword, limit: 30) { ${TRANSCRIPT_FIELDS} } }`;
+  const searchGql = `query Search($keyword: String) { transcripts(keyword: $keyword, limit: 30) { ${TRANSCRIPT_LIST_FIELDS} } }`;
   const searched  = new Set();
 
   for (const { keyword, source, acceptLoose } of terms) {
@@ -455,7 +475,7 @@ async function findFirefliesTranscript(email, contactInfo = {}) {
   // Catches transcripts titled "Discovery Call" with no searchable domain/name
   console.log('[FF] Trying recent transcript scan pass 6a (limit 50)...');
   try {
-    const recentGql = `{ transcripts(limit: 50) { ${TRANSCRIPT_FIELDS} } }`;
+    const recentGql = `{ transcripts(limit: 50) { ${TRANSCRIPT_LIST_FIELDS} } }`;
     const data      = await firefliesQuery(recentGql, {});
     const transcripts = data?.transcripts || [];
     console.log(`[FF] Pass 6a: got ${transcripts.length} transcripts`);
@@ -474,7 +494,7 @@ async function findFirefliesTranscript(email, contactInfo = {}) {
   // ── Pass 6b: recent scan — page 2 (transcripts 51–100 via skip)
   console.log('[FF] Trying recent transcript scan pass 6b (skip 50, limit 50)...');
   try {
-    const recentGql2 = `{ transcripts(limit: 50, skip: 50) { ${TRANSCRIPT_FIELDS} } }`;
+    const recentGql2 = `{ transcripts(limit: 50, skip: 50) { ${TRANSCRIPT_LIST_FIELDS} } }`;
     const data2      = await firefliesQuery(recentGql2, {});
     const transcripts2 = data2?.transcripts || [];
     console.log(`[FF] Pass 6b: got ${transcripts2.length} transcripts`);
@@ -1479,10 +1499,13 @@ const server = http.createServer(async (req, res) => {
       if (transcript) {
         transcriptFound = true;
         transcriptTitle = transcript.title || null;
-        const s = transcript.summary || {};
+
+        // Fetch full detail (sentences) for just this one transcript
+        const detail = await fetchTranscriptDetail(transcript.id);
+        const s = (detail?.summary || transcript.summary) || {};
 
         // Build verbatim content from raw sentences (speaker-tagged, preserves exact words)
-        const rawSentences = (transcript.sentences || [])
+        const rawSentences = ((detail || transcript).sentences || [])
           .filter(s => s.text && s.text.trim().length > 0)
           .map(s => `${s.speaker_name || 'Speaker'}: ${s.text.trim()}`)
           .join('\n');
