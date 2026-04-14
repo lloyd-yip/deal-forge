@@ -573,7 +573,7 @@ Return this exact JSON (null for anything not found):
   },
   "icp": {
     "role":          "string | null — human-readable description of their target buyers (used for display only)",
-    "apollo_titles": "array of strings | null — 3-6 CLEAN, SPECIFIC job titles of their target buyers for API search. Each title must be 2-4 words max, no descriptions. Examples: ['CEO', 'Founder', 'Managing Director', 'VP Sales']. Null if buyer titles not mentioned.",
+    "apollo_titles": "array of strings | null — 3-6 CLEAN, SPECIFIC job titles of their target buyers for Apollo API search. Each title must be 2-4 words max — NO descriptions, NO adjectives, NO sentences. Examples: ['CEO', 'Founder', 'Managing Director', 'VP Sales', 'Chief Strategy Officer']. If titles are not explicitly stated, INFER from the role description and industry context — a firm selling to large org decision-makers → ['CEO', 'Managing Director', 'Chief Strategy Officer', 'Director of Strategy']. Return null ONLY if the buyer role is so vague no reasonable title inference is possible.",
     "industry":      "string — single best-match industry keyword for the PROSPECT'S TARGET CLIENTS. Choose based on WHAT THEY DO for clients, not technology they use. Choose from: consulting, software, coaching, agency, ecommerce, healthcare, real_estate, finance, legal, architecture, manufacturing, other",
     "company_size":  "string | null — size of their TARGET clients (employees or revenue), verbatim",
     "geography":     "string | null — target geography narrative, only if explicitly mentioned",
@@ -763,15 +763,15 @@ async function fetchLeadsFromApollo(icp) {
   const APOLLO_KEY = process.env.APOLLO_API_KEY;
   if (!APOLLO_KEY) { console.log('[Apollo] No API key — skipping'); return null; }
 
-  // apollo_titles: clean array from extraction e.g. ["CEO","Founder","Managing Director"]
-  // Fall back to splitting role string if apollo_titles not extracted
+  // apollo_titles: clean array from extraction only — never fall back to splitting role narrative
+  // (role is display-only; splitting it produces garbage like "goals", "plans" as API title filters)
   const apolloTitles = Array.isArray(icp?.apollo_titles) && icp.apollo_titles.length
     ? icp.apollo_titles
-    : icp?.role ? icp.role.split(/[,\/]+/).map(t => t.trim()).filter(t => t.length > 1 && t.length < 40).slice(0, 5)
     : null;
   const industry = icp?.industry;
 
-  if (!apolloTitles?.length && !industry) { console.log('[Apollo] No ICP — skipping'); return null; }
+  // Need at least industry or titles to run a meaningful search
+  if (!industry && !apolloTitles?.length) { console.log('[Apollo] No ICP — skipping'); return null; }
   // contacts/search uses header auth (x-api-key), not body api_key
   const apolloHeaders = { 'Content-Type': 'application/json', 'Accept': 'application/json', 'x-api-key': APOLLO_KEY };
   // apollo_geography: clean country array from extraction (["Canada"]) vs raw geography string
