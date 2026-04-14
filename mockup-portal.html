@@ -3,21 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deal Forge — Prospect Portal</title>
+<title>Quantum Scaling — Client Portal</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
 body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; color: #e4e4e7; min-height: 100vh; }
 
 .portal-nav { height: 52px; background: #0d0d12; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; padding: 0 32px; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
 .wordmark { display: flex; align-items: center; gap: 8px; }
-.wordmark-icon { width: 20px; height: 20px; background: linear-gradient(135deg, #8b5cf6, #6d28d9); border-radius: 6px; }
+.wordmark-icon { width: 20px; height: 20px; background: linear-gradient(135deg, #34b433, #2a9129); border-radius: 6px; }
 .wordmark-text { font-size: 13px; font-weight: 600; color: #e4e4e7; letter-spacing: -0.01em; }
 .prepared-for { font-size: 12px; color: #52525b; }
 
 .tab-bar { border-bottom: 1px solid rgba(255,255,255,0.06); padding: 0 32px; display: flex; background: #0d0d12; position: sticky; top: 52px; z-index: 99; }
 .tab { font-size: 13px; padding: 14px 20px; color: #71717a; cursor: pointer; border-bottom: 2px solid transparent; transition: all 100ms; white-space: nowrap; background: none; border-left: none; border-right: none; border-top: none; }
 .tab:hover { color: #a1a1aa; }
-.tab.active { color: #ffffff; border-bottom-color: #8b5cf6; }
+.tab.active { color: #ffffff; border-bottom-color: #34b433; }
 
 .tab-content { display: none; }
 .tab-content.active { display: block; }
@@ -30,7 +30,7 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .funnel-row { width: 100%; display: flex; justify-content: center; }
 .funnel-bar { height: 72px; border-radius: 10px; display: flex; align-items: center; padding: 0 28px; justify-content: space-between; min-width: 200px; }
 .funnel-bar.b1 { background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); width: 100%; }
-.funnel-bar.b2 { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.25); width: 65%; }
+.funnel-bar.b2 { background: rgba(52,180,51,0.12); border: 1px solid rgba(52,180,51,0.25); width: 65%; }
 .funnel-bar.b3 { background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.25); width: 40%; }
 .funnel-bar.b4 { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); width: 25%; }
 .funnel-bar-name { font-size: 16px; font-weight: 600; color: #e4e4e7; white-space: nowrap; }
@@ -39,7 +39,7 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .funnel-gate-dot { width: 1px; height: 12px; background: rgba(255,255,255,0.12); }
 .funnel-rate-pill { font-size: 13px; font-weight: 700; padding: 5px 16px; border-radius: 20px; }
 .funnel-rate-pill.g { color: #34d399; background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.2); }
-.funnel-rate-pill.p { color: #a78bfa; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); }
+.funnel-rate-pill.p { color: #5dc45c; background: rgba(52,180,51,0.1); border: 1px solid rgba(52,180,51,0.2); }
 .funnel-rate-pill.a { color: #fbbf24; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); }
 
 /* ═══ TAB 1: LEAD LIST ═══ */
@@ -202,7 +202,7 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .chat-booking { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); border-radius: 8px; padding: 8px 10px; }
 .chat-booking .chat-name { color: #34d399; }
 .chat-booking .chat-text { color: #6ee7b7; font-size: 12px; }
-.chat-name { font-size: 11px; font-weight: 600; color: #8b5cf6; margin-bottom: 3px; }
+.chat-name { font-size: 11px; font-weight: 600; color: #34b433; margin-bottom: 3px; }
 .chat-name.support { color: #34d399; }
 .chat-text { font-size: 12px; color: #a1a1aa; line-height: 1.4; }
 
@@ -213,7 +213,7 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .roi-step { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: #3f3f46; transition: color 250ms; cursor: pointer; }
 .roi-step.active { color: #e4e4e7; }
 .roi-step-dot { width: 8px; height: 8px; border-radius: 50%; background: #3f3f46; transition: background 250ms; }
-.roi-step.active .roi-step-dot { background: #8b5cf6; }
+.roi-step.active .roi-step-dot { background: #34b433; }
 .roi-step-line { flex: 1; max-width: 56px; height: 1px; background: rgba(255,255,255,0.07); }
 .roi-slider { overflow: hidden; }
 .roi-slides-track { display: flex; transition: transform 420ms cubic-bezier(0.4,0,0.2,1); }
@@ -226,14 +226,14 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .roi-locked-label { font-size: 10px; color: #52525b; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
 .roi-input-group { display: flex; flex-direction: column; gap: 16px; max-width: 520px; margin-bottom: 44px; }
 .roi-field-big { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.09); border-radius: 14px; padding: 22px 26px; transition: border-color 140ms; }
-.roi-field-big:focus-within { border-color: rgba(139,92,246,0.5); }
+.roi-field-big:focus-within { border-color: rgba(52,180,51,0.5); }
 .roi-field-label { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #52525b; margin-bottom: 10px; }
 .roi-field-input-row { display: flex; align-items: center; gap: 8px; }
 .roi-field-affix { font-size: 30px; font-weight: 300; color: #3f3f46; user-select: none; }
 .roi-field-input { background: none; border: none; outline: none; font-size: 40px; font-weight: 700; color: #e4e4e7; width: 100%; min-width: 0; }
 input[type=number].roi-field-input::-webkit-inner-spin-button,
 input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearance: none; }
-.roi-continue-btn { display: inline-flex; align-items: center; gap: 10px; background: #8b5cf6; color: #fff; border: none; border-radius: 12px; padding: 18px 32px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 120ms; letter-spacing: -0.1px; }
+.roi-continue-btn { display: inline-flex; align-items: center; gap: 10px; background: #34b433; color: #fff; border: none; border-radius: 12px; padding: 18px 32px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 120ms; letter-spacing: -0.1px; }
 .roi-continue-btn:hover { background: #7c3aed; }
 .roi-back-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; color: #52525b; font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 32px; letter-spacing: 0.02em; }
 .roi-back-btn:hover { color: #a1a1aa; }
@@ -250,7 +250,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 /* Bar itself is just the color block — centered, no text inside */
 .roi-fbar { height: 52px; border-radius: 10px; margin: 0 auto; transition: width 350ms ease; }
 .rfb-1 { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.25); width: 100%; }
-.rfb-2 { background: rgba(139,92,246,0.10); border: 1px solid rgba(139,92,246,0.22); }
+.rfb-2 { background: rgba(52,180,51,0.10); border: 1px solid rgba(52,180,51,0.22); }
 .rfb-3 { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.22); }
 .rfb-4 { background: rgba(59,130,246,0.10); border: 1px solid rgba(59,130,246,0.22); }
 .rfb-5 { background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.18); }
@@ -280,7 +280,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 .ramp-table td { padding: 9px 20px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.03); color: #a1a1aa; text-align: right; font-variant-numeric: tabular-nums; }
 .ramp-table td:first-child { text-align: left; color: #71717a; }
 .ramp-table td.has-rev { color: #e4e4e7; font-weight: 500; }
-.ramp-table td.cumul { color: #8b5cf6; font-weight: 600; }
+.ramp-table td.cumul { color: #34b433; font-weight: 600; }
 .ramp-table tr:last-child td { border-bottom: none; }
 .ramp-ramp-tag { display: inline-block; font-size: 9px; font-weight: 700; color: #52525b; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 4px; padding: 1px 5px; margin-left: 5px; vertical-align: middle; letter-spacing: 0.04em; }
 
@@ -292,16 +292,16 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 .ob-milestone { display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px 20px; flex: 1; min-width: 160px; }
 .ob-milestone-val { font-size: 22px; font-weight: 700; color: #e4e4e7; letter-spacing: -0.3px; }
 .ob-milestone-val.green { color: #34d399; }
-.ob-milestone-val.purple { color: #a78bfa; }
+.ob-milestone-val.purple { color: #5dc45c; }
 .ob-milestone-val.amber { color: #fbbf24; }
 .ob-milestone-label { font-size: 12px; color: #71717a; font-weight: 500; }
 .ob-section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #52525b; margin-bottom: 20px; }
 .ob-timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-bottom: 64px; position: relative; }
-.ob-timeline::before { content: ''; position: absolute; top: 36px; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, rgba(52,211,153,0.3), rgba(139,92,246,0.3), rgba(251,191,36,0.3), rgba(59,130,246,0.3)); z-index: 0; }
+.ob-timeline::before { content: ''; position: absolute; top: 36px; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, rgba(52,211,153,0.3), rgba(52,180,51,0.3), rgba(251,191,36,0.3), rgba(59,130,246,0.3)); z-index: 0; }
 .ob-phase { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 12px; position: relative; z-index: 1; }
 .ob-phase-dot { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 16px; flex-shrink: 0; }
 .ob-phase-dot.d1 { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.3); }
-.ob-phase-dot.d2 { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25); }
+.ob-phase-dot.d2 { background: rgba(52,180,51,0.1); border: 1px solid rgba(52,180,51,0.25); }
 .ob-phase-dot.d3 { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
 .ob-phase-dot.d4 { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); }
 .ob-phase-time { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #52525b; margin-bottom: 6px; }
@@ -327,13 +327,13 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 .cs-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 40px; }
 .cs-filter { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 18px; font-size: 12px; font-weight: 700; color: #71717a; cursor: pointer; letter-spacing: 0.05em; text-transform: uppercase; transition: all 120ms; user-select: none; }
 .cs-filter:hover { border-color: rgba(255,255,255,0.15); color: #a1a1aa; }
-.cs-filter.active { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.4); color: #a78bfa; }
+.cs-filter.active { background: rgba(52,180,51,0.12); border-color: rgba(52,180,51,0.4); color: #5dc45c; }
 .cs-stage { margin-bottom: 48px; }
 .cs-stage-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; }
 .cs-stage-pill { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; }
 .cs-stage-pill.early  { background: rgba(251,191,36,0.1);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
 .cs-stage-pill.growth { background: rgba(52,211,153,0.08); color: #34d399; border: 1px solid rgba(52,211,153,0.2); }
-.cs-stage-pill.scale  { background: rgba(139,92,246,0.1);  color: #a78bfa; border: 1px solid rgba(139,92,246,0.2); }
+.cs-stage-pill.scale  { background: rgba(52,180,51,0.1);  color: #5dc45c; border: 1px solid rgba(52,180,51,0.2); }
 .cs-stage-pill.large  { background: rgba(59,130,246,0.1);  color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
 .cs-stage-range { font-size: 13px; color: #52525b; font-weight: 500; }
 .cs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
@@ -364,7 +364,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 .cs-modal-stat { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px 14px; }
 .cs-modal-stat-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #3f3f46; margin-bottom: 4px; }
 .cs-modal-stat-value { font-size: 12px; font-weight: 600; color: #e4e4e7; line-height: 1.4; }
-.cs-modal-metric { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: #a78bfa; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); border-radius: 6px; padding: 4px 10px; display: inline-block; margin-bottom: 14px; }
+.cs-modal-metric { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: #5dc45c; background: rgba(52,180,51,0.1); border: 1px solid rgba(52,180,51,0.2); border-radius: 6px; padding: 4px 10px; display: inline-block; margin-bottom: 14px; }
 .cs-modal-result { font-size: 14px; color: #a1a1aa; line-height: 1.65; margin-bottom: 16px; padding: 14px 16px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); }
 .cs-modal-quote { font-size: 13px; color: #71717a; font-style: italic; line-height: 1.55; margin-bottom: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); }
 .cs-modal-cta { font-size: 12px; color: #52525b; text-align: center; }
@@ -375,8 +375,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 <!-- PORTAL NAV -->
 <nav class="portal-nav">
   <div class="wordmark">
-    <div class="wordmark-icon"></div>
-    <span class="wordmark-text">Deal Forge</span>
+    <img src="https://cdn.prod.website-files.com/68f946bb8c1a312becb429c6/69332f8bb26fb636e5ff3553_QS%20white.png" alt="Quantum Scaling" style="height:24px;width:auto;">
   </div>
   <span class="prepared-for">Prepared for Acme Corp</span>
   <a href="/dashboard" style="font-size:11px;color:#3f3f46;text-decoration:none;display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;transition:color 100ms;" onmouseenter="this.style.color='#71717a'" onmouseleave="this.style.color='#3f3f46'" title="Rep Dashboard">
@@ -390,8 +389,8 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
   <button class="tab" onclick="switchTab(1)">Lead List</button>
   <button class="tab" onclick="switchTab(2)">Calendar Invite</button>
   <button class="tab" onclick="switchTab(3)">Webinar Experience</button>
-  <button class="tab" onclick="switchTab(4)">ROI Model</button>
-  <button class="tab" onclick="switchTab(5)">Onboarding</button>
+  <button class="tab" onclick="switchTab(4)">Onboarding</button>
+  <button class="tab" onclick="switchTab(5)">ROI Model</button>
   <button class="tab" onclick="switchTab(6)">Case Studies</button>
 </div>
 
@@ -483,7 +482,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
         </div>
         <div class="tam-cycle-badge">
           <div class="tam-cycle-dot"></div>
-          <div class="tam-cycle-text">At 30K outreaches/mo, your full market cycles every <strong>3 months</strong> — run a new webinar topic each cycle to stay fresh</div>
+          <div class="tam-cycle-text" id="tam-cycle-badge-text">At 30K outreaches/mo, your full market cycles every <strong>3 months</strong> — run a new webinar topic each cycle to stay fresh</div>
         </div>
       </div>
 
@@ -500,7 +499,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
       <thead><tr><th>#</th><th>Name</th><th>Title</th><th>Company</th><th>Size</th><th>Website</th><th>LinkedIn</th></tr></thead>
       <tbody id="leads-tbody">
         <tr id="leads-loading-row"><td colspan="7" style="text-align:center;padding:28px 0;color:#52525b;font-size:13px;">
-          <svg style="display:inline;width:14px;height:14px;vertical-align:-2px;margin-right:6px;animation:spin 1s linear infinite;" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.2" cx="12" cy="12" r="10" stroke="#8b5cf6" stroke-width="3"/><path style="opacity:0.9" fill="#8b5cf6" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+          <svg style="display:inline;width:14px;height:14px;vertical-align:-2px;margin-right:6px;animation:spin 1s linear infinite;" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.2" cx="12" cy="12" r="10" stroke="#34b433" stroke-width="3"/><path style="opacity:0.9" fill="#34b433" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
           Generating verified lead list…
         </td></tr>
       </tbody>
@@ -771,7 +770,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 
           <div class="roi-locked-pill">
             <span class="roi-locked-label">Outreach</span>
-            30,000 prospects / month
+            <span id="roi-locked-monthly">30,000</span> prospects / month
           </div>
 
           <div class="roi-input-group">
@@ -806,14 +805,14 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
         <div class="roi-slide">
           <button class="roi-back-btn" onclick="roiGoSlide(0)">← Back</button>
           <h2 class="roi-funnel-title">Monthly Funnel Breakdown</h2>
-          <p class="roi-funnel-sub">30,000 outreaches/month. Toggle each step conservative or aggressive to stress-test the numbers.</p>
+          <p class="roi-funnel-sub" id="roi-funnel-sub">30,000 outreaches/month. Toggle each step conservative or aggressive to stress-test the numbers.</p>
 
           <div class="roi-funnel-rows">
             <!-- Bar 1: Monthly Outreach (100%) -->
             <div class="roi-fbar-row">
               <div class="roi-fbar-meta">
                 <span class="roi-fbar-label">Monthly Outreach</span>
-                <span class="roi-fbar-num">30,000</span>
+                <span class="roi-fbar-num" id="roi-fbar-monthly">30,000</span>
               </div>
               <div class="roi-fbar rfb-1"></div>
             </div>
@@ -1013,40 +1012,40 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
         <div class="ob-team-group">
           <div class="ob-team-group-label">Strategy</div>
           <div class="ob-member">
-            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/697beccad5b65e0043c196ef.png" alt="Doug Rich" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/697beccad5b65e0043c196ef.png" alt="Doug Rich" onerror="this.style.background='rgba(52,180,51,0.15)'">
             <div class="ob-member-info"><div class="ob-member-name">Doug Rich</div><div class="ob-member-role">Strategy Partner</div></div>
           </div>
           <div class="ob-member">
-            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/697bed169c63bc5c57c99d81.png" alt="James Walters" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/697bed169c63bc5c57c99d81.png" alt="James Walters" onerror="this.style.background='rgba(52,180,51,0.15)'">
             <div class="ob-member-info"><div class="ob-member-name">James Walters</div><div class="ob-member-role">Strategy Partner</div></div>
           </div>
         </div>
         <div class="ob-team-group">
           <div class="ob-team-group-label">Copy</div>
           <div class="ob-member">
-            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/685163aa14347c75c0deab0c.png" alt="Nicholas Batista" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/685163aa14347c75c0deab0c.png" alt="Nicholas Batista" onerror="this.style.background='rgba(52,180,51,0.15)'">
             <div class="ob-member-info"><div class="ob-member-name">Nicholas Batista</div><div class="ob-member-role">Copy Lead</div></div>
           </div>
         </div>
         <div class="ob-team-group">
           <div class="ob-team-group-label">Client Success</div>
           <div class="ob-member">
-            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/68505871abc3e05b8361af01.png" alt="Daniel King" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/68505871abc3e05b8361af01.png" alt="Daniel King" onerror="this.style.background='rgba(52,180,51,0.15)'">
             <div class="ob-member-info"><div class="ob-member-name">Daniel King</div><div class="ob-member-role">Client Success Manager</div></div>
           </div>
           <div class="ob-member">
-            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/6960359bf5d48932bfebb489.png" alt="John Nicol" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/6960359bf5d48932bfebb489.png" alt="John Nicol" onerror="this.style.background='rgba(52,180,51,0.15)'">
             <div class="ob-member-info"><div class="ob-member-name">John Nicol</div><div class="ob-member-role">Client Success Manager</div></div>
           </div>
         </div>
         <div class="ob-team-group">
           <div class="ob-team-group-label">Tech</div>
           <div class="ob-member">
-            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/6850587142a2536e1be14b1c.png" alt="Jose Velez" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/6850587142a2536e1be14b1c.png" alt="Jose Velez" onerror="this.style.background='rgba(52,180,51,0.15)'">
             <div class="ob-member-info"><div class="ob-member-name">Jose Velez</div><div class="ob-member-role">Tech Lead</div></div>
           </div>
           <div class="ob-member">
-            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/6850587142a2535642e14b1d.png" alt="Geri Nagi" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <img class="ob-member-photo" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/6850587142a2535642e14b1d.png" alt="Geri Nagi" onerror="this.style.background='rgba(52,180,51,0.15)'">
             <div class="ob-member-info"><div class="ob-member-name">Geri Nagi</div><div class="ob-member-role">Developer</div></div>
           </div>
         </div>
@@ -1056,15 +1055,15 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
         <div class="ob-section-label" style="margin-bottom:16px">Leadership</div>
         <div style="display:flex;gap:32px;flex-wrap:wrap">
           <div class="ob-member">
-            <img class="ob-member-photo" style="width:52px;height:52px" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/685058715cc847830dfc6974.png" alt="Alex Gesell" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <img class="ob-member-photo" style="width:52px;height:52px" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/685058715cc847830dfc6974.png" alt="Alex Gesell" onerror="this.style.background='rgba(52,180,51,0.15)'">
             <div class="ob-member-info"><div class="ob-member-name">Alex Gesell</div><div class="ob-member-role">Co-Founder &amp; Strategy</div></div>
           </div>
           <div class="ob-member">
-            <img class="ob-member-photo" style="width:52px;height:52px" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/6850587190fc43527db78e2b.png" alt="Scott Conway" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <img class="ob-member-photo" style="width:52px;height:52px" src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/G7ZOWCq78JrzUjlLMCxt/media/6850587190fc43527db78e2b.png" alt="Scott Conway" onerror="this.style.background='rgba(52,180,51,0.15)'">
             <div class="ob-member-info"><div class="ob-member-name">Scott Conway</div><div class="ob-member-role">Co-Founder &amp; Operations</div></div>
           </div>
           <div class="ob-member">
-            <img class="ob-member-photo" style="width:52px;height:52px" src="/lloyd-avatar" alt="Lloyd Yip" onerror="this.style.background='rgba(139,92,246,0.15)'">
+            <img class="ob-member-photo" style="width:52px;height:52px" src="/lloyd-avatar" alt="Lloyd Yip" onerror="this.style.background='rgba(52,180,51,0.15)'">
             <div class="ob-member-info"><div class="ob-member-name">Lloyd Yip</div><div class="ob-member-role">Founder &amp; CEO</div></div>
           </div>
         </div>
@@ -1107,38 +1106,38 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
     <!-- Flat grid — filtered by stage + industry -->
     <div class="cs-grid" style="margin-top:8px">
       <!-- CONSULTING & PROFESSIONAL SERVICES -->
-      <div class="cs-card" data-stage="early" data-industry="consulting"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/68ed3683e1a55e6a4e9ba2b2.png" alt="Forrest Dombrow" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Forrest Dombrow</div><span class="cs-stage-pill early">Early</span></div>
-      <div class="cs-card" data-stage="growth" data-industry="consulting"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674ef79f7e55822fec2d7444.png" alt="Tejas Parikh" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Tejas Parikh</div><span class="cs-stage-pill growth">Growth</span></div>
-      <div class="cs-card" data-stage="scale" data-industry="consulting"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f03369264c909cbec8e5a.png" alt="Michael Prothman" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Michael Prothman</div><span class="cs-stage-pill scale">Scale</span></div>
-      <div class="cs-card" data-stage="large" data-industry="consulting"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f01e34c1c7a4f0d447b16.png" alt="Simon Mueller" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Simon Mueller</div><span class="cs-stage-pill large">Large</span></div>
+      <div class="cs-card" data-stage="early" data-industry="consulting"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/68ed3683e1a55e6a4e9ba2b2.png" alt="Forrest Dombrow" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Forrest Dombrow</div><span class="cs-stage-pill early">Early</span></div>
+      <div class="cs-card" data-stage="growth" data-industry="consulting"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674ef79f7e55822fec2d7444.png" alt="Tejas Parikh" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Tejas Parikh</div><span class="cs-stage-pill growth">Growth</span></div>
+      <div class="cs-card" data-stage="scale" data-industry="consulting"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f03369264c909cbec8e5a.png" alt="Michael Prothman" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Michael Prothman</div><span class="cs-stage-pill scale">Scale</span></div>
+      <div class="cs-card" data-stage="large" data-industry="consulting"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f01e34c1c7a4f0d447b16.png" alt="Simon Mueller" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Simon Mueller</div><span class="cs-stage-pill large">Large</span></div>
 
       <!-- SOFTWARE -->
-      <div class="cs-card" data-stage="early" data-industry="software"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6952c28fd2e1fcd23a6502eb.png" alt="Olivier Delrue" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Olivier Delrue</div><span class="cs-stage-pill early">Early</span></div>
-      <div class="cs-card" data-stage="growth" data-industry="software"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f0432cc7dd1a016471f4f.png" alt="Philipp Von Schulthess" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Philipp Von Schulthess</div><span class="cs-stage-pill growth">Growth</span></div>
-      <div class="cs-card" data-stage="scale" data-industry="software"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674eff20fc9c332261ea0030.png" alt="Mark & Luke-Ross Edwards" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Mark &amp; Luke-Ross Edwards</div><span class="cs-stage-pill scale">Scale</span></div>
-      <div class="cs-card" data-stage="large" data-industry="software"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6751ba01405b833374f2e4e1.png" alt="Cedric Le Rouzo" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Cedric Le Rouzo</div><span class="cs-stage-pill large">Large</span></div>
+      <div class="cs-card" data-stage="early" data-industry="software"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6952c28fd2e1fcd23a6502eb.png" alt="Olivier Delrue" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Olivier Delrue</div><span class="cs-stage-pill early">Early</span></div>
+      <div class="cs-card" data-stage="growth" data-industry="software"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f0432cc7dd1a016471f4f.png" alt="Philipp Von Schulthess" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Philipp Von Schulthess</div><span class="cs-stage-pill growth">Growth</span></div>
+      <div class="cs-card" data-stage="scale" data-industry="software"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674eff20fc9c332261ea0030.png" alt="Mark & Luke-Ross Edwards" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Mark &amp; Luke-Ross Edwards</div><span class="cs-stage-pill scale">Scale</span></div>
+      <div class="cs-card" data-stage="large" data-industry="software"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6751ba01405b833374f2e4e1.png" alt="Cedric Le Rouzo" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Cedric Le Rouzo</div><span class="cs-stage-pill large">Large</span></div>
 
       <!-- COACHING & TRAINING -->
-      <div class="cs-card" data-stage="early" data-industry="coaching"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f012c7e5582c05e2d7897.png" alt="Darrin Glesser" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Darrin Glesser</div><span class="cs-stage-pill early">Early</span></div>
-      <div class="cs-card" data-stage="growth" data-industry="coaching"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f027750c85455316472b9.png" alt="Karl Lashkari" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Karl Lashkari</div><span class="cs-stage-pill growth">Growth</span></div>
-      <div class="cs-card" data-stage="scale" data-industry="coaching"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/67614bfc63c0feb81ed495dd.png" alt="Brooks Golden" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Brooks Golden</div><span class="cs-stage-pill scale">Scale</span></div>
-      <div class="cs-card" data-stage="large" data-industry="coaching"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6859bc2fd6043d118c0172f0.png" alt="Alex Gesell" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Alex Gesell</div><span class="cs-stage-pill large">Large</span></div>
+      <div class="cs-card" data-stage="early" data-industry="coaching"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f012c7e5582c05e2d7897.png" alt="Darrin Glesser" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Darrin Glesser</div><span class="cs-stage-pill early">Early</span></div>
+      <div class="cs-card" data-stage="growth" data-industry="coaching"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f027750c85455316472b9.png" alt="Karl Lashkari" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Karl Lashkari</div><span class="cs-stage-pill growth">Growth</span></div>
+      <div class="cs-card" data-stage="scale" data-industry="coaching"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/67614bfc63c0feb81ed495dd.png" alt="Brooks Golden" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Brooks Golden</div><span class="cs-stage-pill scale">Scale</span></div>
+      <div class="cs-card" data-stage="large" data-industry="coaching"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6859bc2fd6043d118c0172f0.png" alt="Alex Gesell" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Alex Gesell</div><span class="cs-stage-pill large">Large</span></div>
 
       <!-- AGENCIES -->
-      <div class="cs-card" data-stage="early" data-industry="agencies"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/68ea9fdc59ec0a7ed430b470.png" alt="Nick Uresin" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Nick Uresin</div><span class="cs-stage-pill early">Early</span></div>
-      <div class="cs-card" data-stage="growth" data-industry="agencies"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f05b563f24e4af2f7deae.png" alt="Chehadeh Abou Hala" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Chehadeh Abou Hala</div><span class="cs-stage-pill growth">Growth</span></div>
-      <div class="cs-card" data-stage="scale" data-industry="agencies"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6752e29629695a2bf06ce629.png" alt="Shamayah Sarrucco" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Shamayah Sarrucco</div><span class="cs-stage-pill scale">Scale</span></div>
-      <div class="cs-card" data-stage="large" data-industry="agencies"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f050e4c1c7a3229447c2b.png" alt="Felix Petzel" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Felix Petzel</div><span class="cs-stage-pill large">Large</span></div>
+      <div class="cs-card" data-stage="early" data-industry="agencies"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/68ea9fdc59ec0a7ed430b470.png" alt="Nick Uresin" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Nick Uresin</div><span class="cs-stage-pill early">Early</span></div>
+      <div class="cs-card" data-stage="growth" data-industry="agencies"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f05b563f24e4af2f7deae.png" alt="Chehadeh Abou Hala" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Chehadeh Abou Hala</div><span class="cs-stage-pill growth">Growth</span></div>
+      <div class="cs-card" data-stage="scale" data-industry="agencies"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6752e29629695a2bf06ce629.png" alt="Shamayah Sarrucco" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Shamayah Sarrucco</div><span class="cs-stage-pill scale">Scale</span></div>
+      <div class="cs-card" data-stage="large" data-industry="agencies"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f050e4c1c7a3229447c2b.png" alt="Felix Petzel" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Felix Petzel</div><span class="cs-stage-pill large">Large</span></div>
 
       <!-- OTHER B2B (Financial, Investors, etc.) -->
-      <div class="cs-card" data-stage="early" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674ef862cc7dd1ddfb4718dd.png" alt="Bora Ger" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Bora Ger</div><span class="cs-stage-pill early">Early</span></div>
-      <div class="cs-card" data-stage="early" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6859a09d937ff4092b29c994.png" alt="Jason Rotman" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Jason Rotman</div><span class="cs-stage-pill early">Early</span></div>
-      <div class="cs-card" data-stage="growth" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/68599a61ba48d3780e9be369.png" alt="Lynn Rousseau" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Lynn Rousseau</div><span class="cs-stage-pill growth">Growth</span></div>
-      <div class="cs-card" data-stage="growth" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674ef62763f24e438cf7d49e.png" alt="Greg Smart" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Greg Smart</div><span class="cs-stage-pill growth">Growth</span></div>
-      <div class="cs-card" data-stage="scale" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6859969791351a4efb4588d4.png" alt="Jan Young" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Jan Young</div><span class="cs-stage-pill scale">Scale</span></div>
-      <div class="cs-card" data-stage="scale" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6859a5f124572ea3e10af505.png" alt="Daniel White" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Daniel White</div><span class="cs-stage-pill scale">Scale</span></div>
-      <div class="cs-card" data-stage="large" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/68ec2610dba3a00c0db33b55.png" alt="Cymron Bancil" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Cymron Bancil</div><span class="cs-stage-pill large">Large</span></div>
-      <div class="cs-card" data-stage="large" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f001250c85458fd647223.png" alt="Divij Rakhra" onerror="this.style.background='rgba(139,92,246,0.15)'"><div class="cs-card-name">Divij Rakhra</div><span class="cs-stage-pill large">Large</span></div>
+      <div class="cs-card" data-stage="early" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674ef862cc7dd1ddfb4718dd.png" alt="Bora Ger" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Bora Ger</div><span class="cs-stage-pill early">Early</span></div>
+      <div class="cs-card" data-stage="early" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6859a09d937ff4092b29c994.png" alt="Jason Rotman" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Jason Rotman</div><span class="cs-stage-pill early">Early</span></div>
+      <div class="cs-card" data-stage="growth" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/68599a61ba48d3780e9be369.png" alt="Lynn Rousseau" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Lynn Rousseau</div><span class="cs-stage-pill growth">Growth</span></div>
+      <div class="cs-card" data-stage="growth" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674ef62763f24e438cf7d49e.png" alt="Greg Smart" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Greg Smart</div><span class="cs-stage-pill growth">Growth</span></div>
+      <div class="cs-card" data-stage="scale" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6859969791351a4efb4588d4.png" alt="Jan Young" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Jan Young</div><span class="cs-stage-pill scale">Scale</span></div>
+      <div class="cs-card" data-stage="scale" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/6859a5f124572ea3e10af505.png" alt="Daniel White" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Daniel White</div><span class="cs-stage-pill scale">Scale</span></div>
+      <div class="cs-card" data-stage="large" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/68ec2610dba3a00c0db33b55.png" alt="Cymron Bancil" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Cymron Bancil</div><span class="cs-stage-pill large">Large</span></div>
+      <div class="cs-card" data-stage="large" data-industry="other"><img class="cs-card-photo" src="https://storage.googleapis.com/msgsndr/G7ZOWCq78JrzUjlLMCxt/media/674f001250c85458fd647223.png" alt="Divij Rakhra" onerror="this.style.background='rgba(52,180,51,0.15)'"><div class="cs-card-name">Divij Rakhra</div><span class="cs-stage-pill large">Large</span></div>
     </div>
 
   </div>
@@ -1179,6 +1178,12 @@ function switchTab(i) {
   document.querySelectorAll('.tab-content').forEach((t,j) => t.classList.toggle('active', i===j));
   document.querySelectorAll('.tab').forEach((t,j) => t.classList.toggle('active', i===j));
 }
+// Reorder tabs: Onboarding (index 4) before ROI Model (index 5) — matches button bar order
+(function() {
+  var roi = document.getElementById('tab-roi');
+  var ob  = document.getElementById('tab-onboarding');
+  if (roi && ob && roi.parentNode) roi.parentNode.insertBefore(ob, roi);
+})();
 
 // ── Slide switching ──
 function switchSlide(i) {
@@ -1354,7 +1359,7 @@ const RATES = {
 };
 let _modes = { attend: 'conservative', booking: 'conservative', show: 'conservative', close: 'conservative' };
 
-const MONTHLY_INVITES = 30000;
+let MONTHLY_INVITES = 30000;
 
 // Ramp: index = month (1-based). Month 1 = onboarding (0). Full velocity Month 6+.
 const RAMP = [0, 0, 0.10, 0.25, 0.45, 0.70, 1, 1, 1, 1, 1, 1, 1];
@@ -1844,18 +1849,43 @@ function runPersonalization(session) {
     // ── TAM stats from Apollo total ───────────────────────────────────────────
     const gen = (session.extracted || {})._generated || {};
     const tamTotal = gen.apolloTotal;
+    // monthlyRaw hoisted so calendar + ROI model can reference it
+    let monthlyRaw = 30000;
+    let monthlyLo = 25, monthlyHi = 35;
     if (tamTotal) {
       const tamEl = document.getElementById('tam-total-val');
       if (tamEl) tamEl.textContent = tamTotal >= 1000000 ? Math.round(tamTotal / 100000) / 10 + 'M' : tamTotal >= 1000 ? Math.round(tamTotal / 100) / 10 + 'K' : tamTotal.toLocaleString();
       const cycleMonths = tamTotal > 60000 ? '~3 mo' : tamTotal > 20000 ? '~2 mo' : '~1 mo';
+      const cycleDivisor = tamTotal > 60000 ? 3 : tamTotal > 20000 ? 2 : 1;
       const cycleEl = document.getElementById('tam-cycle-val');
       if (cycleEl) cycleEl.textContent = cycleMonths;
       // Recommended outreach/month ≈ TAM ÷ cycle length, capped at 100K (QS practical limit)
-      const monthlyRaw = Math.min(100000, Math.max(1000, Math.round(tamTotal / (tamTotal > 60000 ? 3 : tamTotal > 20000 ? 2 : 1) / 5000) * 5000));
-      const monthlyLo = Math.round(monthlyRaw * 0.85 / 1000);
-      const monthlyHi = Math.min(100, Math.round(monthlyRaw * 1.15 / 1000));
+      monthlyRaw = Math.min(100000, Math.max(30000, Math.round(tamTotal / cycleDivisor / 5000) * 5000));
+      monthlyLo = Math.round(monthlyRaw * 0.85 / 1000);
+      monthlyHi = Math.min(100, Math.round(monthlyRaw * 1.15 / 1000));
       const monthlyEl = document.getElementById('tam-monthly-val');
       if (monthlyEl) monthlyEl.textContent = monthlyLo + '–' + monthlyHi + 'K';
+
+      // ── Sync MONTHLY_INVITES + update all static volume elements ─────────
+      MONTHLY_INVITES = monthlyRaw;
+      const volFull = Math.round(monthlyRaw).toLocaleString();
+      const vol = monthlyRaw >= 1000 ? Math.round(monthlyRaw / 1000) + 'K' : volFull;
+
+      const cycleBadge = document.getElementById('tam-cycle-badge-text');
+      if (cycleBadge) {
+        if (tamTotal > 60000) {
+          cycleBadge.innerHTML = 'At ' + vol + ' outreaches/mo, your full market cycles every <strong>' + cycleMonths.replace('~','') + '</strong> — run a new webinar topic each cycle to stay fresh';
+        } else {
+          cycleBadge.innerHTML = 'With a focused TAM of ' + (tamTotal >= 1000 ? Math.round(tamTotal/1000) + 'K' : tamTotal) + ', ' + vol + ' outreaches/mo covers your market in ' + cycleMonths.replace('~','') + ' — refresh targeting each cycle.';
+        }
+      }
+      const roiLocked = document.getElementById('roi-locked-monthly');
+      if (roiLocked) roiLocked.textContent = volFull;
+      const roiFunnelSub = document.getElementById('roi-funnel-sub');
+      if (roiFunnelSub) roiFunnelSub.textContent = volFull + ' outreaches/month. Toggle each step conservative or aggressive to stress-test the numbers.';
+      const roiFbarMonthly = document.getElementById('roi-fbar-monthly');
+      if (roiFbarMonthly) roiFbarMonthly.textContent = volFull;
+      roiCalc(); // Re-run ROI model with updated volume
     } else if (!gen.leadsTaskStatus || gen.leadsTaskStatus === 'pending') {
       // Lead search still running — show searching state instead of static —
       var tamSearchEl = document.getElementById('tam-total-val');
@@ -1917,7 +1947,7 @@ function runPersonalization(session) {
           <div class="cal-desc-section-label">What You'll Walk Away With</div>
           <ul class="cal-desc-bullets">
             <li>${kpis.length >= 2 ? 'A system to reach the ' + icpRole + 's who want to improve their ' + kpis.slice(0,2).join(' and ') : 'A client acquisition system built specifically for ' + icpIndustry + ' consulting'}</li>
-            <li>How to run 30,000+ automated outreaches per month — targeting ${icpRole}</li>
+            <li>How to run ${Math.round(monthlyRaw/1000)}K+ automated outreaches per month — targeting ${icpRole}</li>
             <li>${kpis.length >= 3 ? 'Live funnel math showing what ' + kpis[2] + ' improvement is worth in client value for ' + companyName : 'Live funnel math modeled on ' + companyName + '\'s specific numbers'}</li>
           </ul>
         </div>
@@ -1987,6 +2017,7 @@ function runPersonalization(session) {
       const icpIndustry2 = icp.industry || 'consulting';
       const icpRole2 = icp.role || 'decision-makers';
       const chatKpis = Array.isArray(icp.kpis) && icp.kpis.length ? icp.kpis : null;
+      const chatVol = MONTHLY_INVITES >= 1000 ? Math.round(MONTHLY_INVITES / 1000) + 'K' : MONTHLY_INVITES.toLocaleString();
       const kpi1 = chatKpis ? chatKpis[0] : 'revenue growth';
       const kpi2 = chatKpis && chatKpis[1] ? chatKpis[1] : 'client acquisition';
 
@@ -2000,11 +2031,11 @@ function runPersonalization(session) {
         { name: 'Tyler B.', text: 'The automation piece is critical — our outreach to ' + icpRole2 + ' is completely manual right now' },
         { name: 'Priya M.', text: 'Is there a replay? Our partners want to see this but have a conflict' },
         { name: null, support: true, text: 'Yes — replay goes out within 24 hours to all registered attendees' },
-        { name: 'Marcus W.', text: 'Most excited about the ROI model — want to see what 30K outreaches means for ' + kpi2 + ' specifically' },
+        { name: 'Marcus W.', text: 'Most excited about the ROI model — want to see what ' + chatVol + ' outreaches means for ' + kpi2 + ' specifically' },
         { name: null, support: true, booking: true, text: '🎉 Nadia Caruso just booked a strategy call — excited to walk through your ' + icpIndustry2 + ' funnel with you, Nadia!' },
         { name: 'Ryan C.', text: 'We\'ve been stuck at the same revenue for two years. This feels like the system we\'ve been missing' },
         { name: null, support: true, booking: true, text: '✅ Sophie Whitfield — call confirmed! Looking forward to mapping this to Whitfield & Co., Sophie' },
-        { name: 'James O.', text: '30K automated outreaches targeting ' + icpRole2 + ' specifically — didn\'t know this was possible without a massive team' },
+        { name: 'James O.', text: chatVol + ' automated outreaches targeting ' + icpRole2 + ' specifically — didn\'t know this was possible without a massive team' },
       ];
 
       chatPanel.innerHTML = chatMsgs.map(function(m) {

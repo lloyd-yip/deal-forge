@@ -574,9 +574,12 @@ Return this exact JSON (null for anything not found):
   "icp": {
     "role":          "string | null — human-readable description of their target buyers (used for display only)",
     "apollo_titles": "array of strings | null — 3-6 CLEAN, SPECIFIC job titles of their target buyers for API search. Each title must be 2-4 words max, no descriptions. Examples: ['CEO', 'Founder', 'Managing Director', 'VP Sales']. Null if buyer titles not mentioned.",
-    "industry":      "string — single best-match industry keyword from: consulting, software, coaching, agency, ecommerce, healthcare, real_estate, finance, legal, architecture, manufacturing, other",
+    "industry":      "string — single best-match industry keyword for the PROSPECT'S TARGET CLIENTS. Choose based on WHAT THEY DO for clients, not technology they use. Choose from: consulting, software, coaching, agency, ecommerce, healthcare, real_estate, finance, legal, architecture, manufacturing, other",
     "company_size":  "string | null — size of their TARGET clients (employees or revenue), verbatim",
-    "geography":     "string | null — target geography, only if explicitly mentioned",
+    "geography":     "string | null — target geography narrative, only if explicitly mentioned",
+    "apollo_geography": "array of strings | null — clean, searchable country names ONLY for Apollo API. Examples: ['Canada'], ['United States', 'United Kingdom']. Each entry must be a country name exactly — NOT a continent, region phrase, or narrative sentence. If geography mentions 'North America' extract ['United States', 'Canada']. If 'Europe' extract the specific European countries mentioned or null. Null if no geography mentioned.",
+    "person_seniorities": "array of strings | null — seniority levels of target buyers. Choose ONLY from these exact values: owner, founder, c_suite, partner, vp, head, director, manager. Infer from role/title context. Null if completely unclear.",
+    "company_revenue": "string | null — revenue range of their TARGET clients if mentioned or clearly implied (e.g. '$1M-$5M', '$500K+', '$2M ARR'). Verbatim if stated, short inference if strongly implied. Null if not determinable.",
     "kpis":          "array of 3-5 strings — the specific business performance metrics the prospect's service directly helps their ICP improve. Extract verbatim if mentioned. If not explicitly stated, INFER from the service description, promised outcomes, and problems solved — look at what their clients gain. Return short, specific metric names like 'Revenue per client', 'Customer acquisition rate', 'Client retention rate', 'Brand visibility', 'Lead conversion rate', 'Average deal size'. Never null — always infer at least 3."
   },
   "metrics": {
@@ -631,7 +634,7 @@ Return this exact JSON (null for anything not found):
 function emptyBrief(contactInfo) {
   return {
     prospect:  { company: contactInfo.company || null, contact_name: contactInfo.name || null, contact_title: null },
-    icp:       { role: null, apollo_titles: null, industry: 'consulting', company_size: null, geography: null, kpis: null },
+    icp:       { role: null, apollo_titles: null, industry: 'consulting', company_size: null, geography: null, apollo_geography: null, person_seniorities: null, company_revenue: null, kpis: null },
     metrics:   { ltv: null, close_rate: null, show_rate: null },
     angle:     { pain: null, result: null, methodology: null, proof: null },
     verbatim:  { pain_quote: null, result_quote: null, goal_quote: null },
@@ -649,6 +652,7 @@ function mapCompanySize(sizeStr) {
   if (/\bsmall\b/.test(s) && !/team/.test(s)) return ['1,10'];
   if (/1.10|under 10|fewer than 10/.test(s)) return ['1,10'];
   if (/10.50|startup|small.*team/.test(s)) return ['1,10', '11,50'];
+  if (/50\+/.test(s) && !/200|500|1000/.test(s)) return ['51,200'];
   if (/50.200|mid.size|growing/.test(s)) return ['51,200'];
   if (/200.500|mid.market/.test(s)) return ['201,500'];
   if (/500\+?|enterprise|large/.test(s)) return ['501,1000', '1001,10000'];
@@ -684,14 +688,23 @@ function estimateGlobalTAM(icp) {
   // Revenue-based sizing (e.g. "$25M+" maps roughly to 50+ employees)
   else if (/\$25m|\$50m|\$100m|million/.test(sizeStr)) sizeMult = 0.18;
 
-  // Geography adjustment
-  const geo = (icp?.geography || '').toLowerCase();
+  // Geography adjustment — prefer apollo_geography (clean array) over raw geography string
+  const geoArr = Array.isArray(icp?.apollo_geography) && icp.apollo_geography.length ? icp.apollo_geography : null;
+  const geo = geoArr ? geoArr.join(' ').toLowerCase() : (icp?.geography || '').toLowerCase();
   let geoMult = 1.0;
-  if (geo) {
-    if (/united states|usa|us\b/.test(geo)) geoMult = 0.35;
-    else if (/canada|uk|australia|germany|france/.test(geo)) geoMult = 0.08;
-    else if (/global|worldwide|international/.test(geo)) geoMult = 1.0;
-    else geoMult = 0.12; // specific region
+  if (geo && !/global|worldwide|international/.test(geo)) {
+    // Count how many distinct markets
+    const marketCount = geoArr ? geoArr.length : 1;
+    if (/united states|usa/.test(geo)) geoMult = 0.35 * Math.min(marketCount, 3) / 1;
+    else if (/canada/.test(geo) && marketCount === 1) geoMult = 0.05;
+    else if (/uk|united kingdom/.test(geo) && marketCount === 1) geoMult = 0.07;
+    else if (/australia/.test(geo) && marketCount === 1) geoMult = 0.04;
+    else if (/germany|france/.test(geo) && marketCount === 1) geoMult = 0.06;
+    else {
+      // Multiple countries or unlisted single country — scale by count, capped at 0.5
+      geoMult = Math.min(0.50, marketCount * 0.06);
+    }
+    geoMult = Math.min(1.0, geoMult); // never exceed global
   }
 
   const raw = Math.round(base * sizeMult * geoMult);
@@ -761,11 +774,16 @@ async function fetchLeadsFromApollo(icp) {
   if (!apolloTitles?.length && !industry) { console.log('[Apollo] No ICP — skipping'); return null; }
   // contacts/search uses header auth (x-api-key), not body api_key
   const apolloHeaders = { 'Content-Type': 'application/json', 'Accept': 'application/json', 'x-api-key': APOLLO_KEY };
+  // apollo_geography: clean country array from extraction (["Canada"]) vs raw geography string
+  const apolloGeo = Array.isArray(icp?.apollo_geography) && icp.apollo_geography.length ? icp.apollo_geography : null;
   const baseBody = { per_page: 25 };
-  if (apolloTitles?.length) baseBody.person_titles = apolloTitles;
-  if (industry)             baseBody.q_organization_keyword_tags = [industry];
-  if (icp?.company_size)    baseBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
-  if (icp?.geography)       baseBody.person_locations = [icp.geography];
+  if (apolloTitles?.length)   baseBody.person_titles = apolloTitles;
+  if (industry)               baseBody.q_organization_keyword_tags = [industry];
+  if (icp?.company_size)      baseBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
+  if (apolloGeo)              baseBody.person_locations = apolloGeo;
+  else if (icp?.geography)    baseBody.person_locations = [icp.geography]; // legacy fallback
+  if (Array.isArray(icp?.person_seniorities) && icp.person_seniorities.length)
+                              baseBody.person_seniorities = icp.person_seniorities;
   console.log('[Apollo] Searching pages 1–4:', JSON.stringify({ apollo_titles: apolloTitles, industry }));
   const timeout270s = new Promise(resolve => setTimeout(() => { console.warn('[Apollo] 4.5min timeout'); resolve(null); }, 270000));
   const apolloCore = async () => {
@@ -776,6 +794,9 @@ async function fetchLeadsFromApollo(icp) {
       const tamBody = { per_page: 1 };
       if (industry) tamBody.q_organization_keyword_tags = [industry];
       if (icp?.company_size) tamBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
+      // Geography filter: use apollo_geography (clean country array) for org HQ location
+      if (apolloGeo) tamBody.q_organization_locations = apolloGeo;
+      else if (icp?.geography && !/global|worldwide|international/i.test(icp.geography)) tamBody.q_organization_locations = [icp.geography];
       const tamRes = await fetch('https://api.apollo.io/v1/organizations/search', {
         method: 'POST', headers: apolloHeaders,
         body: JSON.stringify(tamBody), signal: AbortSignal.timeout(8000)
@@ -803,8 +824,8 @@ async function fetchLeadsFromApollo(icp) {
         allPeople.push(...people);
         if (people.length < 25) break;
       }
-    } catch(e) { console.warn('[Apollo] Fetch error:', e.message); if (!allPeople.length) return null; }
-    if (!allPeople.length) return null;
+    } catch(e) { console.warn('[Apollo] Fetch error:', e.message); if (!allPeople.length) return { leads: [], total: total || estimateGlobalTAM(icp) }; }
+    if (!allPeople.length) return { leads: [], total: total || estimateGlobalTAM(icp) };
     const rawLeads = allPeople.map(p => ({
       name: p.name, title: p.title,
       company: p.organization_name || p.organization?.name || p.account?.name || '',
