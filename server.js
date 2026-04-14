@@ -714,32 +714,66 @@ function estimateGlobalTAM(icp) {
   return Math.round(raw / 25000) * 25000;
 }
 const PARKING_SIGNALS = ['domain for sale','this domain is for sale','buy this domain','coming soon','under construction','parked by','domain parking'];
+function extractBusinessDescription(html) {
+  // Pull the highest-signal elements — NOT raw body text (which includes nav/footer/cookies)
+  const parts = [];
+
+  // Meta description — usually the best single-sentence business summary
+  const metaDesc = (html.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']{10,})/i)
+    || html.match(/<meta[^>]+content=["']([^"']{10,})["'][^>]*name=["']description["']/i) || [])[1] || '';
+  if (metaDesc) parts.push(metaDesc.trim());
+
+  // H1 — primary headline, what the company says it does
+  const h1 = (html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || '';
+  const h1Text = h1.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (h1Text && h1Text.length > 10 && h1Text.length < 200) parts.push(h1Text);
+
+  // First H2 — often the value proposition
+  const h2 = (html.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i) || [])[1] || '';
+  const h2Text = h2.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (h2Text && h2Text.length > 10 && h2Text.length < 200) parts.push(h2Text);
+
+  // First <p> inside <main> or <article> if available, else first body <p> > 40 chars
+  const mainBlock = (html.match(/<(?:main|article)[^>]*>([\s\S]*?)<\/(?:main|article)>/i) || [])[1] || html;
+  const pMatches = mainBlock.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [];
+  for (const p of pMatches.slice(0, 5)) {
+    const txt = p.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (txt.length > 40 && txt.length < 400 && !/cookie|privacy|terms|subscribe|newsletter/i.test(txt)) {
+      parts.push(txt);
+      break;
+    }
+  }
+
+  return parts.join(' | ').slice(0, 600) || null;
+}
 async function websiteQualityCheck(url) {
   if (!url) return false;
   try {
-    const res = await fetch(url, { method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3000), redirect: 'follow' });
+    const res = await fetch(url, { method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000), redirect: 'follow' });
     if (!res.ok) return false;
     const html = await res.text();
     const lower = html.toLowerCase();
     if (PARKING_SIGNALS.some(s => lower.includes(s))) return false;
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     if (!titleMatch || !titleMatch[1].trim()) return false;
-    const bodyText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    if (bodyText.split(' ').length < 50) return false;
-    const hasH1       = /<h1[^>]*>[^<]+<\/h1>/i.test(html);
-    const metaDesc    = (html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{5,})/i) || [])[1] || '';
-    if (!hasH1 && !metaDesc) return false;
-    return { title: titleMatch[1].trim(), excerpt: bodyText.slice(0, 500) };
+    // Must have meaningful content signals
+    const hasH1  = /<h1[^>]*>[^<]{5,}<\/h1>/i.test(html);
+    const metaOk = /<meta[^>]+name=["']description["']/i.test(html);
+    if (!hasH1 && !metaOk) return false;
+    const excerpt = extractBusinessDescription(html);
+    if (!excerpt) return false;
+    return { title: titleMatch[1].trim(), excerpt };
   } catch(e) { return false; }
 }
 async function classifyLeadsWithHaiku(leads, icp) {
   if (!leads.length) return [];
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const icpDesc = [
-    icp.industry     ? `Industry: ${icp.industry}` : '',
-    icp.role         ? `Role: ${icp.role}` : '',
-    icp.company_size ? `Company size: ${icp.company_size}` : '',
-    icp.geography    ? `Geography: ${icp.geography}` : ''
+    icp.industry          ? `Industry: ${icp.industry}` : '',
+    icp.apollo_titles?.length ? `Target titles: ${icp.apollo_titles.join(', ')}` : (icp.role ? `Role: ${icp.role}` : ''),
+    icp.company_size      ? `Company size: ${icp.company_size}` : '',
+    icp.apollo_geography?.length ? `Geography: ${icp.apollo_geography.join(', ')}` : (icp.geography ? `Geography: ${icp.geography}` : ''),
+    icp.person_seniorities?.length ? `Seniority: ${icp.person_seniorities.join(', ')}` : ''
   ].filter(Boolean).join('\n');
   const leadLines = leads.map((l, i) =>
     `Lead ${i+1}: ${l.name} | ${l.title} | ${l.company} (${l.company_size || 'unknown size'})` +
@@ -749,7 +783,12 @@ async function classifyLeadsWithHaiku(leads, icp) {
   try {
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001', max_tokens: 1200, temperature: 0,
-      system: 'You are an ICP classifier. Return valid JSON only. No markdown.',
+      system: `You are a strict B2B lead classifier. Rules:
+1. A lead MATCHES only if: (a) their job title is relevant to the target ICP role, AND (b) their company's website clearly indicates they operate in the target industry.
+2. Wrong industry = NO MATCH regardless of title. A "CEO" at a logistics firm is not a match for a consulting ICP.
+3. When uncertain — default to match: false. It is better to exclude a borderline lead than to include a bad one.
+4. "confidence: high" = both title and website clearly confirm ICP fit. "medium" = title fits but website unclear. "low" = partial fit only.
+5. Return valid JSON only. No markdown.`,
       messages: [{ role: 'user', content: userMsg }]
     });
     const raw = msg.content[0].text;
@@ -781,7 +820,7 @@ async function fetchLeadsFromApollo(icp) {
   if (industry)               baseBody.q_organization_keyword_tags = [industry];
   if (icp?.company_size)      baseBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
   if (apolloGeo)              baseBody.person_locations = apolloGeo;
-  else if (icp?.geography)    baseBody.person_locations = [icp.geography]; // legacy fallback
+  // No legacy geography fallback — raw narrative strings break Apollo; omit filter if no clean array
   if (Array.isArray(icp?.person_seniorities) && icp.person_seniorities.length)
                               baseBody.person_seniorities = icp.person_seniorities;
   console.log('[Apollo] Searching pages 1–4:', JSON.stringify({ apollo_titles: apolloTitles, industry }));
@@ -794,9 +833,8 @@ async function fetchLeadsFromApollo(icp) {
       const tamBody = { per_page: 1 };
       if (industry) tamBody.q_organization_keyword_tags = [industry];
       if (icp?.company_size) tamBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
-      // Geography filter: use apollo_geography (clean country array) for org HQ location
+      // Geography filter: clean country array only — raw narrative string would break TAM count
       if (apolloGeo) tamBody.q_organization_locations = apolloGeo;
-      else if (icp?.geography && !/global|worldwide|international/i.test(icp.geography)) tamBody.q_organization_locations = [icp.geography];
       const tamRes = await fetch('https://api.apollo.io/v1/organizations/search', {
         method: 'POST', headers: apolloHeaders,
         body: JSON.stringify(tamBody), signal: AbortSignal.timeout(8000)
