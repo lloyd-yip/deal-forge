@@ -243,13 +243,12 @@
           <div style="margin-bottom:22px;">
             <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3f3f46;margin-bottom:10px;">ICP — Who They Sell To</div>
             <div style="display:grid;gap:10px;">
-              <div><div class="nj-label">Target Role(s) <span style="color:#3f3f46;font-weight:400;">(display)</span></div><input id="bf-role" class="nj-input" placeholder="CEO, Founder, Managing Director"></div>
-              <div><div class="nj-label">Apollo Search Titles <span style="color:#3f3f46;font-weight:400;">(API — comma separated)</span></div><input id="bf-apollo-titles" class="nj-input" placeholder="CEO, Founder, Managing Director"></div>
+              <div><div class="nj-label">Target Titles <span style="color:#3f3f46;font-weight:400;">(Apollo API — comma separated)</span></div><input id="bf-apollo-titles" class="nj-input" placeholder="CEO, Director of Strategy, Head of Operations"></div>
               <div class="brief-grid-2">
-                <div><div class="nj-label">Industry</div><input id="bf-industry" class="nj-input" placeholder="consulting"></div>
-                <div><div class="nj-label">Geography</div><input id="bf-geography" class="nj-input" placeholder="US, Canada (optional)"></div>
+                <div><div class="nj-label">Industries <span style="color:#3f3f46;font-weight:400;">(comma separated)</span></div><input id="bf-industry" class="nj-input" placeholder="government administration, financial services"></div>
+                <div><div class="nj-label">Geography <span style="color:#3f3f46;font-weight:400;">(countries / regions)</span></div><input id="bf-geography" class="nj-input" placeholder="Estonia, Latvia, Lithuania"></div>
               </div>
-              <div><div class="nj-label">Company Size (target clients)</div><input id="bf-company-size" class="nj-input" placeholder="10-50 employees"></div>
+              <div><div class="nj-label">Company Size (target clients)</div><input id="bf-company-size" class="nj-input" placeholder="50-500 employees"></div>
             </div>
           </div>
 
@@ -773,7 +772,7 @@ function njReset() {
   document.getElementById('nj-transcript-missing').style.display = 'none';
   document.getElementById('nj-step2').style.display = 'none';
   // Clear all brief fields
-  ['bf-company','bf-contact-name','bf-contact-title','bf-role','bf-apollo-titles',
+  ['bf-company','bf-contact-name','bf-contact-title','bf-apollo-titles',
    'bf-industry','bf-company-size','bf-geography','bf-ltv','bf-close-rate','bf-show-rate',
    'bf-pain','bf-result','bf-methodology','bf-proof','bf-goals','bf-why',
    'bf-title-a','bf-title-b',
@@ -882,11 +881,16 @@ function njShowBrief() {
   setVal('bf-company',      prospect.company);
   setVal('bf-contact-name', prospect.contact_name);
   setVal('bf-contact-title',prospect.contact_title);
-  setVal('bf-role',         icp.role);
   setVal('bf-apollo-titles', Array.isArray(icp.apollo_titles) ? icp.apollo_titles.join(', ') : (icp.apollo_titles || ''));
-  setVal('bf-industry',     icp.industry);
+  // Industry: prefer apollo_industries array (multi-sector), fall back to single industry string
+  setVal('bf-industry', Array.isArray(icp.apollo_industries) && icp.apollo_industries.length
+    ? icp.apollo_industries.join(', ')
+    : (icp.industry || ''));
   setVal('bf-company-size', icp.company_size);
-  setVal('bf-geography',    icp.geography);
+  // Geography: prefer apollo_geography (clean countries), fall back to narrative geography
+  setVal('bf-geography', Array.isArray(icp.apollo_geography) && icp.apollo_geography.length
+    ? icp.apollo_geography.join(', ')
+    : (icp.geography || ''));
   setVal('bf-ltv',          metrics.ltv);
   setVal('bf-close-rate',   metrics.close_rate);
   setVal('bf-show-rate',    metrics.show_rate);
@@ -946,13 +950,27 @@ function njGenerate() {
       contact_name:  getVal('bf-contact-name'),
       contact_title: getVal('bf-contact-title')
     },
-    icp: {
-      role:          getVal('bf-role'),
-      apollo_titles: apolloTitlesArr,
-      industry:      getVal('bf-industry') || 'consulting',
-      company_size:  getVal('bf-company-size'),
-      geography:     getVal('bf-geography')
-    },
+    icp: (function() {
+      var industryRaw = getVal('bf-industry');
+      var apolloIndustriesArr = industryRaw
+        ? industryRaw.split(',').map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; })
+        : null;
+      var geoRaw = getVal('bf-geography');
+      var apolloGeoArr = geoRaw
+        ? geoRaw.split(',').map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; })
+        : null;
+      return {
+        role:                 apolloTitlesArr ? apolloTitlesArr.join(', ') : null,
+        apollo_titles:        apolloTitlesArr,
+        apollo_industries:    apolloIndustriesArr,
+        industry:             apolloIndustriesArr ? apolloIndustriesArr[0] : null,
+        company_size:         getVal('bf-company-size'),
+        apollo_employee_ranges: (_njPrefetchResult && _njPrefetchResult.brief && _njPrefetchResult.brief.icp) ? (_njPrefetchResult.brief.icp.apollo_employee_ranges || null) : null,
+        geography:            geoRaw,
+        apollo_geography:     apolloGeoArr,
+        person_seniorities:   (_njPrefetchResult && _njPrefetchResult.brief && _njPrefetchResult.brief.icp) ? (_njPrefetchResult.brief.icp.person_seniorities || null) : null,
+      };
+    })(),
     metrics: {
       ltv:        getVal('bf-ltv'),
       close_rate: getVal('bf-close-rate'),

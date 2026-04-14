@@ -1961,37 +1961,38 @@ function runPersonalization(session) {
 
     // ── Lead list ICP parameters ──────────────────────────────────────────────
     const icpFiltersRow = document.querySelector('.tam-filters-row');
-    if (icpFiltersRow && (icp.role || icp.industry || icp.company_size || icp.geography)) {
-      function makeFilterTags(str) {
-        if (!str) return '';
-        return str.split(/[\/,;]|\s+and\s+/i)
-          .map(function(s) { return s.trim(); })
-          .filter(function(s) { return s.length > 0 && s.length < 80; })
-          .map(function(s) { return '<span class="filter-tag">' + s + '</span>'; })
-          .join('');
+    // Use Apollo-native fields for display — these are the actual search parameters used.
+    // Fall back to narrative fields only if clean arrays are absent (old briefs).
+    const displayTitles = Array.isArray(icp.apollo_titles) && icp.apollo_titles.length ? icp.apollo_titles : null;
+    const displayIndustries = Array.isArray(icp.apollo_industries) && icp.apollo_industries.length ? icp.apollo_industries : (icp.industry ? [icp.industry] : null);
+    const displayGeos = Array.isArray(icp.apollo_geography) && icp.apollo_geography.length ? icp.apollo_geography : null;
+    const displaySize = icp.company_size || null;
+
+    if (icpFiltersRow && (displayTitles || displayIndustries || displaySize || displayGeos)) {
+      function makeFilterTags(arr) {
+        return arr.map(function(s) { return '<span class="filter-tag">' + s + '</span>'; }).join('');
       }
 
       let filtersHTML = '';
-      if (icp.role) {
+      if (displayTitles) {
         filtersHTML += '<span class="filter-group-label">Titles</span>';
-        filtersHTML += makeFilterTags(icp.role);
+        filtersHTML += makeFilterTags(displayTitles);
         filtersHTML += '<span class="filter-sep">·</span>';
       }
-      if (icp.company_size) {
+      if (displaySize) {
         filtersHTML += '<span class="filter-group-label">Company Size</span>';
-        filtersHTML += '<span class="filter-tag">' + icp.company_size + '</span>';
+        filtersHTML += '<span class="filter-tag">' + displaySize + '</span>';
         filtersHTML += '<span class="filter-sep">·</span>';
       }
-      if (icp.industry) {
+      if (displayIndustries) {
         filtersHTML += '<span class="filter-group-label">Industries</span>';
-        filtersHTML += makeFilterTags(icp.industry);
+        filtersHTML += makeFilterTags(displayIndustries);
         filtersHTML += '<span class="filter-sep">·</span>';
       }
-      if (icp.geography) {
+      if (displayGeos) {
         filtersHTML += '<span class="filter-group-label">Geographies</span>';
-        filtersHTML += makeFilterTags(icp.geography);
+        filtersHTML += makeFilterTags(displayGeos);
       } else {
-        // Remove trailing separator
         filtersHTML = filtersHTML.replace(/<span class="filter-sep">·<\/span>$/, '');
       }
       icpFiltersRow.innerHTML = filtersHTML;

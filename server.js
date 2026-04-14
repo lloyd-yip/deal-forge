@@ -574,7 +574,8 @@ Return this exact JSON (null for anything not found):
   "icp": {
     "role":          "string | null — human-readable description of their target buyers (used for display only)",
     "apollo_titles": "array of strings | null — EXACTLY 3-6 standalone job titles for Apollo API search. STRICT RULES: (1) Each entry must be a real job title a person would hold — 2-4 words max. (2) NEVER include sentence fragments, descriptions, qualifiers, or phrases. If the transcript says 'senior decision-makers at organizations with 50+ employees, particularly in government, large enterprises, who need to manage strategy execution, goals, accountability' — that is a DESCRIPTION, not a list of titles. Extract titles from it: ['CEO', 'Director of Strategy', 'Chief Strategy Officer', 'Head of Operations']. (3) Self-check each entry: would this appear verbatim on a LinkedIn profile or business card? If not — it is wrong, replace it. VALID: ['CEO', 'Managing Director', 'VP Sales', 'Head of Strategy', 'Chief Operating Officer']. INVALID: ['particularly in government', 'large enterprises', 'goals', 'accountability', 'who need to manage']. If titles not stated, INFER from role/industry context. Null ONLY if buyer role is completely indeterminate.",
-    "industry":      "string | null — Apollo-compatible industry keyword for the sector of the PROSPECT'S TARGET CLIENT companies. This is the SECTOR THEIR CLIENTS WORK IN — not what the prospect company does or sells. A strategy software company selling to governments → 'government administration'. A financial coach selling to investment firms → 'financial services'. Use specific Apollo-searchable terms such as: 'government administration', 'financial services', 'management consulting', 'healthcare', 'education management', 'real estate', 'software development', 'marketing and advertising', 'retail', 'manufacturing', 'banking', 'insurance', 'nonprofit organization management', 'legal services', 'construction', 'telecommunications', 'oil and energy', 'pharmaceuticals', 'hospitality', 'transportation/trucking/railroad'. Return the single best-fit sector, or null if genuinely unclear.",
+    "apollo_industries": "array of 1-5 strings | null — Apollo-compatible industry tags for ALL sectors the prospect's TARGET CLIENT companies could be in. Think broadly — if they target 'government and large enterprises', their clients span multiple sectors. Examples: strategy software targeting govt/enterprise → ['government administration', 'financial services', 'information technology and services', 'nonprofit organization management']. Marketing agency targeting e-commerce → ['retail', 'consumer goods', 'apparel and fashion']. Use specific Apollo-searchable terms: 'government administration', 'financial services', 'management consulting', 'healthcare', 'education management', 'real estate', 'software development', 'marketing and advertising', 'retail', 'manufacturing', 'banking', 'insurance', 'nonprofit organization management', 'legal services', 'construction', 'telecommunications', 'information technology and services', 'consumer goods', 'pharmaceuticals', 'hospitality', 'transportation/trucking/railroad'. Null ONLY if sector completely indeterminate.",
+    "industry":      "string | null — single best-fit sector tag from apollo_industries (first/most representative one), for display only",
     "company_size":  "string | null — human-readable size of their TARGET clients, for display only (e.g. '50-200 employees', 'mid-market', 'enterprise'). Concise — not a full sentence.",
     "apollo_employee_ranges": "array of strings | null — Apollo API employee range codes for their TARGET clients. Choose ONLY from these exact strings: '1,10', '11,50', '51,200', '201,500', '501,1000', '1001,10000', '10001,50000', '50001+'. Match to the described size: '50+ employees, ideally 100+' → ['51,200','201,500']. 'Enterprise/large organizations' → ['501,1000','1001,10000']. 'Small businesses under 10' → ['1,10']. Select 1-3 contiguous ranges that bracket the target. Null if no size mentioned.",
     "geography":     "string | null — target geography narrative, only if explicitly mentioned",
@@ -635,7 +636,7 @@ Return this exact JSON (null for anything not found):
 function emptyBrief(contactInfo) {
   return {
     prospect:  { company: contactInfo.company || null, contact_name: contactInfo.name || null, contact_title: null },
-    icp:       { role: null, apollo_titles: null, industry: null, company_size: null, apollo_employee_ranges: null, geography: null, apollo_geography: null, person_seniorities: null, company_revenue: null, kpis: null },
+    icp:       { role: null, apollo_titles: null, apollo_industries: null, industry: null, company_size: null, apollo_employee_ranges: null, geography: null, apollo_geography: null, person_seniorities: null, company_revenue: null, kpis: null },
     metrics:   { ltv: null, close_rate: null, show_rate: null },
     angle:     { pain: null, result: null, methodology: null, proof: null },
     verbatim:  { pain_quote: null, result_quote: null, goal_quote: null },
@@ -672,26 +673,33 @@ function fmtEmp(n) {
 // We estimate the global reachable market from known industry/size data.
 // These are conservative global counts of relevant decision-makers in Apollo's database.
 function estimateGlobalTAM(icp) {
-  // Industry base: fuzzy-match against free-form Apollo industry strings
-  const industryStr = (icp?.industry || '').toLowerCase();
-  let base = 1100000; // default
-  if (/coach/.test(industryStr)) base = 4000000;
-  else if (/consult/.test(industryStr)) base = 2500000;
-  else if (/agency|advertis|marketing/.test(industryStr)) base = 1200000;
-  else if (/ecommerce|retail/.test(industryStr)) base = 1500000;
-  else if (/manufactur/.test(industryStr)) base = 950000;
-  else if (/software|tech|saas/.test(industryStr)) base = 900000;
-  else if (/real.estate/.test(industryStr)) base = 750000;
-  else if (/health|medical|pharma/.test(industryStr)) base = 650000;
-  else if (/financ|banking|insurance/.test(industryStr)) base = 550000;
-  else if (/legal|law/.test(industryStr)) base = 380000;
-  else if (/government|public.sector|municipal/.test(industryStr)) base = 280000;
-  else if (/education|school|university/.test(industryStr)) base = 420000;
-  else if (/nonprofit|ngo/.test(industryStr)) base = 200000;
-  else if (/construct|architect/.test(industryStr)) base = 220000;
-  else if (/transport|logistics/.test(industryStr)) base = 310000;
-  else if (/hospitality|hotel/.test(industryStr)) base = 180000;
-  else if (/telecom/.test(industryStr)) base = 120000;
+  // Industry base: sum across all sectors in apollo_industries array, with diminishing returns
+  const industries = Array.isArray(icp?.apollo_industries) && icp.apollo_industries.length
+    ? icp.apollo_industries
+    : [(icp?.industry || '')];
+  function getIndBase(s) {
+    s = s.toLowerCase();
+    if (/coach/.test(s)) return 4000000;
+    if (/consult/.test(s)) return 2500000;
+    if (/agency|advertis|marketing/.test(s)) return 1200000;
+    if (/ecommerce|retail|consumer/.test(s)) return 1500000;
+    if (/manufactur/.test(s)) return 950000;
+    if (/software|tech|saas|information technology/.test(s)) return 900000;
+    if (/real.estate/.test(s)) return 750000;
+    if (/health|medical|pharma/.test(s)) return 650000;
+    if (/financ|banking|insurance/.test(s)) return 550000;
+    if (/legal|law/.test(s)) return 380000;
+    if (/government|public.sector|municipal/.test(s)) return 280000;
+    if (/education|school|university/.test(s)) return 420000;
+    if (/nonprofit|ngo/.test(s)) return 200000;
+    if (/construct|architect/.test(s)) return 220000;
+    if (/transport|logistics/.test(s)) return 310000;
+    if (/hospitality|hotel/.test(s)) return 180000;
+    if (/telecom/.test(s)) return 120000;
+    return 1100000;
+  }
+  // Each additional industry adds 60% of its base (avoid double-counting overlapping markets)
+  let base = industries.reduce((sum, ind, i) => sum + getIndBase(ind) * Math.pow(0.6, i), 0);
 
   // Size adjustment: larger company = fewer companies but same contact density
   const sizeStr = (icp?.company_size || '').toLowerCase();
@@ -866,9 +874,11 @@ async function fetchLeadsFromApollo(icp) {
   const APOLLO_KEY = process.env.APOLLO_API_KEY;
   if (!APOLLO_KEY) { console.log('[Apollo] No API key — skipping'); return null; }
 
-  const apolloTitles = Array.isArray(icp?.apollo_titles) && icp.apollo_titles.length ? icp.apollo_titles : null;
-  const industry     = icp?.industry;
-  if (!industry && !apolloTitles?.length) { console.log('[Apollo] No ICP — skipping'); return null; }
+  const apolloTitles    = Array.isArray(icp?.apollo_titles) && icp.apollo_titles.length ? icp.apollo_titles : null;
+  const apolloIndustries = Array.isArray(icp?.apollo_industries) && icp.apollo_industries.length
+    ? icp.apollo_industries
+    : (icp?.industry ? [icp.industry] : null); // fallback: legacy single-industry briefs
+  if (!apolloIndustries?.length && !apolloTitles?.length) { console.log('[Apollo] No ICP — skipping'); return null; }
 
   const apolloHeaders = { 'Content-Type': 'application/json', 'Accept': 'application/json', 'x-api-key': APOLLO_KEY };
   const apolloGeo     = Array.isArray(icp?.apollo_geography) && icp.apollo_geography.length ? icp.apollo_geography : null;
@@ -878,7 +888,7 @@ async function fetchLeadsFromApollo(icp) {
     : (icp?.company_size ? mapCompanySize(icp.company_size) : null);
   const seniorities   = Array.isArray(icp?.person_seniorities) && icp.person_seniorities.length ? icp.person_seniorities : null;
 
-  console.log('[Apollo] Starting org-first lead search:', JSON.stringify({ industry, apolloTitles, apolloGeo }));
+  console.log('[Apollo] Starting org-first lead search:', JSON.stringify({ apolloIndustries, apolloTitles, apolloGeo }));
   const timeout270s = new Promise(resolve => setTimeout(() => { console.warn('[Apollo] 4.5min timeout'); resolve(null); }, 270000));
 
   const apolloCore = async () => {
@@ -889,7 +899,7 @@ async function fetchLeadsFromApollo(icp) {
     // This is the quality anchor: we confirm company industry+size+geo BEFORE finding people.
     try {
       const orgBody = { per_page: 50 }; // 50 orgs → people search across all of them
-      if (industry)    orgBody.q_organization_keyword_tags    = [industry];
+      if (apolloIndustries) orgBody.q_organization_keyword_tags = apolloIndustries;
       if (sizeRanges)  orgBody.organization_num_employees_ranges = sizeRanges;
       if (apolloGeo)   orgBody.q_organization_locations       = apolloGeo;
       const orgRes = await fetch('https://api.apollo.io/v1/organizations/search', {
@@ -940,7 +950,7 @@ async function fetchLeadsFromApollo(icp) {
     if (!usedPeopleSearch) {
       const contactsBody = { per_page: 25 };
       if (apolloTitles?.length) contactsBody.person_titles                   = apolloTitles;
-      if (industry)             contactsBody.q_organization_keyword_tags      = [industry];
+      if (apolloIndustries)     contactsBody.q_organization_keyword_tags      = apolloIndustries;
       if (sizeRanges)           contactsBody.organization_num_employees_ranges = sizeRanges;
       if (apolloGeo)            contactsBody.person_locations                 = apolloGeo;
       if (seniorities)          contactsBody.person_seniorities               = seniorities;
@@ -1377,18 +1387,13 @@ async function handleLeadList(task, job) {
   const brief = job.extracted_data || {};
   const icp   = brief.icp || {};
 
-  const effectiveIcp = {
-    industry:      icp.industry      || 'consulting',
-    role:          icp.role          || null,
-    apollo_titles: icp.apollo_titles || null,   // clean titles array e.g. ["CEO","Founder"]
-    company_size:  icp.company_size  || null,
-    geography:     icp.geography     || null
-  };
-  console.log('[lead_list] ICP from brief:', JSON.stringify(effectiveIcp));
+  // Pass the full ICP — do NOT reconstruct a subset. apollo_geography, apollo_employee_ranges,
+  // apollo_industries, person_seniorities are all needed by fetchLeadsFromApollo.
+  console.log('[lead_list] ICP from brief:', JSON.stringify(icp));
 
   // fetchLeadsFromApollo already runs website quality gate + Haiku classification internally.
   // Do NOT call filterLeadsByWebsite here — that would re-scrape every site a second time.
-  const result = await fetchLeadsFromApollo(effectiveIcp);
+  const result = await fetchLeadsFromApollo(icp);
   const leads  = result?.leads || [];
   console.log(`[lead_list] Apollo returned ${leads.length} classified leads, TAM: ${result?.total}`);
   return { leads, total: result?.total || 0 };
