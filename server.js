@@ -575,7 +575,8 @@ Return this exact JSON (null for anything not found):
     "role":          "string | null — human-readable description of their target buyers (used for display only)",
     "apollo_titles": "array of strings | null — EXACTLY 3-6 standalone job titles for Apollo API search. STRICT RULES: (1) Each entry must be a real job title a person would hold — 2-4 words max. (2) NEVER include sentence fragments, descriptions, qualifiers, or phrases. If the transcript says 'senior decision-makers at organizations with 50+ employees, particularly in government, large enterprises, who need to manage strategy execution, goals, accountability' — that is a DESCRIPTION, not a list of titles. Extract titles from it: ['CEO', 'Director of Strategy', 'Chief Strategy Officer', 'Head of Operations']. (3) Self-check each entry: would this appear verbatim on a LinkedIn profile or business card? If not — it is wrong, replace it. VALID: ['CEO', 'Managing Director', 'VP Sales', 'Head of Strategy', 'Chief Operating Officer']. INVALID: ['particularly in government', 'large enterprises', 'goals', 'accountability', 'who need to manage']. If titles not stated, INFER from role/industry context. Null ONLY if buyer role is completely indeterminate.",
     "industry":      "string | null — Apollo-compatible industry keyword for the sector of the PROSPECT'S TARGET CLIENT companies. This is the SECTOR THEIR CLIENTS WORK IN — not what the prospect company does or sells. A strategy software company selling to governments → 'government administration'. A financial coach selling to investment firms → 'financial services'. Use specific Apollo-searchable terms such as: 'government administration', 'financial services', 'management consulting', 'healthcare', 'education management', 'real estate', 'software development', 'marketing and advertising', 'retail', 'manufacturing', 'banking', 'insurance', 'nonprofit organization management', 'legal services', 'construction', 'telecommunications', 'oil and energy', 'pharmaceuticals', 'hospitality', 'transportation/trucking/railroad'. Return the single best-fit sector, or null if genuinely unclear.",
-    "company_size":  "string | null — size of their TARGET clients (employees or revenue), verbatim",
+    "company_size":  "string | null — human-readable size of their TARGET clients, for display only (e.g. '50-200 employees', 'mid-market', 'enterprise'). Concise — not a full sentence.",
+    "apollo_employee_ranges": "array of strings | null — Apollo API employee range codes for their TARGET clients. Choose ONLY from these exact strings: '1,10', '11,50', '51,200', '201,500', '501,1000', '1001,10000', '10001,50000', '50001+'. Match to the described size: '50+ employees, ideally 100+' → ['51,200','201,500']. 'Enterprise/large organizations' → ['501,1000','1001,10000']. 'Small businesses under 10' → ['1,10']. Select 1-3 contiguous ranges that bracket the target. Null if no size mentioned.",
     "geography":     "string | null — target geography narrative, only if explicitly mentioned",
     "apollo_geography": "array of strings | null — clean location names for Apollo API. Valid entries: country names, continent names, US/Canadian/Australian states or provinces, major cities. STRICT RULES: (1) NEVER include language names — Estonian, Latvian, Lithuanian, Montenegrin, English are LANGUAGES not locations. If transcript mentions these as languages, extract the corresponding countries instead: Estonia, Latvia, Lithuania, Montenegro. (2) NEVER include narrative phrases like 'Currently mostly...', 'expanding internationally', 'multi-language support'. (3) Extract ONLY the location noun. Examples: 'North America' → ['United States', 'Canada']. 'Baltic states' → ['Estonia', 'Latvia', 'Lithuania']. 'DACH region' → ['Germany', 'Austria', 'Switzerland']. Null if no geography mentioned.",
     "person_seniorities": "array of strings | null — seniority levels of target buyers. Choose ONLY from these exact values: owner, founder, c_suite, partner, vp, head, director, manager. Infer from role/title context. Null if completely unclear.",
@@ -634,7 +635,7 @@ Return this exact JSON (null for anything not found):
 function emptyBrief(contactInfo) {
   return {
     prospect:  { company: contactInfo.company || null, contact_name: contactInfo.name || null, contact_title: null },
-    icp:       { role: null, apollo_titles: null, industry: 'consulting', company_size: null, geography: null, apollo_geography: null, person_seniorities: null, company_revenue: null, kpis: null },
+    icp:       { role: null, apollo_titles: null, industry: null, company_size: null, apollo_employee_ranges: null, geography: null, apollo_geography: null, person_seniorities: null, company_revenue: null, kpis: null },
     metrics:   { ltv: null, close_rate: null, show_rate: null },
     angle:     { pain: null, result: null, methodology: null, proof: null },
     verbatim:  { pain_quote: null, result_quote: null, goal_quote: null },
@@ -861,7 +862,10 @@ async function fetchLeadsFromApollo(icp) {
 
   const apolloHeaders = { 'Content-Type': 'application/json', 'Accept': 'application/json', 'x-api-key': APOLLO_KEY };
   const apolloGeo     = Array.isArray(icp?.apollo_geography) && icp.apollo_geography.length ? icp.apollo_geography : null;
-  const sizeRanges    = icp?.company_size ? mapCompanySize(icp.company_size) : null;
+  // Prefer LLM-extracted Apollo ranges; fall back to mapCompanySize for legacy briefs
+  const sizeRanges    = (Array.isArray(icp?.apollo_employee_ranges) && icp.apollo_employee_ranges.length)
+    ? icp.apollo_employee_ranges
+    : (icp?.company_size ? mapCompanySize(icp.company_size) : null);
   const seniorities   = Array.isArray(icp?.person_seniorities) && icp.person_seniorities.length ? icp.person_seniorities : null;
 
   console.log('[Apollo] Starting org-first lead search:', JSON.stringify({ industry, apolloTitles, apolloGeo }));
