@@ -1846,7 +1846,7 @@ function runPersonalization(session) {
     const tamTotal = gen.apolloTotal;
     if (tamTotal) {
       const tamEl = document.getElementById('tam-total-val');
-      if (tamEl) tamEl.textContent = tamTotal >= 1000 ? Math.round(tamTotal / 100) / 10 + 'K' : tamTotal.toLocaleString();
+      if (tamEl) tamEl.textContent = tamTotal >= 1000000 ? Math.round(tamTotal / 100000) / 10 + 'M' : tamTotal >= 1000 ? Math.round(tamTotal / 100) / 10 + 'K' : tamTotal.toLocaleString();
       const cycleMonths = tamTotal > 60000 ? '~3 mo' : tamTotal > 20000 ? '~2 mo' : '~1 mo';
       const cycleEl = document.getElementById('tam-cycle-val');
       if (cycleEl) cycleEl.textContent = cycleMonths;
