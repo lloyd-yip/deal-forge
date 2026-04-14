@@ -1856,6 +1856,12 @@ function runPersonalization(session) {
       const monthlyHi = Math.round(monthlyRaw * 1.15 / 1000);
       const monthlyEl = document.getElementById('tam-monthly-val');
       if (monthlyEl) monthlyEl.textContent = monthlyLo + '–' + monthlyHi + 'K';
+    } else if (!gen.leadsTaskStatus || gen.leadsTaskStatus === 'pending') {
+      // Lead search still running — show searching state instead of static —
+      var tamSearchEl = document.getElementById('tam-total-val');
+      if (tamSearchEl) tamSearchEl.innerHTML = '<span style="font-size:16px;color:#52525b;letter-spacing:normal;font-weight:500;">Searching\u2026</span>';
+      var tamMonthSearch = document.getElementById('tam-monthly-val');
+      if (tamMonthSearch) tamMonthSearch.innerHTML = '<span style="font-size:16px;color:#52525b;letter-spacing:normal;font-weight:500;">Computing</span>';
     }
 
     // ── Calendar invite personalization ──────────────────────────────────────
