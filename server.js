@@ -645,6 +645,7 @@ function mapCompanySize(sizeStr) {
   if (!sizeStr) return ['11,50', '51,200'];
   const s = sizeStr.toLowerCase();
   if (/solo|1.person|solopreneur/.test(s)) return ['1,1'];
+  if (/\bsmall\b/.test(s) && !/team/.test(s)) return ['1,10'];
   if (/1.10|under 10|fewer than 10/.test(s)) return ['1,10'];
   if (/10.50|startup|small.*team/.test(s)) return ['1,10', '11,50'];
   if (/50.200|mid.size|growing/.test(s)) return ['51,200'];
@@ -672,6 +673,9 @@ async function websiteQualityCheck(url) {
     if (!titleMatch || !titleMatch[1].trim()) return false;
     const bodyText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     if (bodyText.split(' ').length < 50) return false;
+    const hasH1       = /<h1[^>]*>[^<]+<\/h1>/i.test(html);
+    const metaDesc    = (html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{5,})/i) || [])[1] || '';
+    if (!hasH1 && !metaDesc) return false;
     return { title: titleMatch[1].trim(), excerpt: bodyText.slice(0, 500) };
   } catch(e) { return false; }
 }
@@ -725,7 +729,7 @@ async function fetchLeadsFromApollo(icp) {
   const apolloCore = async () => {
     const allPeople = []; let total = null;
     try {
-      for (let page = 1; page <= 2; page++) {
+      for (let page = 1; page <= 4; page++) {
         const res = await fetch('https://api.apollo.io/v1/mixed_people_search', {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify({ ...baseBody, page }), signal: AbortSignal.timeout(12000)
@@ -776,9 +780,10 @@ async function generateWebinarTitles(extracted, companyName) {
   const icp = extracted.icp || {};
   const role = icp.role || 'business owners', industry = icp.industry || 'B2B';
   const size = icp.company_size || '', geo = icp.geography;
-  const pain = extracted.customer_pain || 'unpredictable client acquisition';
-  const result = extracted.result_delivered || 'predictable revenue growth';
-  const cs = extracted.case_study;
+  // Brief schema uses angle.pain/result; spec schema uses customer_pain/result_delivered — support both
+  const pain   = extracted.customer_pain   || extracted.angle?.pain   || 'unpredictable client acquisition';
+  const result = extracted.result_delivered || extracted.angle?.result || 'predictable revenue growth';
+  const cs     = extracted.case_study || null;
   const outputSchema = `\nRuntime rules: write as ${companyName} hosting — NEVER as Quantum Scaling • titles HARD LIMIT 60 chars • bullets = specific transformations, not topics • ${cs?.numbers ? 'proof numbers verbatim: ' + cs.numbers : 'no fabricated proof numbers'}\nReturn valid JSON only matching the Output Format schema above.`;
   let systemPrompt, userPrompt;
   if (WEBINAR_SYSTEM_TEMPLATE) {
@@ -788,7 +793,7 @@ async function generateWebinarTitles(extracted, companyName) {
       `- Core pain they solve: ${pain}`,
       `- Result they deliver: ${result}`,
       cs?.numbers ? `- Client proof: ${cs.client_description || 'A client'} — ${cs.result || ''} (${cs.numbers})` : null,
-      extracted.webinar_angle ? `- Webinar angle: ${extracted.webinar_angle}` : null
+      (extracted.webinar_angle || extracted.context?.why_webinar) ? `- Webinar angle: ${extracted.webinar_angle || extracted.context?.why_webinar}` : null
     ].filter(Boolean).join('\n');
     systemPrompt = interpolate(WEBINAR_SYSTEM_TEMPLATE, {
       prospect_company_name: companyName, icp_role: role, icp_industry: industry,
@@ -802,7 +807,7 @@ async function generateWebinarTitles(extracted, companyName) {
       icp_geography_line:   geo ? `\n**Geography:** ${geo}` : '',
       customer_pain: pain, result_delivered: result,
       case_study_block:    cs?.result ? `**Client proof:** ${cs.client_description || 'A client'} — ${cs.result}${cs.numbers ? ' (' + cs.numbers + ')' : ''}` : '',
-      webinar_angle_block: extracted.webinar_angle ? `**Webinar angle:** ${extracted.webinar_angle}` : ''
+      webinar_angle_block: (extracted.webinar_angle || extracted.context?.why_webinar) ? `**Webinar angle:** ${extracted.webinar_angle || extracted.context?.why_webinar}` : ''
     });
   } else {
     systemPrompt = `You are a direct-response copywriter writing calendar blocker copy for ${companyName}'s webinar targeting ${role}s in ${industry}. Write as ${companyName} hosting — never as Quantum Scaling. Return valid JSON only.` + outputSchema;
@@ -933,8 +938,8 @@ async function handleExtract(task, job) {
 
   if (!parts.length) parts.push(`Prospect email: ${email}\nDomain: ${scrapeDomain}`);
 
-  // Step 4: Claude extraction
-  const extracted = await extractWithClaude(parts.join('\n\n---\n\n'));
+  // Step 4: Claude extraction (extractBriefFromTranscript is the only extractor defined)
+  const extracted = await extractBriefFromTranscript(parts.join('\n\n---\n\n'), '', { name: null, company: null, website: scrapeDomain });
 
   // Company name cleanup: vague descriptions → use domain
   if (extracted.prospect) {
@@ -1167,10 +1172,11 @@ async function handleWebinarTitles(task, job) {
 
 async function handleRoiModel(task, job) {
   const extracted = job.extracted_data;
-  const rawLtv = extracted?.business?.ltv;
+  // Brief schema stores under metrics; spec schema uses business — support both
+  const rawLtv = extracted?.metrics?.ltv || extracted?.business?.ltv;
 
   if (!rawLtv) {
-    await needsInputTask(task.id, 'Missing: business.ltv — rep must enter manually');
+    await needsInputTask(task.id, 'Missing: LTV — rep must enter manually');
     return null; // signal needs_input
   }
   const ltv = parseLtv(rawLtv);
@@ -1179,8 +1185,8 @@ async function handleRoiModel(task, job) {
     return null;
   }
 
-  const closeRate = parseRate(extracted?.business?.close_rate, 0.20);
-  const showRate  = parseRate(extracted?.business?.show_rate,  0.70);
+  const closeRate = parseRate(extracted?.metrics?.close_rate || extracted?.business?.close_rate, 0.20);
+  const showRate  = parseRate(extracted?.metrics?.show_rate  || extracted?.business?.show_rate,  0.70);
   const projections = calcRoiProjections(ltv, closeRate, showRate);
 
   if (!ROI_MODEL_TEMPLATE) throw new Error('roi_model.html template not loaded');
@@ -1196,8 +1202,8 @@ async function handleRoiModel(task, job) {
     REVENUE_24MO:     projections.revenue_24mo.toLocaleString(),
     REV1_PER_WEBINAR: projections.rev1_per_webinar.toLocaleString(),
     REV2_PER_WEBINAR: projections.rev2_per_webinar.toLocaleString(),
-    CLOSE_RATE_SOURCE: extracted?.business?.close_rate ? 'extracted from transcript' : 'default (20%)',
-    SHOW_RATE_SOURCE:  extracted?.business?.show_rate  ? 'extracted from transcript' : 'default (70%)'
+    CLOSE_RATE_SOURCE: (extracted?.metrics?.close_rate || extracted?.business?.close_rate) ? 'extracted from transcript' : 'default (20%)',
+    SHOW_RATE_SOURCE:  (extracted?.metrics?.show_rate  || extracted?.business?.show_rate)  ? 'extracted from transcript' : 'default (70%)'
   });
 
   const storagePath = `${job.id}/roi_model.html`;
@@ -1208,8 +1214,8 @@ async function handleRoiModel(task, job) {
     url: publicUrl,
     inputs_used: {
       ltv, close_rate: closeRate, show_rate: showRate,
-      close_rate_source: extracted?.business?.close_rate ? 'extracted' : 'default',
-      show_rate_source:  extracted?.business?.show_rate  ? 'extracted' : 'default'
+      close_rate_source: (extracted?.metrics?.close_rate || extracted?.business?.close_rate) ? 'extracted' : 'default',
+      show_rate_source:  (extracted?.metrics?.show_rate  || extracted?.business?.show_rate)  ? 'extracted' : 'default'
     },
     projections
   };
@@ -1230,7 +1236,10 @@ async function handleCalendarVisual(task, job) {
   const hostBio   = job.research_data?.host?.bio  || `${hostName} helps businesses grow through proven webinar strategies.`;
 
   // Generate reminder emails
-  const emailsResult = await generateReminderEmails(variant.title, hostName, extracted.result_delivered, extracted.customer_pain).catch(() => null);
+  const emailsResult = await generateReminderEmails(variant.title, hostName,
+    extracted.result_delivered || extracted.angle?.result,
+    extracted.customer_pain   || extracted.angle?.pain
+  ).catch(() => null);
   const emails = emailsResult?.emails || [];
 
   // Next Tuesday ~3 weeks from now
@@ -1283,7 +1292,11 @@ async function handleWebinarMock(task, job) {
   const hostName       = research.name              || extracted.prospect?.name    || companyName;
 
   // Generate chat messages
-  const chatResult = await generateChatMessages(variant.title, extracted.icp, extracted.customer_pain, extracted.result_delivered, hostName).catch(() => null);
+  const chatResult = await generateChatMessages(variant.title, extracted.icp,
+    extracted.customer_pain   || extracted.angle?.pain,
+    extracted.result_delivered || extracted.angle?.result,
+    hostName
+  ).catch(() => null);
   const messages = chatResult?.messages || [];
 
   // Generate timestamps starting 12:05 PM, 30-90s apart
