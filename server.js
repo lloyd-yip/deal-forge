@@ -576,7 +576,8 @@ Return this exact JSON (null for anything not found):
     "apollo_titles": "array of strings | null — 3-6 CLEAN, SPECIFIC job titles of their target buyers for API search. Each title must be 2-4 words max, no descriptions. Examples: ['CEO', 'Founder', 'Managing Director', 'VP Sales']. Null if buyer titles not mentioned.",
     "industry":      "string — single best-match industry keyword from: consulting, software, coaching, agency, ecommerce, healthcare, real_estate, finance, legal, architecture, manufacturing, other",
     "company_size":  "string | null — size of their TARGET clients (employees or revenue), verbatim",
-    "geography":     "string | null — target geography, only if explicitly mentioned"
+    "geography":     "string | null — target geography, only if explicitly mentioned",
+    "kpis":          "array of 3-5 strings — the specific business performance metrics the prospect's service directly helps their ICP improve. Extract verbatim if mentioned. If not explicitly stated, INFER from the service description, promised outcomes, and problems solved — look at what their clients gain. Return short, specific metric names like 'Revenue per client', 'Customer acquisition rate', 'Client retention rate', 'Brand visibility', 'Lead conversion rate', 'Average deal size'. Never null — always infer at least 3."
   },
   "metrics": {
     "ltv":        "string | null — client lifetime value, verbatim from transcript. null if not explicitly stated.",
@@ -630,7 +631,7 @@ Return this exact JSON (null for anything not found):
 function emptyBrief(contactInfo) {
   return {
     prospect:  { company: contactInfo.company || null, contact_name: contactInfo.name || null, contact_title: null },
-    icp:       { role: null, apollo_titles: null, industry: 'consulting', company_size: null, geography: null },
+    icp:       { role: null, apollo_titles: null, industry: 'consulting', company_size: null, geography: null, kpis: null },
     metrics:   { ltv: null, close_rate: null, show_rate: null },
     angle:     { pain: null, result: null, methodology: null, proof: null },
     verbatim:  { pain_quote: null, result_quote: null, goal_quote: null },
@@ -659,6 +660,45 @@ function fmtEmp(n) {
   if (n <= 200) return `${Math.round(n/10)*10} emp`;
   if (n <= 1000) return `~${Math.round(n/100)*100} emp`;
   return `${Math.round(n/1000)}K+ emp`;
+}
+// Global TAM estimator — Apollo's global people/search requires a higher plan tier.
+// We estimate the global reachable market from known industry/size data.
+// These are conservative global counts of relevant decision-makers in Apollo's database.
+function estimateGlobalTAM(icp) {
+  const industryBase = {
+    agency: 1200000, consulting: 2500000, coaching: 4000000, software: 900000,
+    ecommerce: 1500000, healthcare: 650000, real_estate: 750000, finance: 550000,
+    legal: 380000, architecture: 220000, manufacturing: 950000, other: 1100000
+  };
+  const s = (icp?.industry || 'other').toLowerCase().replace(/[^a-z_]/g, '');
+  const base = industryBase[s] || 1100000;
+
+  // Size adjustment: larger company = fewer companies but same contact density
+  const sizeStr = (icp?.company_size || '').toLowerCase();
+  let sizeMult = 0.30; // default: 10-50 range
+  if (/solo|1.person|1.10|under 10/.test(sizeStr)) sizeMult = 0.42;
+  else if (/10.50|startup/.test(sizeStr)) sizeMult = 0.28;
+  else if (/50.200|mid.size/.test(sizeStr)) sizeMult = 0.18;
+  else if (/200.500|mid.market/.test(sizeStr)) sizeMult = 0.08;
+  else if (/500\+?|enterprise/.test(sizeStr)) sizeMult = 0.04;
+  // Revenue-based sizing (e.g. "$25M+" maps roughly to 50+ employees)
+  else if (/\$25m|\$50m|\$100m|million/.test(sizeStr)) sizeMult = 0.18;
+
+  // Geography adjustment
+  const geo = (icp?.geography || '').toLowerCase();
+  let geoMult = 1.0;
+  if (geo) {
+    if (/united states|usa|us\b/.test(geo)) geoMult = 0.35;
+    else if (/canada|uk|australia|germany|france/.test(geo)) geoMult = 0.08;
+    else if (/global|worldwide|international/.test(geo)) geoMult = 1.0;
+    else geoMult = 0.12; // specific region
+  }
+
+  const raw = Math.round(base * sizeMult * geoMult);
+  // Round to a clean number — nearest 5K below 100K, nearest 25K above
+  if (raw < 10000) return Math.round(raw / 500) * 500;
+  if (raw < 100000) return Math.round(raw / 5000) * 5000;
+  return Math.round(raw / 25000) * 25000;
 }
 const PARKING_SIGNALS = ['domain for sale','this domain is for sale','buy this domain','coming soon','under construction','parked by','domain parking'];
 async function websiteQualityCheck(url) {
@@ -730,6 +770,26 @@ async function fetchLeadsFromApollo(icp) {
   const timeout270s = new Promise(resolve => setTimeout(() => { console.warn('[Apollo] 4.5min timeout'); resolve(null); }, 270000));
   const apolloCore = async () => {
     const allPeople = []; let total = null;
+
+    // ── TAM: organizations/search hits Apollo's full global database (not CRM-only)
+    try {
+      const tamBody = { per_page: 1 };
+      if (industry) tamBody.q_organization_keyword_tags = [industry];
+      if (icp?.company_size) tamBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
+      const tamRes = await fetch('https://api.apollo.io/v1/organizations/search', {
+        method: 'POST', headers: apolloHeaders,
+        body: JSON.stringify(tamBody), signal: AbortSignal.timeout(8000)
+      });
+      if (tamRes.ok) {
+        const tamData = await tamRes.json();
+        const orgCount = tamData.pagination?.total_entries || null;
+        // Multiply org count by ~2 relevant contacts per company to get people estimate
+        if (orgCount) total = orgCount * 2;
+        console.log(`[Apollo] Global org TAM: ${orgCount} orgs → ${total} est. people`);
+      }
+    } catch(e) { console.warn('[Apollo] TAM fetch error:', e.message); }
+
+    // ── Leads: contacts/search against Apollo CRM database (people/search requires plan upgrade)
     try {
       for (let page = 1; page <= 4; page++) {
         const res = await fetch('https://api.apollo.io/v1/contacts/search', {
@@ -738,7 +798,6 @@ async function fetchLeadsFromApollo(icp) {
         });
         if (!res.ok) { console.warn(`[Apollo] HTTP ${res.status} p${page}`); break; }
         const data = await res.json();
-        if (!total) total = data.pagination?.total_entries || null;
         // contacts/search returns 'contacts' array (not 'people')
         const people = (data.contacts || []).filter(p => p.name && p.title && (p.organization_name || p.organization?.name));
         allPeople.push(...people);
@@ -772,8 +831,10 @@ async function fetchLeadsFromApollo(icp) {
     const ORDER = { high: 0, medium: 1, low: 2 };
     classified.sort((a, b) => (ORDER[a.confidence] || 1) - (ORDER[b.confidence] || 1));
     const finalLeads = classified.slice(0, 25).map(({ _match, _excerpt, ...l }) => l);
-    console.log(`[Apollo] Final: ${finalLeads.length} leads, TAM: ${total}`);
-    return { leads: finalLeads, total };
+    // total = org count × 2 from organizations/search (global Apollo DB), or estimated fallback
+    const tam = total || estimateGlobalTAM(icp);
+    console.log(`[Apollo] Final: ${finalLeads.length} leads, TAM: ${tam}`);
+    return { leads: finalLeads, total: tam };
   };
   return Promise.race([apolloCore(), timeout270s]);
 }

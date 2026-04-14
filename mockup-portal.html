@@ -491,6 +491,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
       <div class="tam-filters-row">
         <span class="filter-tag" style="color:#52525b;background:none;border:none;">Loading ICP parameters...</span>
       </div>
+      <div id="tam-kpi-line" style="display:none;font-size:12px;color:#52525b;margin-top:10px;line-height:1.5;"></div>
 
     </div>
 
@@ -1870,6 +1871,7 @@ function runPersonalization(session) {
       const icpRole = icp.role || 'decision-makers';
       const icpIndustry = icp.industry || 'your industry';
       const icpGeo = icp.geography;
+      const kpis = Array.isArray(icp.kpis) ? icp.kpis.slice(0, 3) : [];
       // Brief schema uses angle.pain/result/context.goals; spec schema uses top-level keys — support both
       const pain = ext.customer_pain || ext.angle?.pain || '';
       const result = ext.result_delivered || ext.angle?.result || 'build predictable client acquisition';
@@ -1908,9 +1910,9 @@ function runPersonalization(session) {
         <div class="cal-desc-section">
           <div class="cal-desc-section-label">What You'll Walk Away With</div>
           <ul class="cal-desc-bullets">
-            <li>A client acquisition system built specifically for ${icpIndustry} consulting</li>
+            <li>${kpis.length >= 2 ? 'A system to reach the ' + icpRole + 's who want to improve their ' + kpis.slice(0,2).join(' and ') : 'A client acquisition system built specifically for ' + icpIndustry + ' consulting'}</li>
             <li>How to run 30,000+ automated outreaches per month — targeting ${icpRole}</li>
-            <li>Live funnel math modeled on ${companyName}'s specific numbers</li>
+            <li>${kpis.length >= 3 ? 'Live funnel math showing what ' + kpis[2] + ' improvement is worth in client value for ' + companyName : 'Live funnel math modeled on ' + companyName + '\'s specific numbers'}</li>
           </ul>
         </div>
         <div class="cal-desc-meta">
@@ -1959,24 +1961,40 @@ function runPersonalization(session) {
       icpFiltersRow.innerHTML = filtersHTML;
     }
 
+    // ── KPI line below ICP filters ────────────────────────────────────────────
+    const kpiLine = document.getElementById('tam-kpi-line');
+    if (kpiLine && Array.isArray(icp.kpis) && icp.kpis.length) {
+      const kpiList = icp.kpis.slice(0, 3);
+      const icpRoleShort = icp.role ? icp.role.split(/[,\/]/)[0].trim() : 'decision-makers';
+      let kpiText = '';
+      if (kpiList.length === 1) kpiText = kpiList[0];
+      else if (kpiList.length === 2) kpiText = kpiList[0] + ' and ' + kpiList[1];
+      else kpiText = kpiList[0] + ', ' + kpiList[1] + ', and ' + kpiList[2];
+      kpiLine.style.display = 'block';
+      kpiLine.innerHTML = '→ These are the <strong>' + icpRoleShort + 's</strong> you could be helping improve their <strong>' + kpiText + '</strong>.';
+    }
+
     // ── Live chat personalization ─────────────────────────────────────────────
     const chatPanel = document.querySelector('.chat-messages');
     if (chatPanel) {
       const companyName = prospect.company || 'your firm';
       const icpIndustry2 = icp.industry || 'consulting';
       const icpRole2 = icp.role || 'decision-makers';
+      const chatKpis = Array.isArray(icp.kpis) && icp.kpis.length ? icp.kpis : null;
+      const kpi1 = chatKpis ? chatKpis[0] : 'revenue growth';
+      const kpi2 = chatKpis && chatKpis[1] ? chatKpis[1] : 'client acquisition';
 
       const chatMsgs = [
         { name: 'Jordan M.', text: 'We\'ve been 90% referral-based for years — this is exactly the system we needed for ' + icpIndustry2 },
         { name: 'Alicia F.', text: 'How long until we see the first qualified calls from the ' + icpRole2 + ' targeting?' },
         { name: null, support: true, text: 'Alicia — typically first calls in weeks 3–4 of the campaign. ' + hostName + ' will walk through the ramp in the funnel section' },
         { name: 'Derek O.', text: 'We\'re plateaued and manual outreach to ' + icpIndustry2 + ' firms just doesn\'t scale anymore' },
-        { name: 'Simone L.', text: 'Does this work specifically for ' + icpIndustry2 + ' consulting or more general B2B?' },
-        { name: null, support: true, text: 'Simone — this session is tailored to ' + icpIndustry2 + '. The targeting, messaging templates, and case studies are all from that vertical' },
+        { name: 'Simone L.', text: 'Our clients are asking about ' + kpi1 + ' — does this system target ' + icpRole2 + ' specifically on that?' },
+        { name: null, support: true, text: 'Simone — yes, the targeting is built around ' + icpIndustry2 + ' decision-makers. ' + kpi1 + ' framing is part of the webinar positioning' },
         { name: 'Tyler B.', text: 'The automation piece is critical — our outreach to ' + icpRole2 + ' is completely manual right now' },
         { name: 'Priya M.', text: 'Is there a replay? Our partners want to see this but have a conflict' },
         { name: null, support: true, text: 'Yes — replay goes out within 24 hours to all registered attendees' },
-        { name: 'Marcus W.', text: 'Most excited about the ROI model — want to see what 30K outreaches means for our specific pipeline' },
+        { name: 'Marcus W.', text: 'Most excited about the ROI model — want to see what 30K outreaches means for ' + kpi2 + ' specifically' },
         { name: null, support: true, booking: true, text: '🎉 Nadia Caruso just booked a strategy call — excited to walk through your ' + icpIndustry2 + ' funnel with you, Nadia!' },
         { name: 'Ryan C.', text: 'We\'ve been stuck at the same revenue for two years. This feels like the system we\'ve been missing' },
         { name: null, support: true, booking: true, text: '✅ Sophie Whitfield — call confirmed! Looking forward to mapping this to Whitfield & Co., Sophie' },
