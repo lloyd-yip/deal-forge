@@ -1850,10 +1850,10 @@ function runPersonalization(session) {
       const cycleMonths = tamTotal > 60000 ? '~3 mo' : tamTotal > 20000 ? '~2 mo' : '~1 mo';
       const cycleEl = document.getElementById('tam-cycle-val');
       if (cycleEl) cycleEl.textContent = cycleMonths;
-      // Recommended outreach/month ≈ TAM ÷ cycle length, rounded to nearest 5K, shown as a range
-      const monthlyRaw = Math.max(1000, Math.round(tamTotal / (tamTotal > 60000 ? 3 : tamTotal > 20000 ? 2 : 1) / 5000) * 5000);
+      // Recommended outreach/month ≈ TAM ÷ cycle length, capped at 100K (QS practical limit)
+      const monthlyRaw = Math.min(100000, Math.max(1000, Math.round(tamTotal / (tamTotal > 60000 ? 3 : tamTotal > 20000 ? 2 : 1) / 5000) * 5000));
       const monthlyLo = Math.round(monthlyRaw * 0.85 / 1000);
-      const monthlyHi = Math.round(monthlyRaw * 1.15 / 1000);
+      const monthlyHi = Math.min(100, Math.round(monthlyRaw * 1.15 / 1000));
       const monthlyEl = document.getElementById('tam-monthly-val');
       if (monthlyEl) monthlyEl.textContent = monthlyLo + '–' + monthlyHi + 'K';
     } else if (!gen.leadsTaskStatus || gen.leadsTaskStatus === 'pending') {
