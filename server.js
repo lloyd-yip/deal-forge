@@ -584,8 +584,8 @@ Return this exact JSON (null for anything not found):
     "show_rate":  "string | null — current show/attendance rate, verbatim from transcript. null if not explicitly stated."
   },
   "angle": {
-    "pain":        "string | null — core problem their clients face. Use their exact words where possible. 2-3 sentences.",
-    "result":      "string | null — the transformation they deliver to clients. Be specific. 1-2 sentences.",
+    "pain":        "string | null — the DEEP, specific, emotional frustration their clients experience. Go beyond the surface problem: what does it actually cost them (money, time, stress, missed opportunity)? What have they tried that didn't work? What does failure look or feel like for their client day-to-day? Write in customer language — raw frustration, not a polished problem statement. Pull their exact words from the transcript wherever possible. 4-6 sentences.",
+    "result":      "string | null — the concrete before/after transformation they deliver. What specifically changes for the client? What does their business or life look like 6-12 months after working with this person? Be specific about outcomes — revenue, time saved, stress removed, capability gained. Include verbatim numbers if mentioned. 3-5 sentences.",
     "methodology": "string | null — their named framework or system if they mentioned one (exact name)",
     "proof":       "string | null — their single best client outcome with specific numbers verbatim"
   },
@@ -664,7 +664,7 @@ const PARKING_SIGNALS = ['domain for sale','this domain is for sale','buy this d
 async function websiteQualityCheck(url) {
   if (!url) return false;
   try {
-    const res = await fetch(url, { method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(5000), redirect: 'follow' });
+    const res = await fetch(url, { method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3000), redirect: 'follow' });
     if (!res.ok) return false;
     const html = await res.text();
     const lower = html.toLowerCase();
@@ -724,8 +724,8 @@ async function fetchLeadsFromApollo(icp) {
   if (industry)             baseBody.q_organization_keyword_tags = [industry];
   if (icp?.company_size)    baseBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
   if (icp?.geography)       baseBody.person_locations = [icp.geography];
-  console.log('[Apollo] Searching pages 1–2:', JSON.stringify({ apollo_titles: apolloTitles, industry }));
-  const timeout35s = new Promise(resolve => setTimeout(() => { console.warn('[Apollo] 35s timeout'); resolve(null); }, 35000));
+  console.log('[Apollo] Searching pages 1–4:', JSON.stringify({ apollo_titles: apolloTitles, industry }));
+  const timeout270s = new Promise(resolve => setTimeout(() => { console.warn('[Apollo] 4.5min timeout'); resolve(null); }, 270000));
   const apolloCore = async () => {
     const allPeople = []; let total = null;
     try {
@@ -771,7 +771,7 @@ async function fetchLeadsFromApollo(icp) {
     console.log(`[Apollo] Final: ${finalLeads.length} leads, TAM: ${total}`);
     return { leads: finalLeads, total };
   };
-  return Promise.race([apolloCore(), timeout35s]);
+  return Promise.race([apolloCore(), timeout270s]);
 }
 
 // ── Webinar titles generation ─────────────────────────────────────────────────
@@ -1147,19 +1147,12 @@ async function handleLeadList(task, job) {
   };
   console.log('[lead_list] ICP from brief:', JSON.stringify(effectiveIcp));
 
-  const result   = await fetchLeadsFromApollo(effectiveIcp);
-  const rawLeads = result?.leads || [];
-  if (!rawLeads.length) return { leads: [], total: result?.total || 0 };
-
-  // Build keyword list from ICP for website quality filter
-  const icpKeywords = [
-    ...(icp.industry || '').toLowerCase().split(/[,\s\/]+/),
-    ...(icp.role     || '').toLowerCase().split(/[,\s\/]+/)
-  ].filter(w => w.length > 3);
-
-  const filtered = await filterLeadsByWebsite(rawLeads, icpKeywords);
-  console.log(`[lead_list] Quality filter: ${filtered.length}/${rawLeads.length} passed`);
-  return { leads: filtered, total: result?.total || 0 };
+  // fetchLeadsFromApollo already runs website quality gate + Haiku classification internally.
+  // Do NOT call filterLeadsByWebsite here — that would re-scrape every site a second time.
+  const result = await fetchLeadsFromApollo(effectiveIcp);
+  const leads  = result?.leads || [];
+  console.log(`[lead_list] Apollo returned ${leads.length} classified leads, TAM: ${result?.total}`);
+  return { leads, total: result?.total || 0 };
 }
 
 async function handleWebinarTitles(task, job) {

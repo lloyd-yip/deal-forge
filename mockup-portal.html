@@ -1614,9 +1614,10 @@ function buildCompatSession(job) {
   const tasks = job.tasks || {};
   const meta = ext._meta || {};
   ext._generated = {
-    webinarTitles: (tasks.webinar_titles && tasks.webinar_titles.output) || null,
-    leads:         (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.leads) || null,
-    apolloTotal:   (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.total) || null
+    webinarTitles:   (tasks.webinar_titles && tasks.webinar_titles.output) || null,
+    leads:           (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.leads) || null,
+    apolloTotal:     (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.total) || null,
+    leadsTaskStatus: (tasks.lead_list && tasks.lead_list.status) || null
   };
   return {
     email:      job.prospect_email || '',
@@ -1677,14 +1678,25 @@ function buildCompatSession(job) {
         runPersonalization(session);
       }
 
-      // ── Phase 2: Update lead table + TAM when lead_list task completes ─────
-      // On first poll lead_list may still be processing — re-apply personalization
-      // once it finishes so the real Apollo leads replace the static template rows.
-      if (!assetsChecked['leads'] && tasks.lead_list && tasks.lead_list.status === 'completed') {
-        assetsChecked['leads'] = true;
-        const session2 = buildCompatSession(job); // rebuilds with tasks.lead_list.output
-        runPersonalization(session2); // idempotent — overwrites text/leads with real data
-        console.log('[Deal Forge] Lead list complete — personalization updated with real leads');
+      // ── Phase 2: Update lead table + TAM when lead_list task settles ────────
+      if (!assetsChecked['leads'] && tasks.lead_list) {
+        const llStatus = tasks.lead_list.status;
+        if (llStatus === 'completed') {
+          assetsChecked['leads'] = true;
+          const session2 = buildCompatSession(job);
+          runPersonalization(session2);
+          console.log('[Deal Forge] Lead list complete — personalization updated with real leads');
+        } else if (llStatus === 'failed' || llStatus === 'needs_input') {
+          assetsChecked['leads'] = true;
+          var tbody2 = document.querySelector('.lead-table tbody');
+          if (tbody2) {
+            var errMsg = llStatus === 'failed'
+              ? 'Lead search failed — check Apollo API key or ICP filters'
+              : 'Lead search needs input — check ICP fields in the brief';
+            tbody2.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:28px 0;color:#71717a;font-size:13px;">' + errMsg + '</td></tr>';
+          }
+          console.log('[Deal Forge] Lead list ' + llStatus);
+        }
       }
 
       // Asset URLs → inject "Open" buttons when ready (idempotent)
@@ -2068,6 +2080,12 @@ function runPersonalization(session) {
         }).join('');
 
         console.log('[Deal Forge] Lead table populated with', generated.leads.length, 'Apollo leads');
+      }
+    } else if (gen.leadsTaskStatus === 'completed') {
+      // Task completed but returned 0 leads — clear spinner, show empty state
+      var tbodyEmpty = document.querySelector('.lead-table tbody');
+      if (tbodyEmpty) {
+        tbodyEmpty.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:28px 0;color:#71717a;font-size:13px;">No leads matched this ICP — try broadening the industry or title filters in the brief</td></tr>';
       }
     }
 
