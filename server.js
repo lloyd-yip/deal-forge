@@ -730,81 +730,87 @@ function estimateGlobalTAM(icp) {
   return Math.round(raw / 25000) * 25000;
 }
 const PARKING_SIGNALS = ['domain for sale','this domain is for sale','buy this domain','coming soon','under construction','parked by','domain parking'];
-function extractBusinessDescription(html) {
-  // Pull the highest-signal elements — NOT raw body text (which includes nav/footer/cookies)
-  const parts = [];
+// ── Jina AI Reader — JS-rendering-aware website scraper ─────────────────────
+// Replaces raw fetch() + HTML parser. Jina runs a headless browser on their end,
+// so React/Next.js/Vue sites return actual content instead of empty shells.
+// No API key required. Format: https://r.jina.ai/{full-url}
+async function websiteQualityCheck(url) {
+  if (!url) return null;
+  const jinaFetch = async (targetUrl) => {
+    try {
+      const res = await fetch(`https://r.jina.ai/${targetUrl}`, {
+        headers: { 'Accept': 'text/plain', 'X-Return-Format': 'text' },
+        signal: AbortSignal.timeout(7000)
+      });
+      if (!res.ok) return '';
+      return (await res.text()).trim();
+    } catch(e) { return ''; }
+  };
 
-  // Meta description — usually the best single-sentence business summary
-  const metaDesc = (html.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']{10,})/i)
-    || html.match(/<meta[^>]+content=["']([^"']{10,})["'][^>]*name=["']description["']/i) || [])[1] || '';
-  if (metaDesc) parts.push(metaDesc.trim());
+  const base = url.replace(/\/$/, '');
 
-  // H1 — primary headline, what the company says it does
-  const h1 = (html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || '';
-  const h1Text = h1.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-  if (h1Text && h1Text.length > 10 && h1Text.length < 200) parts.push(h1Text);
+  // Step 1: fetch homepage
+  let text = await jinaFetch(base);
 
-  // First H2 — often the value proposition
-  const h2 = (html.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i) || [])[1] || '';
-  const h2Text = h2.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-  if (h2Text && h2Text.length > 10 && h2Text.length < 200) parts.push(h2Text);
-
-  // First <p> inside <main> or <article> if available, else first body <p> > 40 chars
-  const mainBlock = (html.match(/<(?:main|article)[^>]*>([\s\S]*?)<\/(?:main|article)>/i) || [])[1] || html;
-  const pMatches = mainBlock.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [];
-  for (const p of pMatches.slice(0, 5)) {
-    const txt = p.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    if (txt.length > 40 && txt.length < 400 && !/cookie|privacy|terms|subscribe|newsletter/i.test(txt)) {
-      parts.push(txt);
-      break;
-    }
+  // Step 2: if homepage is thin (<250 chars), try /about and /about-us in parallel
+  // About pages have higher signal density — they describe who the company serves,
+  // not just marketing taglines.
+  if (text.length < 250) {
+    const [a, b] = await Promise.all([jinaFetch(`${base}/about`), jinaFetch(`${base}/about-us`)]);
+    const best = [a, b].sort((x, y) => y.length - x.length)[0];
+    if (best.length > text.length) text = best;
   }
 
-  return parts.join(' | ').slice(0, 600) || null;
-}
-async function websiteQualityCheck(url) {
-  if (!url) return false;
-  try {
-    const res = await fetch(url, { method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000), redirect: 'follow' });
-    if (!res.ok) return false;
-    const html = await res.text();
-    const lower = html.toLowerCase();
-    if (PARKING_SIGNALS.some(s => lower.includes(s))) return false;
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    if (!titleMatch || !titleMatch[1].trim()) return false;
-    // Must have meaningful content signals
-    const hasH1  = /<h1[^>]*>[^<]{5,}<\/h1>/i.test(html);
-    const metaOk = /<meta[^>]+name=["']description["']/i.test(html);
-    if (!hasH1 && !metaOk) return false;
-    const excerpt = extractBusinessDescription(html);
-    if (!excerpt) return false;
-    return { title: titleMatch[1].trim(), excerpt };
-  } catch(e) { return false; }
+  if (text.length < 100) return null; // parked domain or completely empty
+  if (PARKING_SIGNALS.some(s => text.toLowerCase().includes(s))) return null;
+
+  // Jina already strips nav/footer/boilerplate — just trim to 500 chars
+  return { excerpt: text.slice(0, 500) };
 }
 async function classifyLeadsWithHaiku(leads, icp) {
   if (!leads.length) return [];
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const icpDesc = [
-    icp.industry          ? `Industry: ${icp.industry}` : '',
-    icp.apollo_titles?.length ? `Target titles: ${icp.apollo_titles.join(', ')}` : (icp.role ? `Role: ${icp.role}` : ''),
-    icp.company_size      ? `Company size: ${icp.company_size}` : '',
-    icp.apollo_geography?.length ? `Geography: ${icp.apollo_geography.join(', ')}` : (icp.geography ? `Geography: ${icp.geography}` : ''),
-    icp.person_seniorities?.length ? `Seniority: ${icp.person_seniorities.join(', ')}` : ''
-  ].filter(Boolean).join('\n');
-  const leadLines = leads.map((l, i) =>
-    `Lead ${i+1}: ${l.name} | ${l.title} | ${l.company} (${l.company_size || 'unknown size'})` +
-    (l._excerpt ? ` | Site: ${l._excerpt.slice(0, 200)}` : '')
-  ).join('\n');
-  const userMsg = `Target ICP:\n${icpDesc}\n\nLeads to classify:\n${leadLines}\n\nReturn a JSON array: [{ "index": N, "match": true/false, "confidence": "high"|"medium"|"low", "reason": "one sentence" }]. Valid JSON only, no markdown.`;
+
+  // The sector is the primary classification signal.
+  // Titles/seniority are already pre-filtered by Apollo — we only need to confirm
+  // the company is genuinely in the right industry sector.
+  const targetSector  = icp.industry || icp.role || 'the target sector';
+  const targetTitles  = icp.apollo_titles?.join(', ') || icp.role || null;
+  const targetGeo     = icp.apollo_geography?.join(', ') || icp.geography || null;
+
+  const leadLines = leads.map((l, i) => {
+    const lines = [`Lead ${i+1}: ${l.name} | ${l.title} | ${l.company}${l.company_size ? ' (' + l.company_size + ')' : ''}`];
+    if (l._headline) lines.push(`  Headline: "${l._headline}"`);
+    if (l._excerpt)  lines.push(`  Website:  ${l._excerpt.slice(0, 300)}`);
+    if (!l._headline && !l._excerpt) lines.push(`  (no additional signal available)`);
+    return lines.join('\n');
+  }).join('\n\n');
+
+  const userMsg = [
+    `TARGET SECTOR: ${targetSector}`,
+    targetTitles ? `TARGET ROLES: ${targetTitles}` : null,
+    targetGeo    ? `TARGET GEOGRAPHY: ${targetGeo}` : null,
+    '',
+    'LEADS TO CLASSIFY:',
+    leadLines,
+    '',
+    'Return a JSON array — one entry per lead:',
+    '[{ "index": N, "match": true/false, "confidence": "high"|"medium"|"low", "reason": "one sentence" }]',
+    'Valid JSON only, no markdown.'
+  ].filter(l => l !== null).join('\n');
+
   try {
     const msg = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001', max_tokens: 1200, temperature: 0,
-      system: `You are a strict B2B lead classifier. Rules:
-1. A lead MATCHES only if: (a) their job title is relevant to the target ICP role, AND (b) their company's website clearly indicates they operate in the target industry.
-2. Wrong industry = NO MATCH regardless of title. A "CEO" at a logistics firm is not a match for a consulting ICP.
-3. When uncertain — default to match: false. It is better to exclude a borderline lead than to include a bad one.
-4. "confidence: high" = both title and website clearly confirm ICP fit. "medium" = title fits but website unclear. "low" = partial fit only.
-5. Return valid JSON only. No markdown.`,
+      model: 'claude-haiku-4-5-20251001', max_tokens: 2000, temperature: 0,
+      system: `You are a strict B2B sector classifier. Your single job: determine if each company is genuinely in the target sector.
+
+Rules:
+1. PRIMARY SIGNAL — website content: does the copy, tone, and services described match the target sector? An agency writes about campaigns, clients, creative work. A university mentions students, courses, faculty, admissions. A consulting firm mentions strategy, engagements, frameworks.
+2. SECONDARY SIGNAL — LinkedIn headline: if the person's headline explicitly references the company type or sector, weight it heavily.
+3. SECTOR MISMATCH = NO MATCH. A CEO title does not overcome a wrong-sector company. A "CEO" at a SaaS company is NOT a match for an agency ICP.
+4. NO SIGNAL RULE: If no website content AND no headline → default match: false. Do not guess from company name alone.
+5. CONFIDENCE: "high" = website clearly confirms sector. "medium" = headline confirms but website thin. "low" = company name plausible but no confirmation.
+6. Return valid JSON only. No markdown. No explanation outside the JSON.`,
       messages: [{ role: 'user', content: userMsg }]
     });
     const raw = msg.content[0].text;
@@ -848,6 +854,10 @@ function normalizePerson(p, source) {
     company_size: fmtEmp(org.estimated_num_employees),
     website: org.primary_domain ? `https://${org.primary_domain}` : null,
     linkedin_url: p.linkedin_url || null,
+    // LinkedIn headline — Apollo scrapes this from LinkedIn profiles. Far more specific
+    // than org.industry tags. "VP Strategy at Gov of Estonia | EU Policy Advisor" is
+    // an instant sector signal without any additional web request.
+    _headline: p.headline || null,
     _source: source
   };
 }
@@ -974,17 +984,23 @@ async function fetchLeadsFromApollo(icp) {
     );
     console.log(`[Apollo] Classifying ${leadsForClassification.length} leads (${leadsForClassification.filter(l => l._excerpt).length} with excerpts, source: ${usedPeopleSearch ? 'people/search' : 'contacts/search'})...`);
 
-    // ── Haiku ICP classifier — always runs, always fail-closed ───────────────
+    // ── Haiku ICP classifier — always runs, fail-closed by default ──────────
     const classifications = await classifyLeadsWithHaiku(leadsForClassification, icp);
+    // Graceful degradation: if ALL classifications came back match:false (classifier outage or
+    // total rejection), bypass the confidence floor and return pre-filtered leads rather than
+    // showing 0. Better to show unverified leads with a flag than nothing at all.
     const classMap = {};
     classifications.forEach(c => { classMap[c.index] = c; });
+    const anyMatch = classifications.some(c => c.match);
     const classified = leadsForClassification
       .map((l, i) => {
         const c = classMap[i+1] || { match: false, confidence: 'low', reason: 'unclassified' };
         return { ...l, _match: c.match, confidence: c.confidence, match_reason: c.reason };
       })
-      // Path A confidence floor: only show high + medium. 10 clean leads > 25 mediocre ones.
-      .filter(l => l._match && l.confidence !== 'low');
+      // Confidence floor: only show high + medium ICP-confirmed leads.
+      // Exception: if classifier returned 0 matches (outage / total mismatch),
+      // fall through to show pre-filtered leads rather than a blank result.
+      .filter(l => anyMatch ? (l._match && l.confidence !== 'low') : true);
 
     const ORDER = { high: 0, medium: 1, low: 2 };
     classified.sort((a, b) => (ORDER[a.confidence] || 1) - (ORDER[b.confidence] || 1));
