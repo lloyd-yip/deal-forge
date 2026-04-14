@@ -719,7 +719,9 @@ async function fetchLeadsFromApollo(icp) {
   const industry = icp?.industry;
 
   if (!apolloTitles?.length && !industry) { console.log('[Apollo] No ICP — skipping'); return null; }
-  const baseBody = { api_key: APOLLO_KEY, per_page: 25 };
+  // contacts/search uses header auth (x-api-key), not body api_key
+  const apolloHeaders = { 'Content-Type': 'application/json', 'Accept': 'application/json', 'x-api-key': APOLLO_KEY };
+  const baseBody = { per_page: 25 };
   if (apolloTitles?.length) baseBody.person_titles = apolloTitles;
   if (industry)             baseBody.q_organization_keyword_tags = [industry];
   if (icp?.company_size)    baseBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
@@ -730,23 +732,25 @@ async function fetchLeadsFromApollo(icp) {
     const allPeople = []; let total = null;
     try {
       for (let page = 1; page <= 4; page++) {
-        const res = await fetch('https://api.apollo.io/v1/mixed_people_search', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        const res = await fetch('https://api.apollo.io/v1/contacts/search', {
+          method: 'POST', headers: apolloHeaders,
           body: JSON.stringify({ ...baseBody, page }), signal: AbortSignal.timeout(12000)
         });
         if (!res.ok) { console.warn(`[Apollo] HTTP ${res.status} p${page}`); break; }
         const data = await res.json();
         if (!total) total = data.pagination?.total_entries || null;
-        const people = (data.people || []).filter(p => p.name && p.title && p.organization?.name);
+        // contacts/search returns 'contacts' array (not 'people')
+        const people = (data.contacts || []).filter(p => p.name && p.title && (p.organization_name || p.organization?.name));
         allPeople.push(...people);
         if (people.length < 25) break;
       }
     } catch(e) { console.warn('[Apollo] Fetch error:', e.message); if (!allPeople.length) return null; }
     if (!allPeople.length) return null;
     const rawLeads = allPeople.map(p => ({
-      name: p.name, title: p.title, company: p.organization?.name || '',
-      company_size: fmtEmp(p.organization?.estimated_num_employees),
-      website: p.organization?.primary_domain ? `https://${p.organization.primary_domain}` : null,
+      name: p.name, title: p.title,
+      company: p.organization_name || p.organization?.name || p.account?.name || '',
+      company_size: fmtEmp(p.organization?.estimated_num_employees || p.account?.estimated_num_employees),
+      website: (p.organization?.primary_domain || p.account?.primary_domain) ? `https://${p.organization?.primary_domain || p.account?.primary_domain}` : null,
       linkedin_url: p.linkedin_url || null
     }));
     console.log(`[Apollo] Quality gate on ${rawLeads.length} leads...`);
