@@ -858,7 +858,11 @@ async function fetchLeadsFromApollo(icp) {
         if (!res.ok) { console.warn(`[Apollo] HTTP ${res.status} p${page}`); break; }
         const data = await res.json();
         // contacts/search returns 'contacts' array (not 'people')
-        const people = (data.contacts || []).filter(p => p.name && p.title && (p.organization_name || p.organization?.name));
+        const people = (data.contacts || []).filter(p =>
+          p.name && p.name.trim().length > 1 &&  // no blank/whitespace names
+          p.title &&
+          (p.organization_name || p.organization?.name)
+        );
         allPeople.push(...people);
         if (people.length < 25) break;
       }
@@ -871,21 +875,31 @@ async function fetchLeadsFromApollo(icp) {
       website: (p.organization?.primary_domain || p.account?.primary_domain) ? `https://${p.organization?.primary_domain || p.account?.primary_domain}` : null,
       linkedin_url: p.linkedin_url || null
     }));
-    console.log(`[Apollo] Quality gate on ${rawLeads.length} leads...`);
+    // ── Website excerpts — bonus signal for classifier, NOT a gate ───────────
+    // Previously: leads without website excerpts were bypassed entirely (unclassified).
+    // Now: all leads go to classifier; excerpt is attached where available.
+    console.log(`[Apollo] Fetching website excerpts for ${rawLeads.length} leads...`);
     const qualityResults = [];
     for (let i = 0; i < rawLeads.length; i += 10) {
       const batch = rawLeads.slice(i, i + 10);
       const batchResults = await Promise.all(batch.map(l => websiteQualityCheck(l.website)));
       qualityResults.push(...batchResults);
     }
-    const qualifiedLeads = rawLeads.map((l, i) => qualityResults[i] ? { ...l, _excerpt: qualityResults[i].excerpt } : null).filter(Boolean);
-    console.log(`[Apollo] Quality: ${qualifiedLeads.length}/${rawLeads.length} passed`);
-    if (!qualifiedLeads.length) return { leads: rawLeads.slice(0, 25).map(l => ({ ...l, confidence: 'medium' })), total };
-    const classifications = await classifyLeadsWithHaiku(qualifiedLeads, icp);
+    // Attach excerpts where available; keep ALL leads for classification
+    const leadsForClassification = rawLeads.map((l, i) =>
+      qualityResults[i] ? { ...l, _excerpt: qualityResults[i].excerpt } : l
+    );
+    const withExcerpts = leadsForClassification.filter(l => l._excerpt).length;
+    console.log(`[Apollo] Classifying ${leadsForClassification.length} leads (${withExcerpts} with website excerpts)...`);
+    if (!leadsForClassification.length) return { leads: [], total: total || estimateGlobalTAM(icp) };
+
+    // Always classify — NEVER bypass the classifier
+    const classifications = await classifyLeadsWithHaiku(leadsForClassification, icp);
     const classMap = {};
     classifications.forEach(c => { classMap[c.index] = c; });
-    const classified = qualifiedLeads
-      .map((l, i) => { const c = classMap[i+1] || { match: true, confidence: 'medium', reason: '' }; return { ...l, _match: c.match, confidence: c.confidence, match_reason: c.reason }; })
+    const classified = leadsForClassification
+      // Default fail-closed: unclassified leads are excluded, not included
+      .map((l, i) => { const c = classMap[i+1] || { match: false, confidence: 'low', reason: 'unclassified' }; return { ...l, _match: c.match, confidence: c.confidence, match_reason: c.reason }; })
       .filter(l => l._match);
     const ORDER = { high: 0, medium: 1, low: 2 };
     classified.sort((a, b) => (ORDER[a.confidence] || 1) - (ORDER[b.confidence] || 1));
