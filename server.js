@@ -795,115 +795,181 @@ async function classifyLeadsWithHaiku(leads, icp) {
     return JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] || raw);
   } catch(e) {
     console.warn('[Haiku classify] Failed:', e.message);
-    return leads.map((_, i) => ({ index: i+1, match: true, confidence: 'medium', reason: 'classification unavailable' }));
+    return leads.map((_, i) => ({ index: i+1, match: false, confidence: 'low', reason: 'classification unavailable' }));
   }
 }
+// ── Path A: Industry pre-filter — fast keyword gate before AI classifier ─────
+// Removes obvious mismatches by company name before spending tokens on Haiku.
+// Better to miss an edge case than to show a client "Maple Online Learning" as a consulting lead.
+function preFilterLeadsByIndustry(leads, icp) {
+  const industry = (icp?.industry || '').toLowerCase();
+  const BLOCKLISTS = {
+    consulting: /\b(learning|e-?learning|academy|training|school|university|college|institute|software|saas|platform|apps?\b|tech\b|media|publishing|publisher|staffing|recruiting|recruitment|talent|insurance|banking|clinic|hospital|healthcare|dental|retail|store|restaurant|hotel|freight|logistics|shipping|transport)\b/i,
+    coaching:   /\b(software|saas|platform|banking|insurance|retail|manufacturing|logistics|shipping|freight|staffing|recruiting)\b/i,
+    software:   /\b(consulting|advisory|coaching|therapy|dental|clinic|hospital|school|university|college|staffing|recruiting)\b/i,
+    agency:     /\b(school|university|hospital|clinic|banking|insurance|manufacturing|logistics|recruiting|staffing|learning)\b/i,
+  };
+  const pattern = BLOCKLISTS[industry];
+  if (!pattern) return leads;
+  const out = leads.filter(l => {
+    if (pattern.test(l.company || '')) {
+      console.log(`[PreFilter] Excluded "${l.company}" — wrong industry for ${industry} ICP`);
+      return false;
+    }
+    return true;
+  });
+  console.log(`[PreFilter] ${out.length}/${leads.length} passed industry name check`);
+  return out;
+}
+
+function normalizePerson(p, source) {
+  // Normalize contact shape from people/search and contacts/search into one format
+  const org = p.organization || p.account || {};
+  return {
+    name: p.name,
+    title: p.title,
+    company: p.organization_name || org.name || '',
+    company_size: fmtEmp(org.estimated_num_employees),
+    website: org.primary_domain ? `https://${org.primary_domain}` : null,
+    linkedin_url: p.linkedin_url || null,
+    _source: source
+  };
+}
+
 async function fetchLeadsFromApollo(icp) {
   const APOLLO_KEY = process.env.APOLLO_API_KEY;
   if (!APOLLO_KEY) { console.log('[Apollo] No API key — skipping'); return null; }
 
-  // apollo_titles: clean array from extraction only — never fall back to splitting role narrative
-  // (role is display-only; splitting it produces garbage like "goals", "plans" as API title filters)
-  const apolloTitles = Array.isArray(icp?.apollo_titles) && icp.apollo_titles.length
-    ? icp.apollo_titles
-    : null;
-  const industry = icp?.industry;
-
-  // Need at least industry or titles to run a meaningful search
+  const apolloTitles = Array.isArray(icp?.apollo_titles) && icp.apollo_titles.length ? icp.apollo_titles : null;
+  const industry     = icp?.industry;
   if (!industry && !apolloTitles?.length) { console.log('[Apollo] No ICP — skipping'); return null; }
-  // contacts/search uses header auth (x-api-key), not body api_key
+
   const apolloHeaders = { 'Content-Type': 'application/json', 'Accept': 'application/json', 'x-api-key': APOLLO_KEY };
-  // apollo_geography: clean country array from extraction (["Canada"]) vs raw geography string
-  const apolloGeo = Array.isArray(icp?.apollo_geography) && icp.apollo_geography.length ? icp.apollo_geography : null;
-  const baseBody = { per_page: 25 };
-  if (apolloTitles?.length)   baseBody.person_titles = apolloTitles;
-  if (industry)               baseBody.q_organization_keyword_tags = [industry];
-  if (icp?.company_size)      baseBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
-  if (apolloGeo)              baseBody.person_locations = apolloGeo;
-  // No legacy geography fallback — raw narrative strings break Apollo; omit filter if no clean array
-  if (Array.isArray(icp?.person_seniorities) && icp.person_seniorities.length)
-                              baseBody.person_seniorities = icp.person_seniorities;
-  console.log('[Apollo] Searching pages 1–4:', JSON.stringify({ apollo_titles: apolloTitles, industry }));
+  const apolloGeo     = Array.isArray(icp?.apollo_geography) && icp.apollo_geography.length ? icp.apollo_geography : null;
+  const sizeRanges    = icp?.company_size ? mapCompanySize(icp.company_size) : null;
+  const seniorities   = Array.isArray(icp?.person_seniorities) && icp.person_seniorities.length ? icp.person_seniorities : null;
+
+  console.log('[Apollo] Starting org-first lead search:', JSON.stringify({ industry, apolloTitles, apolloGeo }));
   const timeout270s = new Promise(resolve => setTimeout(() => { console.warn('[Apollo] 4.5min timeout'); resolve(null); }, 270000));
+
   const apolloCore = async () => {
-    const allPeople = []; let total = null;
+    let total = null;
+    let orgIds = [];
 
-    // ── TAM: organizations/search hits Apollo's full global database (not CRM-only)
+    // ── Step 1: organizations/search — validates companies AND gets org IDs for Step 2 ──
+    // This is the quality anchor: we confirm company industry+size+geo BEFORE finding people.
     try {
-      const tamBody = { per_page: 1 };
-      if (industry) tamBody.q_organization_keyword_tags = [industry];
-      if (icp?.company_size) tamBody.organization_num_employees_ranges = mapCompanySize(icp.company_size);
-      // Geography filter: clean country array only — raw narrative string would break TAM count
-      if (apolloGeo) tamBody.q_organization_locations = apolloGeo;
-      const tamRes = await fetch('https://api.apollo.io/v1/organizations/search', {
+      const orgBody = { per_page: 50 }; // 50 orgs → people search across all of them
+      if (industry)    orgBody.q_organization_keyword_tags    = [industry];
+      if (sizeRanges)  orgBody.organization_num_employees_ranges = sizeRanges;
+      if (apolloGeo)   orgBody.q_organization_locations       = apolloGeo;
+      const orgRes = await fetch('https://api.apollo.io/v1/organizations/search', {
         method: 'POST', headers: apolloHeaders,
-        body: JSON.stringify(tamBody), signal: AbortSignal.timeout(8000)
+        body: JSON.stringify(orgBody), signal: AbortSignal.timeout(10000)
       });
-      if (tamRes.ok) {
-        const tamData = await tamRes.json();
-        const orgCount = tamData.pagination?.total_entries || null;
-        // Multiply org count by ~2 relevant contacts per company to get people estimate
-        if (orgCount) total = orgCount * 2;
-        console.log(`[Apollo] Global org TAM: ${orgCount} orgs → ${total} est. people`);
+      if (orgRes.ok) {
+        const orgData = await orgRes.json();
+        const orgCount = orgData.pagination?.total_entries || null;
+        if (orgCount) total = orgCount * 2; // est. 2 relevant contacts per company
+        orgIds = (orgData.organizations || []).map(o => o.id).filter(Boolean);
+        console.log(`[Apollo] TAM: ${orgCount} orgs → ${total} est. contacts; extracted ${orgIds.length} org IDs`);
       }
-    } catch(e) { console.warn('[Apollo] TAM fetch error:', e.message); }
+    } catch(e) { console.warn('[Apollo] Org search error:', e.message); }
 
-    // ── Leads: contacts/search against Apollo CRM database (people/search requires plan upgrade)
-    try {
-      for (let page = 1; page <= 4; page++) {
-        const res = await fetch('https://api.apollo.io/v1/contacts/search', {
+    // ── Step 2: people/search at validated org IDs (Path B) ──────────────────
+    // people/search searches globally, not just CRM. If plan doesn't allow it (403),
+    // fall back to contacts/search with the same filters.
+    let allPeople = [];
+    let usedPeopleSearch = false;
+
+    if (orgIds.length) {
+      try {
+        const peopleBody = { organization_ids: orgIds, per_page: 25 };
+        if (apolloTitles?.length) peopleBody.person_titles    = apolloTitles;
+        if (seniorities)          peopleBody.person_seniorities = seniorities;
+        if (apolloGeo)            peopleBody.person_locations  = apolloGeo;
+        const peopleRes = await fetch('https://api.apollo.io/v1/people/search', {
           method: 'POST', headers: apolloHeaders,
-          body: JSON.stringify({ ...baseBody, page }), signal: AbortSignal.timeout(12000)
+          body: JSON.stringify(peopleBody), signal: AbortSignal.timeout(15000)
         });
-        if (!res.ok) { console.warn(`[Apollo] HTTP ${res.status} p${page}`); break; }
-        const data = await res.json();
-        // contacts/search returns 'contacts' array (not 'people')
-        const people = (data.contacts || []).filter(p =>
-          p.name && p.name.trim().length > 1 &&  // no blank/whitespace names
-          p.title &&
-          (p.organization_name || p.organization?.name)
-        );
-        allPeople.push(...people);
-        if (people.length < 25) break;
+        if (peopleRes.ok) {
+          const peopleData = await peopleRes.json();
+          const people = (peopleData.people || []).filter(p =>
+            p.name && p.name.trim().length > 1 && p.title && (p.organization_name || p.organization?.name)
+          );
+          allPeople = people.map(p => normalizePerson(p, 'people/search'));
+          usedPeopleSearch = true;
+          console.log(`[Apollo] people/search: ${allPeople.length} contacts from ${orgIds.length} validated orgs`);
+        } else {
+          const errText = await peopleRes.text().catch(() => '');
+          console.warn(`[Apollo] people/search HTTP ${peopleRes.status} — falling back to contacts/search. ${errText.slice(0,120)}`);
+        }
+      } catch(e) { console.warn('[Apollo] people/search error:', e.message); }
+    }
+
+    // ── Fallback: contacts/search (CRM-only, but workable) ───────────────────
+    if (!usedPeopleSearch) {
+      const contactsBody = { per_page: 25 };
+      if (apolloTitles?.length) contactsBody.person_titles                   = apolloTitles;
+      if (industry)             contactsBody.q_organization_keyword_tags      = [industry];
+      if (sizeRanges)           contactsBody.organization_num_employees_ranges = sizeRanges;
+      if (apolloGeo)            contactsBody.person_locations                 = apolloGeo;
+      if (seniorities)          contactsBody.person_seniorities               = seniorities;
+      try {
+        for (let page = 1; page <= 4; page++) {
+          const res = await fetch('https://api.apollo.io/v1/contacts/search', {
+            method: 'POST', headers: apolloHeaders,
+            body: JSON.stringify({ ...contactsBody, page }), signal: AbortSignal.timeout(12000)
+          });
+          if (!res.ok) { console.warn(`[Apollo] contacts/search HTTP ${res.status} p${page}`); break; }
+          const data = await res.json();
+          const batch = (data.contacts || []).filter(p =>
+            p.name && p.name.trim().length > 1 && p.title && (p.organization_name || p.organization?.name)
+          );
+          allPeople.push(...batch.map(p => normalizePerson(p, 'contacts/search')));
+          if (batch.length < 25) break;
+        }
+        console.log(`[Apollo] contacts/search fallback: ${allPeople.length} candidates`);
+      } catch(e) {
+        console.warn('[Apollo] contacts/search error:', e.message);
+        if (!allPeople.length) return { leads: [], total: total || estimateGlobalTAM(icp) };
       }
-    } catch(e) { console.warn('[Apollo] Fetch error:', e.message); if (!allPeople.length) return { leads: [], total: total || estimateGlobalTAM(icp) }; }
+    }
+
     if (!allPeople.length) return { leads: [], total: total || estimateGlobalTAM(icp) };
-    const rawLeads = allPeople.map(p => ({
-      name: p.name, title: p.title,
-      company: p.organization_name || p.organization?.name || p.account?.name || '',
-      company_size: fmtEmp(p.organization?.estimated_num_employees || p.account?.estimated_num_employees),
-      website: (p.organization?.primary_domain || p.account?.primary_domain) ? `https://${p.organization?.primary_domain || p.account?.primary_domain}` : null,
-      linkedin_url: p.linkedin_url || null
-    }));
-    // ── Website excerpts — bonus signal for classifier, NOT a gate ───────────
-    // Previously: leads without website excerpts were bypassed entirely (unclassified).
-    // Now: all leads go to classifier; excerpt is attached where available.
-    console.log(`[Apollo] Fetching website excerpts for ${rawLeads.length} leads...`);
+
+    // ── Path A: Industry keyword pre-filter ───────────────────────────────────
+    const rawLeads    = preFilterLeadsByIndustry(allPeople, icp);
+    if (!rawLeads.length) return { leads: [], total: total || estimateGlobalTAM(icp) };
+
+    // ── Website excerpts — bonus signal, not a gate ───────────────────────────
+    console.log(`[Apollo] Fetching website excerpts for ${rawLeads.length} pre-filtered leads...`);
     const qualityResults = [];
     for (let i = 0; i < rawLeads.length; i += 10) {
       const batch = rawLeads.slice(i, i + 10);
       const batchResults = await Promise.all(batch.map(l => websiteQualityCheck(l.website)));
       qualityResults.push(...batchResults);
     }
-    // Attach excerpts where available; keep ALL leads for classification
     const leadsForClassification = rawLeads.map((l, i) =>
       qualityResults[i] ? { ...l, _excerpt: qualityResults[i].excerpt } : l
     );
-    const withExcerpts = leadsForClassification.filter(l => l._excerpt).length;
-    console.log(`[Apollo] Classifying ${leadsForClassification.length} leads (${withExcerpts} with website excerpts)...`);
-    if (!leadsForClassification.length) return { leads: [], total: total || estimateGlobalTAM(icp) };
+    console.log(`[Apollo] Classifying ${leadsForClassification.length} leads (${leadsForClassification.filter(l => l._excerpt).length} with excerpts, source: ${usedPeopleSearch ? 'people/search' : 'contacts/search'})...`);
 
-    // Always classify — NEVER bypass the classifier
+    // ── Haiku ICP classifier — always runs, always fail-closed ───────────────
     const classifications = await classifyLeadsWithHaiku(leadsForClassification, icp);
     const classMap = {};
     classifications.forEach(c => { classMap[c.index] = c; });
     const classified = leadsForClassification
-      // Default fail-closed: unclassified leads are excluded, not included
-      .map((l, i) => { const c = classMap[i+1] || { match: false, confidence: 'low', reason: 'unclassified' }; return { ...l, _match: c.match, confidence: c.confidence, match_reason: c.reason }; })
-      .filter(l => l._match);
+      .map((l, i) => {
+        const c = classMap[i+1] || { match: false, confidence: 'low', reason: 'unclassified' };
+        return { ...l, _match: c.match, confidence: c.confidence, match_reason: c.reason };
+      })
+      // Path A confidence floor: only show high + medium. 10 clean leads > 25 mediocre ones.
+      .filter(l => l._match && l.confidence !== 'low');
+
     const ORDER = { high: 0, medium: 1, low: 2 };
     classified.sort((a, b) => (ORDER[a.confidence] || 1) - (ORDER[b.confidence] || 1));
-    const finalLeads = classified.slice(0, 25).map(({ _match, _excerpt, ...l }) => l);
+    const finalLeads = classified.slice(0, 25).map(({ _match, _excerpt, _source, ...l }) => l);
     // total = org count × 2 from organizations/search (global Apollo DB), or estimated fallback
     const tam = total || estimateGlobalTAM(icp);
     console.log(`[Apollo] Final: ${finalLeads.length} leads, TAM: ${tam}`);
