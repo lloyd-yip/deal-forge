@@ -553,7 +553,7 @@ Rules:
 - Never infer, guess, or hallucinate values.
 - The PROSPECT is the CLIENT company being pitched to — NOT Quantum Scaling, NOT Lloyd Yip, NOT QS team.
 - For verbatim fields: copy exact words spoken. Do not paraphrase.
-- For apollo_titles: return ONLY clean, searchable job title strings (2-4 words max each). No descriptions, no adjectives. These go directly into a recruiting/CRM API search.
+- For apollo_titles: return ONLY real job titles (2-4 words each) that a person would hold on LinkedIn or a business card. These feed directly into an API search. Sentence fragments, role descriptions, and qualifiers are NEVER valid titles — infer the actual titles from the described role.
 - Return valid JSON only. No markdown, no explanation.`;
 
   const userPrompt = `Known contact info (treat as ground truth if not contradicted):
@@ -573,11 +573,11 @@ Return this exact JSON (null for anything not found):
   },
   "icp": {
     "role":          "string | null — human-readable description of their target buyers (used for display only)",
-    "apollo_titles": "array of strings | null — 3-6 CLEAN, SPECIFIC job titles of their target buyers for Apollo API search. Each title must be 2-4 words max — NO descriptions, NO adjectives, NO sentences. Examples: ['CEO', 'Founder', 'Managing Director', 'VP Sales', 'Chief Strategy Officer']. If titles are not explicitly stated, INFER from the role description and industry context — a firm selling to large org decision-makers → ['CEO', 'Managing Director', 'Chief Strategy Officer', 'Director of Strategy']. Return null ONLY if the buyer role is so vague no reasonable title inference is possible.",
-    "industry":      "string — single best-match industry keyword for the PROSPECT'S TARGET CLIENTS. Choose based on WHAT THEY DO for clients, not technology they use. Choose from: consulting, software, coaching, agency, ecommerce, healthcare, real_estate, finance, legal, architecture, manufacturing, other",
+    "apollo_titles": "array of strings | null — EXACTLY 3-6 standalone job titles for Apollo API search. STRICT RULES: (1) Each entry must be a real job title a person would hold — 2-4 words max. (2) NEVER include sentence fragments, descriptions, qualifiers, or phrases. If the transcript says 'senior decision-makers at organizations with 50+ employees, particularly in government, large enterprises, who need to manage strategy execution, goals, accountability' — that is a DESCRIPTION, not a list of titles. Extract titles from it: ['CEO', 'Director of Strategy', 'Chief Strategy Officer', 'Head of Operations']. (3) Self-check each entry: would this appear verbatim on a LinkedIn profile or business card? If not — it is wrong, replace it. VALID: ['CEO', 'Managing Director', 'VP Sales', 'Head of Strategy', 'Chief Operating Officer']. INVALID: ['particularly in government', 'large enterprises', 'goals', 'accountability', 'who need to manage']. If titles not stated, INFER from role/industry context. Null ONLY if buyer role is completely indeterminate.",
+    "industry":      "string | null — Apollo-compatible industry keyword for the sector of the PROSPECT'S TARGET CLIENT companies. This is the SECTOR THEIR CLIENTS WORK IN — not what the prospect company does or sells. A strategy software company selling to governments → 'government administration'. A financial coach selling to investment firms → 'financial services'. Use specific Apollo-searchable terms such as: 'government administration', 'financial services', 'management consulting', 'healthcare', 'education management', 'real estate', 'software development', 'marketing and advertising', 'retail', 'manufacturing', 'banking', 'insurance', 'nonprofit organization management', 'legal services', 'construction', 'telecommunications', 'oil and energy', 'pharmaceuticals', 'hospitality', 'transportation/trucking/railroad'. Return the single best-fit sector, or null if genuinely unclear.",
     "company_size":  "string | null — size of their TARGET clients (employees or revenue), verbatim",
     "geography":     "string | null — target geography narrative, only if explicitly mentioned",
-    "apollo_geography": "array of strings | null — clean, searchable country names ONLY for Apollo API. Examples: ['Canada'], ['United States', 'United Kingdom']. Each entry must be a country name exactly — NOT a continent, region phrase, or narrative sentence. If geography mentions 'North America' extract ['United States', 'Canada']. If 'Europe' extract the specific European countries mentioned or null. Null if no geography mentioned.",
+    "apollo_geography": "array of strings | null — clean location names for Apollo API. Valid entries: country names, continent names, US/Canadian/Australian states or provinces, major cities. STRICT RULES: (1) NEVER include language names — Estonian, Latvian, Lithuanian, Montenegrin, English are LANGUAGES not locations. If transcript mentions these as languages, extract the corresponding countries instead: Estonia, Latvia, Lithuania, Montenegro. (2) NEVER include narrative phrases like 'Currently mostly...', 'expanding internationally', 'multi-language support'. (3) Extract ONLY the location noun. Examples: 'North America' → ['United States', 'Canada']. 'Baltic states' → ['Estonia', 'Latvia', 'Lithuania']. 'DACH region' → ['Germany', 'Austria', 'Switzerland']. Null if no geography mentioned.",
     "person_seniorities": "array of strings | null — seniority levels of target buyers. Choose ONLY from these exact values: owner, founder, c_suite, partner, vp, head, director, manager. Infer from role/title context. Null if completely unclear.",
     "company_revenue": "string | null — revenue range of their TARGET clients if mentioned or clearly implied (e.g. '$1M-$5M', '$500K+', '$2M ARR'). Verbatim if stated, short inference if strongly implied. Null if not determinable.",
     "kpis":          "array of 3-5 strings — the specific business performance metrics the prospect's service directly helps their ICP improve. Extract verbatim if mentioned. If not explicitly stated, INFER from the service description, promised outcomes, and problems solved — look at what their clients gain. Return short, specific metric names like 'Revenue per client', 'Customer acquisition rate', 'Client retention rate', 'Brand visibility', 'Lead conversion rate', 'Average deal size'. Never null — always infer at least 3."
@@ -652,10 +652,12 @@ function mapCompanySize(sizeStr) {
   if (/\bsmall\b/.test(s) && !/team/.test(s)) return ['1,10'];
   if (/1.10|under 10|fewer than 10/.test(s)) return ['1,10'];
   if (/10.50|startup|small.*team/.test(s)) return ['1,10', '11,50'];
+  if (/1000\+|1,000\+|very large/.test(s)) return ['1001,10000'];
+  if (/500\+|enterprise|large/.test(s)) return ['501,1000', '1001,10000'];
+  if (/200.500|mid.market/.test(s)) return ['201,500'];
+  if (/100\+|ideally 100/.test(s)) return ['101,200', '201,500'];
   if (/50\+/.test(s) && !/200|500|1000/.test(s)) return ['51,200'];
   if (/50.200|mid.size|growing/.test(s)) return ['51,200'];
-  if (/200.500|mid.market/.test(s)) return ['201,500'];
-  if (/500\+?|enterprise|large/.test(s)) return ['501,1000', '1001,10000'];
   return ['11,50', '51,200'];
 }
 function fmtEmp(n) {
@@ -669,13 +671,26 @@ function fmtEmp(n) {
 // We estimate the global reachable market from known industry/size data.
 // These are conservative global counts of relevant decision-makers in Apollo's database.
 function estimateGlobalTAM(icp) {
-  const industryBase = {
-    agency: 1200000, consulting: 2500000, coaching: 4000000, software: 900000,
-    ecommerce: 1500000, healthcare: 650000, real_estate: 750000, finance: 550000,
-    legal: 380000, architecture: 220000, manufacturing: 950000, other: 1100000
-  };
-  const s = (icp?.industry || 'other').toLowerCase().replace(/[^a-z_]/g, '');
-  const base = industryBase[s] || 1100000;
+  // Industry base: fuzzy-match against free-form Apollo industry strings
+  const industryStr = (icp?.industry || '').toLowerCase();
+  let base = 1100000; // default
+  if (/coach/.test(industryStr)) base = 4000000;
+  else if (/consult/.test(industryStr)) base = 2500000;
+  else if (/agency|advertis|marketing/.test(industryStr)) base = 1200000;
+  else if (/ecommerce|retail/.test(industryStr)) base = 1500000;
+  else if (/manufactur/.test(industryStr)) base = 950000;
+  else if (/software|tech|saas/.test(industryStr)) base = 900000;
+  else if (/real.estate/.test(industryStr)) base = 750000;
+  else if (/health|medical|pharma/.test(industryStr)) base = 650000;
+  else if (/financ|banking|insurance/.test(industryStr)) base = 550000;
+  else if (/legal|law/.test(industryStr)) base = 380000;
+  else if (/government|public.sector|municipal/.test(industryStr)) base = 280000;
+  else if (/education|school|university/.test(industryStr)) base = 420000;
+  else if (/nonprofit|ngo/.test(industryStr)) base = 200000;
+  else if (/construct|architect/.test(industryStr)) base = 220000;
+  else if (/transport|logistics/.test(industryStr)) base = 310000;
+  else if (/hospitality|hotel/.test(industryStr)) base = 180000;
+  else if (/telecom/.test(industryStr)) base = 120000;
 
   // Size adjustment: larger company = fewer companies but same contact density
   const sizeStr = (icp?.company_size || '').toLowerCase();
