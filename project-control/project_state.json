@@ -11,22 +11,22 @@
     "what": "Deal Forge is an internal sales tool for Quantum Scaling reps. After completing a Call 1 (Business Audit), the rep triggers the app with the Fireflies meeting ID. An AI pipeline extracts the prospect's ICP and business context, then generates 8 custom assets: a verified lead list, interactive Google Calendar invite visual, a live webinar experience mock, 3 webinar title options, an interactive ROI calculator pre-populated with their numbers, a prospect research profile, and brand-scraped visual identity. All assets are ready before Call 2.",
     "why": "QS's Call 2 show rate is 37.5% — the core constraint on revenue. Prospects feel informed after Call 1 and have no strong pull to return. Deal Forge creates a concrete bridge: assets so specific to the prospect that skipping Call 2 means walking away from something already built for them. The 'sunk cost' and perceived value dramatically increase show rate and close rate.",
     "end_state": "A polished internal rep dashboard used for every Call 2 booking. Rep selects today's calls from auto-loaded Fireflies meetings, clicks Generate, and has a full asset package ready within 20 minutes. The ROI model and reg page mock have shareable prospect-facing URLs. Eventually expands to full CRM integration and automated follow-up.",
-    "current_summary": "Phase 2 backend live on Railway. Full 8-task pipeline deployed (server.js). GHL webhook, Fireflies transcript lookup, extract, prospect_research, brand_scrape, lead_list, webinar_titles, roi_model, calendar_visual all wired up. Rep portal live at deal-forge-production.up.railway.app. Main blocker: lead_list EU Apollo coverage — org search returns 0 results for Baltic/EU ICPs. Multiple fixes shipped (commit c934325): strip 'Europe' from Apollo geo, EU country list retry, drop AND-logic industry filter. Not yet confirmed if Apollo plan or data coverage gap."
+    "current_summary": "Phase 2 backend live on Railway. Full 8-task pipeline deployed. Rep portal live at deal-forge-production.up.railway.app. Key systems confirmed working: (1) Fireflies transcript lookup — 6-pass search strategy (GHL name → company → email segments → domain → recent scan p1 → p2), prefers exact email match → domain match → loose keyword. (2) GHL contact lookup — enriches contactInfo with name/company/title before Fireflies search for better matching. (3) extractBriefFromTranscript — Claude Sonnet extracts full structured brief: prospect info, ICP (apollo_titles, apollo_industries, apollo_employee_ranges, apollo_geography, person_seniorities), metrics (LTV/close/show rate), angle (pain/result/methodology/proof), verbatim quotes, situation, context, webinar title seeds. (4) /api/prefetch endpoint — runs Fireflies + GHL + website scrape + Claude extraction before job creation so rep can review the brief. (5) All 8 task handlers wired: extract, prospect_research, brand_scrape, lead_list, webinar_titles, roi_model, calendar_visual, webinar_mock. Main blocker: lead_list EU Apollo coverage — org search returns 0 for Baltic/EU ICPs. Latest fix deployed (commit c934325): strip 'Europe' from geo (invalid Apollo value), EU country list retry with no AND-logic industry filter, geoUsed flag tells classifier to accept EU-wide companies. Unconfirmed — stopped testing to avoid rate limit loop."
   },
-  "resume_here": "Phase 2 backend deployed. lead_list task returns 0 leads for EU/Baltic ICPs (Apollo EU coverage gap). Latest fix: commit c934325 — EU org retry with geo+size only (no AND-logic industry filter), geoUsed flag passes effective geo to classifier. NOT yet confirmed working — testing was stopped to avoid Apollo rate limit loop. Next session: run one real job for rait@planpro.ee and check Railway logs to see what tier the org search is hitting and what Apollo returns.",
+  "resume_here": "Phase 2 backend deployed. Full Fireflies→brief pipeline confirmed working. lead_list is the remaining blocker for EU/Baltic ICPs — returns 0 leads. Latest fix committed (c934325): EU org retry uses explicit country list with geo+size only (no AND-logic industry filter), geoUsed flag tells classifier to accept EU-wide companies. NOT yet confirmed working — stopped testing to avoid Apollo rate limit loop. Next session: (1) trigger one fresh job for rait@planpro.ee, (2) check Railway logs for which Apollo tier fires and what HTTP status/org count comes back, (3) if still 0, test people/search direct with person_locations as fallback path.",
   "current_phase": {
     "name": "Phase 2 - Build & Test",
     "goal": "Debug lead_list EU Apollo coverage, confirm full pipeline end-to-end with real Call 1 transcripts, then polish rep portal UI.",
     "current_focus": [
-      "lead_list task returning 0 leads for Baltic/EU ICPs (rait@planpro.ee test case)",
-      "Apollo org search returning 0 for EU countries even with geo+size only (no industry filter) — root cause unconfirmed (rate limit vs data coverage gap)"
+      "lead_list task returning 0 leads for Baltic/EU ICPs (rait@planpro.ee test case) — latest fix c934325 not yet confirmed working",
+      "Everything else confirmed working: Fireflies 6-pass transcript lookup, GHL contact enrichment, website scrape, Claude brief extraction, all 8 task handlers wired"
     ],
     "immediate_next_steps": [
-      "Test lead_list with rait@planpro.ee in a fresh session — check Railway logs for what Apollo returns at each tier (Baltic → EU → contacts fallback)",
-      "If Apollo EU org search confirms 0 coverage: consider people/search direct with person_locations (person-level geo, not org-level) as alternative path",
-      "Run end-to-end test with a US/global ICP (different prospect) to confirm pipeline works outside EU — isolate whether issue is EU-specific or broader",
-      "Once lead_list confirmed working: test full 8-task pipeline end-to-end on a real QS Call 1 transcript",
-      "Rep portal UI polish (deal-forge-production.up.railway.app)"
+      "Fresh session: trigger one real job for rait@planpro.ee, watch Railway logs — need to see which Apollo org search tier fires and what count it returns",
+      "If Apollo EU org search still 0: try people/search direct with person_locations (person-level geo, separate from org search) — may have better EU coverage",
+      "Run end-to-end test with a US/NA-based prospect ICP to confirm pipeline works outside EU — isolates whether 0-leads issue is EU-specific",
+      "Once lead_list confirmed: run full 8-task e2e on a real QS Call 1 transcript and review all asset outputs",
+      "Rep portal UI polish — currently functional but unstyled"
     ],
     "known_issues": [
       {
@@ -157,11 +157,23 @@
       "date": "2026-04-15"
     },
     {
-      "description": "lead_list pipeline hardened: no-name filter, enterprise employee ranges, anyMatch outage detection, geo cleanup (strip 'European Union'), classifier geo hard-reject rule",
+      "description": "Fireflies 6-pass transcript lookup confirmed working: GHL name → company → email segments → domain → recent scan (p1+p2). Prefers exact email attendee → domain attendee → loose keyword match.",
       "date": "2026-04-15"
     },
     {
-      "description": "Apollo AND-logic bug identified: q_organization_keyword_tags with 5 industry values returns 0 EU results. EU retry now uses geo+size only, geoUsed flag controls classifier strictness.",
+      "description": "extractBriefFromTranscript confirmed working: Claude Sonnet extracts full structured brief with 8 top-level sections — prospect, icp (incl. apollo_titles, apollo_industries, apollo_employee_ranges, apollo_geography, person_seniorities), metrics, angle, verbatim, situation, context, titles.",
+      "date": "2026-04-15"
+    },
+    {
+      "description": "/api/prefetch endpoint confirmed working: GHL lookup + Fireflies + website scrape + Claude extraction in one call. Rep reviews brief before confirming job.",
+      "date": "2026-04-15"
+    },
+    {
+      "description": "lead_list pipeline hardened: no-name filter, enterprise employee ranges, anyMatch outage detection (vs genuine rejection), geo cleanup (strip 'European Union'), classifier geo hard-reject rule",
+      "date": "2026-04-15"
+    },
+    {
+      "description": "Apollo AND-logic bug identified: q_organization_keyword_tags with 5 industry values returns 0 EU results. EU retry now uses geo+size only (no industry filter), geoUsed flag tells classifier to accept EU-wide companies.",
       "date": "2026-04-15"
     }
   ],
