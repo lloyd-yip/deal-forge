@@ -963,15 +963,12 @@ async function fetchLeadsFromApollo(icp) {
           } catch(e) { console.warn('[Apollo] EU countries retry error:', e.message); }
         }
 
-        // Step 2b: global ONLY if EU retry also returned nothing.
-        // Even 2-3 EU orgs beats 50 US orgs — the geo relevance is worth the smaller pool.
+        // Step 2b: for Baltic/EU ICPs, do NOT fall back to global org search.
+        // Global orgs = US/APAC companies → classifier rejects all on geo → 0 leads.
+        // When EU org search also returns 0, mark for title-first contacts/search below.
         if (result.orgIds.length === 0) {
-          console.log(`[Apollo] EU search returned 0 orgs — falling back to global (classifier will verify geo)`);
-          const globalResult = await runOrgSearch(false);
-          if (globalResult.orgIds.length > 0) {
-            result = globalResult;
-            geoUsed = 'global';
-          }
+          console.log(`[Apollo] EU org search also returned 0 — will use title-first contacts/search for EU people`);
+          geoUsed = 'contacts_eu'; // signals the people-fetching step to use contacts/search with EU geo
         }
       }
       const { orgCount, orgIds: fetchedIds } = result;
@@ -1017,11 +1014,20 @@ async function fetchLeadsFromApollo(icp) {
     // ── Fallback: contacts/search (CRM-only, but workable) ───────────────────
     if (!usedPeopleSearch) {
       const contactsBody = { per_page: 25 };
-      if (apolloTitles?.length) contactsBody.person_titles                   = apolloTitles;
-      if (apolloIndustries)     contactsBody.q_organization_keyword_tags      = apolloIndustries;
+      if (apolloTitles?.length) contactsBody.person_titles      = apolloTitles;
+      if (seniorities)          contactsBody.person_seniorities = seniorities;
       if (sizeRanges)           contactsBody.organization_num_employees_ranges = sizeRanges;
-      if (apolloGeo)            contactsBody.person_locations                 = apolloGeo;
-      if (seniorities)          contactsBody.person_seniorities               = seniorities;
+      // IMPORTANT: Do NOT add q_organization_keyword_tags here — Apollo applies AND logic
+      // across all values, returning 0 results when multiple industry tags are combined.
+      // We rely on Jina + Haiku classifier for sector verification instead.
+      //
+      // Geo: for EU/Baltic ICPs that exhausted org search, use full EU country list.
+      // For other ICPs, use original apollo geo if present.
+      if (geoUsed === 'contacts_eu') {
+        contactsBody.person_locations = EU_COUNTRIES; // explicit EU countries — "Europe" string doesn't work in Apollo
+      } else if (apolloGeo) {
+        contactsBody.person_locations = apolloGeo;
+      }
       try {
         for (let page = 1; page <= 4; page++) {
           const res = await fetch('https://api.apollo.io/v1/contacts/search', {
@@ -1067,9 +1073,10 @@ async function fetchLeadsFromApollo(icp) {
     // ── Haiku ICP classifier — always runs, fail-closed by default ──────────
     // When we fell back to EU or global search, pass the effective geo so the
     // classifier can apply appropriate strictness (EU-wide accept vs hard Baltic-only).
-    const icpForClassifier = (geoUsed === 'europe')
+    // Pass effective geo to classifier — if we broadened to EU, accept all EU companies
+    const icpForClassifier = (geoUsed === 'europe' || geoUsed === 'contacts_eu')
       ? { ...icp, apollo_geography: EU_COUNTRIES }
-      : (geoUsed === 'global' ? { ...icp, apollo_geography: null } : icp);
+      : (geoUsed === 'global' ? { ...icp, apollo_geography: null, geography: null } : icp);
     const classifications = await classifyLeadsWithHaiku(leadsForClassification, icpForClassifier);
     const classMap = {};
     classifications.forEach(c => { classMap[c.index] = c; });
