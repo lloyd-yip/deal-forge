@@ -577,9 +577,9 @@ Return this exact JSON (null for anything not found):
     "apollo_industries": "array of 1-5 strings | null — Apollo-compatible industry tags for ALL sectors the prospect's TARGET CLIENT companies could be in. Think broadly — if they target 'government and large enterprises', their clients span multiple sectors. Examples: strategy software targeting govt/enterprise → ['government administration', 'financial services', 'information technology and services', 'nonprofit organization management']. Marketing agency targeting e-commerce → ['retail', 'consumer goods', 'apparel and fashion']. Use specific Apollo-searchable terms: 'government administration', 'financial services', 'management consulting', 'healthcare', 'education management', 'real estate', 'software development', 'marketing and advertising', 'retail', 'manufacturing', 'banking', 'insurance', 'nonprofit organization management', 'legal services', 'construction', 'telecommunications', 'information technology and services', 'consumer goods', 'pharmaceuticals', 'hospitality', 'transportation/trucking/railroad'. Null ONLY if sector completely indeterminate.",
     "industry":      "string | null — single best-fit sector tag from apollo_industries (first/most representative one), for display only",
     "company_size":  "string | null — human-readable size of their TARGET clients, for display only (e.g. '50-200 employees', 'mid-market', 'enterprise'). Concise — not a full sentence.",
-    "apollo_employee_ranges": "array of strings | null — Apollo API employee range codes for their TARGET clients. Choose ONLY from these exact strings: '1,10', '11,50', '51,200', '201,500', '501,1000', '1001,10000', '10001,50000', '50001+'. Match to the described size: '50+ employees, ideally 100+' → ['51,200','201,500']. 'Enterprise/large organizations' → ['501,1000','1001,10000']. 'Small businesses under 10' → ['1,10']. Select 1-3 contiguous ranges that bracket the target. Null if no size mentioned.",
+    "apollo_employee_ranges": "array of strings | null — Apollo API employee range codes for their TARGET clients. Choose ONLY from these exact strings: '1,10', '11,50', '51,200', '201,500', '501,1000', '1001,10000', '10001,50000', '50001+'. Match to the described size: '50+ employees, ideally 100+' → ['51,200','201,500']. 'Enterprise/large organizations' → ['501,1000','1001,10000','10001,50000']. CRITICAL RULE: if transcript mentions 'enterprise', 'large organizations', 'government agencies', 'Fortune 500', 'enterprise clients', or any equivalent → you MUST include '1001,10000' in the ranges. Government agencies and large enterprises are typically 1000+ employees. 'Small businesses under 10' → ['1,10']. Select 1-4 contiguous ranges that bracket the target. Null if no size mentioned.",
     "geography":     "string | null — target geography narrative, only if explicitly mentioned",
-    "apollo_geography": "array of strings | null — clean location names for Apollo API. Valid entries: country names, continent names, US/Canadian/Australian states or provinces, major cities. STRICT RULES: (1) NEVER include language names — Estonian, Latvian, Lithuanian, Montenegrin, English are LANGUAGES not locations. If transcript mentions these as languages, extract the corresponding countries instead: Estonia, Latvia, Lithuania, Montenegro. (2) NEVER include narrative phrases like 'Currently mostly...', 'expanding internationally', 'multi-language support'. (3) Extract ONLY the location noun. Examples: 'North America' → ['United States', 'Canada']. 'Baltic states' → ['Estonia', 'Latvia', 'Lithuania']. 'DACH region' → ['Germany', 'Austria', 'Switzerland']. Null if no geography mentioned.",
+    "apollo_geography": "array of strings | null — clean country/region names for Apollo API. Valid entries: country names, continent names ('Europe', 'Asia', 'North America'), US/Canadian/Australian states or provinces, major cities. STRICT RULES: (1) NEVER include language names — Estonian, Latvian, Lithuanian, Montenegrin, English are LANGUAGES not locations. Extract the countries instead. (2) NEVER write 'European Union' — it is not a country. Instead expand to the specific European countries mentioned or implied: 'EU' → list the relevant member countries explicitly (e.g. Estonia, Latvia, Lithuania, Germany, France). If broadly EU-wide, use 'Europe'. (3) NEVER include narrative phrases. (4) Extract ONLY location nouns. Examples: 'North America' → ['United States', 'Canada']. 'Baltic states' → ['Estonia', 'Latvia', 'Lithuania']. 'DACH region' → ['Germany', 'Austria', 'Switzerland']. 'EU' broadly → ['Europe']. Null if no geography mentioned.",
     "person_seniorities": "array of strings | null — seniority levels of target buyers. Choose ONLY from these exact values: owner, founder, c_suite, partner, vp, head, director, manager. Infer from role/title context. Null if completely unclear.",
     "company_revenue": "string | null — revenue range of their TARGET clients if mentioned or clearly implied (e.g. '$1M-$5M', '$500K+', '$2M ARR'). Verbatim if stated, short inference if strongly implied. Null if not determinable.",
     "kpis":          "array of 3-5 strings — the specific business performance metrics the prospect's service directly helps their ICP improve. Extract verbatim if mentioned. If not explicitly stated, INFER from the service description, promised outcomes, and problems solved — look at what their clients gain. Return short, specific metric names like 'Revenue per client', 'Customer acquisition rate', 'Client retention rate', 'Brand visibility', 'Lead conversion rate', 'Average deal size'. Never null — always infer at least 3."
@@ -810,15 +810,16 @@ async function classifyLeadsWithHaiku(leads, icp) {
   try {
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001', max_tokens: 2000, temperature: 0,
-      system: `You are a strict B2B sector classifier. Your single job: determine if each company is genuinely in the target sector.
+      system: `You are a strict B2B lead classifier. Your job: determine if each company matches the target ICP on TWO dimensions — sector AND geography (if specified).
 
 Rules:
 1. PRIMARY SIGNAL — website content: does the copy, tone, and services described match the target sector? An agency writes about campaigns, clients, creative work. A university mentions students, courses, faculty, admissions. A consulting firm mentions strategy, engagements, frameworks.
 2. SECONDARY SIGNAL — LinkedIn headline: if the person's headline explicitly references the company type or sector, weight it heavily.
-3. SECTOR MISMATCH = NO MATCH. A CEO title does not overcome a wrong-sector company. A "CEO" at a SaaS company is NOT a match for an agency ICP.
-4. NO SIGNAL RULE: If no website content AND no headline → default match: false. Do not guess from company name alone.
-5. CONFIDENCE: "high" = website clearly confirms sector. "medium" = headline confirms but website thin. "low" = company name plausible but no confirmation.
-6. Return valid JSON only. No markdown. No explanation outside the JSON.`,
+3. SECTOR MISMATCH = NO MATCH. A CEO title does not overcome a wrong-sector company.
+4. GEOGRAPHY CHECK (HARD REJECT): If TARGET GEOGRAPHY is specified AND the company's apparent location is CLEARLY not in that geography — based on company name, domain (.co.uk, .com.au etc.), or website content mentioning a different region — reject it. Examples: TARGET GEOGRAPHY = Baltic states/Europe → company named "Bank of Africa" or "Bank of China" → reject. TARGET = Europe → US/Australian/African company with no EU presence → reject. Only reject on geography if you are confident. If geography is ambiguous or unknown, do NOT reject on geo alone.
+5. NO SIGNAL RULE: If no website content AND no headline → default match: false.
+6. CONFIDENCE: "high" = website/headline clearly confirms BOTH sector AND geo. "medium" = sector confirmed, geo plausible but not explicit. "low" = company name plausible but no confirmation.
+7. Return valid JSON only. No markdown.`,
       messages: [{ role: 'user', content: userMsg }]
     });
     const raw = msg.content[0].text;
@@ -881,7 +882,11 @@ async function fetchLeadsFromApollo(icp) {
   if (!apolloIndustries?.length && !apolloTitles?.length) { console.log('[Apollo] No ICP — skipping'); return null; }
 
   const apolloHeaders = { 'Content-Type': 'application/json', 'Accept': 'application/json', 'x-api-key': APOLLO_KEY };
-  const apolloGeo     = Array.isArray(icp?.apollo_geography) && icp.apollo_geography.length ? icp.apollo_geography : null;
+  // Clean geo: strip "European Union" (Apollo doesn't recognise it), collapse to "Europe" if that's all that's left
+  const rawGeo = Array.isArray(icp?.apollo_geography) && icp.apollo_geography.length ? icp.apollo_geography : null;
+  const apolloGeo = rawGeo
+    ? rawGeo.map(g => g === 'European Union' ? 'Europe' : g).filter((g, i, a) => a.indexOf(g) === i) // dedupe after replace
+    : null;
   // Prefer LLM-extracted Apollo ranges; fall back to mapCompanySize for legacy briefs
   const sizeRanges    = (Array.isArray(icp?.apollo_employee_ranges) && icp.apollo_employee_ranges.length)
     ? icp.apollo_employee_ranges
@@ -897,22 +902,37 @@ async function fetchLeadsFromApollo(icp) {
 
     // ── Step 1: organizations/search — validates companies AND gets org IDs for Step 2 ──
     // This is the quality anchor: we confirm company industry+size+geo BEFORE finding people.
-    try {
-      const orgBody = { per_page: 50 }; // 50 orgs → people search across all of them
-      if (apolloIndustries) orgBody.q_organization_keyword_tags = apolloIndustries;
-      if (sizeRanges)  orgBody.organization_num_employees_ranges = sizeRanges;
-      if (apolloGeo)   orgBody.q_organization_locations       = apolloGeo;
+    // GEO FALLBACK: small geographic markets (e.g. Baltic states) have sparse Apollo coverage.
+    // If geo-restricted search returns < 5 orgs, retry without geo and let the classifier
+    // do geo verification via website content + headline. Better to over-fetch and classify
+    // than to under-fetch and show 0 leads.
+    const runOrgSearch = async (withGeo) => {
+      const orgBody = { per_page: 50 };
+      if (apolloIndustries) orgBody.q_organization_keyword_tags      = apolloIndustries;
+      if (sizeRanges)       orgBody.organization_num_employees_ranges = sizeRanges;
+      if (withGeo && apolloGeo) orgBody.q_organization_locations     = apolloGeo;
       const orgRes = await fetch('https://api.apollo.io/v1/organizations/search', {
         method: 'POST', headers: apolloHeaders,
         body: JSON.stringify(orgBody), signal: AbortSignal.timeout(10000)
       });
-      if (orgRes.ok) {
-        const orgData = await orgRes.json();
-        const orgCount = orgData.pagination?.total_entries || null;
-        if (orgCount) total = orgCount * 2; // est. 2 relevant contacts per company
-        orgIds = (orgData.organizations || []).map(o => o.id).filter(Boolean);
-        console.log(`[Apollo] TAM: ${orgCount} orgs → ${total} est. contacts; extracted ${orgIds.length} org IDs`);
+      if (!orgRes.ok) return { orgCount: null, orgIds: [] };
+      const orgData = await orgRes.json();
+      return {
+        orgCount: orgData.pagination?.total_entries || null,
+        orgIds:   (orgData.organizations || []).map(o => o.id).filter(Boolean)
+      };
+    };
+    try {
+      let result = await runOrgSearch(true);
+      if (result.orgIds.length < 5 && apolloGeo) {
+        console.log(`[Apollo] Only ${result.orgIds.length} orgs with geo filter — retrying globally (classifier will verify geo)`);
+        const globalResult = await runOrgSearch(false);
+        if (globalResult.orgIds.length > result.orgIds.length) result = globalResult;
       }
+      const { orgCount, orgIds: fetchedIds } = result;
+      if (orgCount) total = orgCount * 2;
+      orgIds = fetchedIds;
+      console.log(`[Apollo] TAM: ${orgCount} orgs → ${total} est. contacts; extracted ${orgIds.length} org IDs`);
     } catch(e) { console.warn('[Apollo] Org search error:', e.message); }
 
     // ── Step 2: people/search at validated org IDs (Path B) ──────────────────
@@ -924,18 +944,21 @@ async function fetchLeadsFromApollo(icp) {
     if (orgIds.length) {
       try {
         const peopleBody = { organization_ids: orgIds, per_page: 25 };
-        if (apolloTitles?.length) peopleBody.person_titles    = apolloTitles;
+        if (apolloTitles?.length) peopleBody.person_titles      = apolloTitles;
         if (seniorities)          peopleBody.person_seniorities = seniorities;
-        if (apolloGeo)            peopleBody.person_locations  = apolloGeo;
+        // NOTE: person_locations intentionally omitted — geo filtering on people is unreliable
+        // for non-US markets. Classifier verifies geography via website + headline instead.
         const peopleRes = await fetch('https://api.apollo.io/v1/people/search', {
           method: 'POST', headers: apolloHeaders,
           body: JSON.stringify(peopleBody), signal: AbortSignal.timeout(15000)
         });
         if (peopleRes.ok) {
           const peopleData = await peopleRes.json();
-          const people = (peopleData.people || []).filter(p =>
-            p.name && p.name.trim().length > 1 && p.title && (p.organization_name || p.organization?.name)
-          );
+          const PLACEHOLDER_NAMES = new Set(['n/a', 'na', 'unknown', 'no name', '(no name)', 'none', 'null', 'anonymous']);
+          const people = (peopleData.people || []).filter(p => {
+            const n = (p.name || '').trim();
+            return n.length > 2 && !PLACEHOLDER_NAMES.has(n.toLowerCase()) && p.title && (p.organization_name || p.organization?.name);
+          });
           allPeople = people.map(p => normalizePerson(p, 'people/search'));
           usedPeopleSearch = true;
           console.log(`[Apollo] people/search: ${allPeople.length} contacts from ${orgIds.length} validated orgs`);
@@ -962,9 +985,11 @@ async function fetchLeadsFromApollo(icp) {
           });
           if (!res.ok) { console.warn(`[Apollo] contacts/search HTTP ${res.status} p${page}`); break; }
           const data = await res.json();
-          const batch = (data.contacts || []).filter(p =>
-            p.name && p.name.trim().length > 1 && p.title && (p.organization_name || p.organization?.name)
-          );
+          const PLACEHOLDER_NAMES_C = new Set(['n/a', 'na', 'unknown', 'no name', '(no name)', 'none', 'null', 'anonymous']);
+          const batch = (data.contacts || []).filter(p => {
+            const n = (p.name || '').trim();
+            return n.length > 2 && !PLACEHOLDER_NAMES_C.has(n.toLowerCase()) && p.title && (p.organization_name || p.organization?.name);
+          });
           allPeople.push(...batch.map(p => normalizePerson(p, 'contacts/search')));
           if (batch.length < 25) break;
         }
