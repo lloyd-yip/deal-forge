@@ -919,7 +919,8 @@ async function fetchLeadsFromApollo(icp) {
     // than to under-fetch and show 0 leads.
     const runOrgSearch = async (withGeo) => {
       const orgBody = { per_page: 50 };
-      if (apolloIndustries) orgBody.q_organization_keyword_tags      = apolloIndustries;
+      // q_organization_keyword_tags intentionally omitted — Apollo applies AND logic across all values,
+      // returning near-0 results when ICP has 5+ industry tags. Haiku classifier verifies sector fit.
       if (sizeRanges)       orgBody.organization_num_employees_ranges = sizeRanges;
       if (withGeo && apolloGeo) orgBody.q_organization_locations     = apolloGeo;
       const orgRes = await fetch('https://api.apollo.io/v1/organizations/search', {
@@ -974,9 +975,9 @@ async function fetchLeadsFromApollo(icp) {
         }
       }
       const { orgCount, orgIds: fetchedIds } = result;
-      if (orgCount) total = orgCount * 2;
+      // TAM always comes from estimateGlobalTAM(icp) below — do NOT override with Apollo's filtered org count
       orgIds = fetchedIds;
-      console.log(`[Apollo] TAM: ${orgCount} orgs → ${total} est. contacts; extracted ${orgIds.length} org IDs`);
+      console.log(`[Apollo] Org search: ${orgCount} orgs found; extracted ${orgIds.length} org IDs for people search`);
     } catch(e) { console.warn('[Apollo] Org search error:', e.message); }
 
     // ── Step 2: people/search at validated org IDs (Path B) ──────────────────
