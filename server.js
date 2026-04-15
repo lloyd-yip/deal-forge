@@ -882,10 +882,20 @@ async function fetchLeadsFromApollo(icp) {
   if (!apolloIndustries?.length && !apolloTitles?.length) { console.log('[Apollo] No ICP — skipping'); return null; }
 
   const apolloHeaders = { 'Content-Type': 'application/json', 'Accept': 'application/json', 'x-api-key': APOLLO_KEY };
-  // Clean geo: strip "European Union" (Apollo doesn't recognise it), collapse to "Europe" if that's all that's left
+  // Clean geo: Apollo understands country names and city names, but NOT "Europe" or "European Union" as region values.
+  // Strip those → they silently match nothing, wasting the primary geo slot.
+  // We handle the Europe-level fallback explicitly in the tiered retry below.
+  const EU_COUNTRIES = [
+    'Germany','France','Netherlands','Sweden','Denmark','Finland','Norway','Poland',
+    'Czech Republic','Austria','Belgium','Spain','Italy','Portugal','Switzerland',
+    'Estonia','Latvia','Lithuania','Romania','Hungary','Slovakia','Croatia','Slovenia',
+    'Serbia','Montenegro','Bosnia and Herzegovina','Albania','North Macedonia','Bulgaria','Greece'
+  ];
   const rawGeo = Array.isArray(icp?.apollo_geography) && icp.apollo_geography.length ? icp.apollo_geography : null;
   const apolloGeo = rawGeo
-    ? rawGeo.map(g => g === 'European Union' ? 'Europe' : g).filter((g, i, a) => a.indexOf(g) === i) // dedupe after replace
+    ? rawGeo
+        .flatMap(g => (g === 'European Union' || /^europe$/i.test(g)) ? [] : [g]) // strip "Europe"/"EU" — handled by fallback
+        .filter((g, i, a) => a.indexOf(g) === i) // dedupe
     : null;
   // Prefer LLM-extracted Apollo ranges; fall back to mapCompanySize for legacy briefs
   const sizeRanges    = (Array.isArray(icp?.apollo_employee_ranges) && icp.apollo_employee_ranges.length)
@@ -899,6 +909,7 @@ async function fetchLeadsFromApollo(icp) {
   const apolloCore = async () => {
     let total = null;
     let orgIds = [];
+    let geoUsed = 'original'; // tracks which geo tier was actually used for org search
 
     // ── Step 1: organizations/search — validates companies AND gets org IDs for Step 2 ──
     // This is the quality anchor: we confirm company industry+size+geo BEFORE finding people.
@@ -924,33 +935,42 @@ async function fetchLeadsFromApollo(icp) {
     };
     try {
       let result = await runOrgSearch(true);
-      if (result.orgIds.length < 5 && apolloGeo) {
-        // Step 2a: try with "Europe" only (broader but still continental)
-        const hasEurope = apolloGeo.some(g => /^europe$/i.test(g) || g === 'European Union');
-        if (!hasEurope && apolloGeo.some(g => /estonia|latvia|lithuania|montenegro|balti/i.test(g))) {
-          console.log(`[Apollo] Only ${result.orgIds.length} Baltic orgs — retrying with Europe region`);
-          const europeGeo = ['Europe'];
-          const europeBody = { per_page: 50 };
-          if (apolloIndustries) europeBody.q_organization_keyword_tags      = apolloIndustries;
-          if (sizeRanges)       europeBody.organization_num_employees_ranges = sizeRanges;
-          europeBody.q_organization_locations = europeGeo;
+
+      if (result.orgIds.length < 5) {
+        const hasBaltic = apolloGeo?.some(g => /estonia|latvia|lithuania|balti/i.test(g));
+        const originalHadEurope = rawGeo?.some(g => /^europe$/i.test(g) || g === 'European Union');
+
+        // Step 2a: when original ICP included Europe/Baltic but returned sparse results,
+        // retry with explicit EU country names. Apollo matches country names reliably;
+        // "Europe" as a single value matches nothing in their geo index.
+        if (hasBaltic || originalHadEurope) {
+          console.log(`[Apollo] Only ${result.orgIds.length} orgs with primary geo — retrying with explicit EU countries`);
+          const euBody = { per_page: 50 };
+          if (apolloIndustries) euBody.q_organization_keyword_tags      = apolloIndustries;
+          if (sizeRanges)       euBody.organization_num_employees_ranges = sizeRanges;
+          euBody.q_organization_locations = EU_COUNTRIES;
           try {
-            const er = await fetch('https://api.apollo.io/v1/organizations/search', { method: 'POST', headers: apolloHeaders, body: JSON.stringify(europeBody), signal: AbortSignal.timeout(10000) });
+            const er = await fetch('https://api.apollo.io/v1/organizations/search', { method: 'POST', headers: apolloHeaders, body: JSON.stringify(euBody), signal: AbortSignal.timeout(12000) });
             if (er.ok) {
               const ed = await er.json();
-              const europeIds = (ed.organizations || []).map(o => o.id).filter(Boolean);
-              console.log(`[Apollo] Europe retry: ${europeIds.length} orgs`);
-              if (europeIds.length > result.orgIds.length) {
-                result = { orgCount: ed.pagination?.total_entries || null, orgIds: europeIds };
+              const euIds = (ed.organizations || []).map(o => o.id).filter(Boolean);
+              console.log(`[Apollo] EU countries retry: ${euIds.length} orgs`);
+              if (euIds.length > result.orgIds.length) {
+                result = { orgCount: ed.pagination?.total_entries || null, orgIds: euIds };
+                geoUsed = 'europe';
               }
             }
-          } catch(e) { console.warn('[Apollo] Europe retry error:', e.message); }
+          } catch(e) { console.warn('[Apollo] EU countries retry error:', e.message); }
         }
-        // Step 2b: if still thin, go fully global
+
+        // Step 2b: if still thin after EU retry, go fully global
         if (result.orgIds.length < 5) {
           console.log(`[Apollo] Still only ${result.orgIds.length} orgs — retrying globally (classifier will verify geo)`);
           const globalResult = await runOrgSearch(false);
-          if (globalResult.orgIds.length > result.orgIds.length) result = globalResult;
+          if (globalResult.orgIds.length > result.orgIds.length) {
+            result = globalResult;
+            geoUsed = 'global';
+          }
         }
       }
       const { orgCount, orgIds: fetchedIds } = result;
@@ -1044,7 +1064,12 @@ async function fetchLeadsFromApollo(icp) {
     console.log(`[Apollo] Classifying ${leadsForClassification.length} leads (${leadsForClassification.filter(l => l._excerpt).length} with excerpts, source: ${usedPeopleSearch ? 'people/search' : 'contacts/search'})...`);
 
     // ── Haiku ICP classifier — always runs, fail-closed by default ──────────
-    const classifications = await classifyLeadsWithHaiku(leadsForClassification, icp);
+    // When we fell back to EU or global search, pass the effective geo so the
+    // classifier can apply appropriate strictness (EU-wide accept vs hard Baltic-only).
+    const icpForClassifier = (geoUsed === 'europe')
+      ? { ...icp, apollo_geography: EU_COUNTRIES }
+      : (geoUsed === 'global' ? { ...icp, apollo_geography: null } : icp);
+    const classifications = await classifyLeadsWithHaiku(leadsForClassification, icpForClassifier);
     const classMap = {};
     classifications.forEach(c => { classMap[c.index] = c; });
     const anyMatch = classifications.some(c => c.match);
