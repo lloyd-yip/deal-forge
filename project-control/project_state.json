@@ -2,34 +2,45 @@
   "project_name": "Deal Forge",
   "description": "AI pipeline that generates 8 custom prospect assets after Call 1 to increase Call 2 show rates for Quantum Scaling reps",
   "business_entity": "quantum_scaling",
-  "last_updated": "2026-04-08T00:00:00Z",
+  "last_updated": "2026-04-15T00:00:00Z",
   "current_state": {
-    "phase_name": "Phase 1 - Backend Architecture",
-    "status": "building"
+    "phase_name": "Phase 2 - Build & Test",
+    "status": "debugging"
   },
   "project_overview": {
     "what": "Deal Forge is an internal sales tool for Quantum Scaling reps. After completing a Call 1 (Business Audit), the rep triggers the app with the Fireflies meeting ID. An AI pipeline extracts the prospect's ICP and business context, then generates 8 custom assets: a verified lead list, interactive Google Calendar invite visual, a live webinar experience mock, 3 webinar title options, an interactive ROI calculator pre-populated with their numbers, a prospect research profile, and brand-scraped visual identity. All assets are ready before Call 2.",
     "why": "QS's Call 2 show rate is 37.5% — the core constraint on revenue. Prospects feel informed after Call 1 and have no strong pull to return. Deal Forge creates a concrete bridge: assets so specific to the prospect that skipping Call 2 means walking away from something already built for them. The 'sunk cost' and perceived value dramatically increase show rate and close rate.",
     "end_state": "A polished internal rep dashboard used for every Call 2 booking. Rep selects today's calls from auto-loaded Fireflies meetings, clicks Generate, and has a full asset package ready within 20 minutes. The ROI model and reg page mock have shareable prospect-facing URLs. Eventually expands to full CRM integration and automated follow-up.",
-    "current_summary": "Phase 1 task-spec COMPLETE. All 8 pipeline tasks fully specced. reg_page replaced by webinar_mock (live webinar experience simulator with brand colors, 2 slides, AI-generated ICP live chat). Pipeline: extract → prospect_research → [brand_scrape, lead_list, webinar_titles, roi_model] → [calendar_visual, webinar_mock]. Ready for /ux-design then Phase 2 build."
+    "current_summary": "Phase 2 backend live on Railway. Full 8-task pipeline deployed (server.js). GHL webhook, Fireflies transcript lookup, extract, prospect_research, brand_scrape, lead_list, webinar_titles, roi_model, calendar_visual all wired up. Rep portal live at deal-forge-production.up.railway.app. Main blocker: lead_list EU Apollo coverage — org search returns 0 results for Baltic/EU ICPs. Multiple fixes shipped (commit c934325): strip 'Europe' from Apollo geo, EU country list retry, drop AND-logic industry filter. Not yet confirmed if Apollo plan or data coverage gap."
   },
-  "resume_here": "All 8 task specs complete. Next: run /ux-design for the rep dashboard UI, then Phase 2 build.",
+  "resume_here": "Phase 2 backend deployed. lead_list task returns 0 leads for EU/Baltic ICPs (Apollo EU coverage gap). Latest fix: commit c934325 — EU org retry with geo+size only (no AND-logic industry filter), geoUsed flag passes effective geo to classifier. NOT yet confirmed working — testing was stopped to avoid Apollo rate limit loop. Next session: run one real job for rait@planpro.ee and check Railway logs to see what tier the org search is hitting and what Apollo returns.",
   "current_phase": {
-    "name": "Phase 1 - Backend Architecture",
-    "goal": "Fully spec all 8 pipeline tasks via /task-spec, then build the worker, then design UX. No frontend work until all tasks are specced.",
+    "name": "Phase 2 - Build & Test",
+    "goal": "Debug lead_list EU Apollo coverage, confirm full pipeline end-to-end with real Call 1 transcripts, then polish rep portal UI.",
     "current_focus": [
-      "All task specs complete ✅ — extract, prospect_research, brand_scrape, lead_list, webinar_titles, roi_model, calendar_visual, webinar_mock",
-      "Phase 1 spec gate passed — ready for /ux-design"
+      "lead_list task returning 0 leads for Baltic/EU ICPs (rait@planpro.ee test case)",
+      "Apollo org search returning 0 for EU countries even with geo+size only (no industry filter) — root cause unconfirmed (rate limit vs data coverage gap)"
     ],
     "immediate_next_steps": [
-      "Run /ux-design for rep dashboard (job list, asset cards, status polling, shareable links)",
-      "Run /api-isolation on Apollo People Search API before building lead_list",
-      "Add jobs.research_data + jobs.brand_data columns (schema migration before Phase 2 deploy)",
-      "Begin Phase 2 worker build after UX wireframes confirmed"
+      "Test lead_list with rait@planpro.ee in a fresh session — check Railway logs for what Apollo returns at each tier (Baltic → EU → contacts fallback)",
+      "If Apollo EU org search confirms 0 coverage: consider people/search direct with person_locations (person-level geo, not org-level) as alternative path",
+      "Run end-to-end test with a US/global ICP (different prospect) to confirm pipeline works outside EU — isolate whether issue is EU-specific or broader",
+      "Once lead_list confirmed working: test full 8-task pipeline end-to-end on a real QS Call 1 transcript",
+      "Rep portal UI polish (deal-forge-production.up.railway.app)"
     ],
     "known_issues": [
       {
-        "title": "jobs.research_data and jobs.brand_data columns not yet in schema — migration required before Phase 2 deploy",
+        "title": "lead_list returns 0 leads for Baltic/EU ICPs — Apollo org search returns 0 even with explicit EU country list + geo+size only filter",
+        "severity": "high",
+        "status": "open"
+      },
+      {
+        "title": "Apollo q_organization_keyword_tags uses AND logic — multiple industry tags returns 0 EU results. Workaround deployed: EU retry drops industry filter entirely.",
+        "severity": "high",
+        "status": "fixed-unverified"
+      },
+      {
+        "title": "In-process job worker — jobs lost on Railway redeploy if in-flight. Jobs persist in Supabase but processing promise is killed.",
         "severity": "medium",
         "status": "open"
       }
@@ -140,6 +151,18 @@
     {
       "description": "Phase 1 spec gate complete — all 8 pipeline tasks fully specced. Ready for /ux-design and Phase 2 build.",
       "date": "2026-04-08"
+    },
+    {
+      "description": "Phase 2 backend built and deployed to Railway — full 8-task pipeline live, GHL webhook, Fireflies lookup, rep portal at deal-forge-production.up.railway.app",
+      "date": "2026-04-15"
+    },
+    {
+      "description": "lead_list pipeline hardened: no-name filter, enterprise employee ranges, anyMatch outage detection, geo cleanup (strip 'European Union'), classifier geo hard-reject rule",
+      "date": "2026-04-15"
+    },
+    {
+      "description": "Apollo AND-logic bug identified: q_organization_keyword_tags with 5 industry values returns 0 EU results. EU retry now uses geo+size only, geoUsed flag controls classifier strictness.",
+      "date": "2026-04-15"
     }
   ],
   "decision_log": [
@@ -192,7 +215,7 @@
   "completed_phases": [],
   "links": {
     "repo": "https://github.com/lloyd-yip/deal-forge",
-    "app_url": null,
+    "app_url": "https://deal-forge-production.up.railway.app",
     "docs": null
   }
 }
