@@ -963,11 +963,12 @@ async function fetchLeadsFromApollo(icp) {
           } catch(e) { console.warn('[Apollo] EU countries retry error:', e.message); }
         }
 
-        // Step 2b: if still thin after EU retry, go fully global
-        if (result.orgIds.length < 5) {
-          console.log(`[Apollo] Still only ${result.orgIds.length} orgs — retrying globally (classifier will verify geo)`);
+        // Step 2b: global ONLY if EU retry also returned nothing.
+        // Even 2-3 EU orgs beats 50 US orgs — the geo relevance is worth the smaller pool.
+        if (result.orgIds.length === 0) {
+          console.log(`[Apollo] EU search returned 0 orgs — falling back to global (classifier will verify geo)`);
           const globalResult = await runOrgSearch(false);
-          if (globalResult.orgIds.length > result.orgIds.length) {
+          if (globalResult.orgIds.length > 0) {
             result = globalResult;
             geoUsed = 'global';
           }
