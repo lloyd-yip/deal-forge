@@ -925,9 +925,33 @@ async function fetchLeadsFromApollo(icp) {
     try {
       let result = await runOrgSearch(true);
       if (result.orgIds.length < 5 && apolloGeo) {
-        console.log(`[Apollo] Only ${result.orgIds.length} orgs with geo filter — retrying globally (classifier will verify geo)`);
-        const globalResult = await runOrgSearch(false);
-        if (globalResult.orgIds.length > result.orgIds.length) result = globalResult;
+        // Step 2a: try with "Europe" only (broader but still continental)
+        const hasEurope = apolloGeo.some(g => /^europe$/i.test(g) || g === 'European Union');
+        if (!hasEurope && apolloGeo.some(g => /estonia|latvia|lithuania|montenegro|balti/i.test(g))) {
+          console.log(`[Apollo] Only ${result.orgIds.length} Baltic orgs — retrying with Europe region`);
+          const europeGeo = ['Europe'];
+          const europeBody = { per_page: 50 };
+          if (apolloIndustries) europeBody.q_organization_keyword_tags      = apolloIndustries;
+          if (sizeRanges)       europeBody.organization_num_employees_ranges = sizeRanges;
+          europeBody.q_organization_locations = europeGeo;
+          try {
+            const er = await fetch('https://api.apollo.io/v1/organizations/search', { method: 'POST', headers: apolloHeaders, body: JSON.stringify(europeBody), signal: AbortSignal.timeout(10000) });
+            if (er.ok) {
+              const ed = await er.json();
+              const europeIds = (ed.organizations || []).map(o => o.id).filter(Boolean);
+              console.log(`[Apollo] Europe retry: ${europeIds.length} orgs`);
+              if (europeIds.length > result.orgIds.length) {
+                result = { orgCount: ed.pagination?.total_entries || null, orgIds: europeIds };
+              }
+            }
+          } catch(e) { console.warn('[Apollo] Europe retry error:', e.message); }
+        }
+        // Step 2b: if still thin, go fully global
+        if (result.orgIds.length < 5) {
+          console.log(`[Apollo] Still only ${result.orgIds.length} orgs — retrying globally (classifier will verify geo)`);
+          const globalResult = await runOrgSearch(false);
+          if (globalResult.orgIds.length > result.orgIds.length) result = globalResult;
+        }
       }
       const { orgCount, orgIds: fetchedIds } = result;
       if (orgCount) total = orgCount * 2;
@@ -1021,21 +1045,28 @@ async function fetchLeadsFromApollo(icp) {
 
     // ── Haiku ICP classifier — always runs, fail-closed by default ──────────
     const classifications = await classifyLeadsWithHaiku(leadsForClassification, icp);
-    // Graceful degradation: if ALL classifications came back match:false (classifier outage or
-    // total rejection), bypass the confidence floor and return pre-filtered leads rather than
-    // showing 0. Better to show unverified leads with a flag than nothing at all.
     const classMap = {};
     classifications.forEach(c => { classMap[c.index] = c; });
     const anyMatch = classifications.some(c => c.match);
+    // Outage detection: classifier returns all match:false with reason 'classification unavailable'
+    // (from the catch block in classifyLeadsWithHaiku). Distinguish from genuine rejection.
+    const isClassifierOutage = !anyMatch && classifications.length > 0 &&
+      classifications.every(c => c.reason === 'classification unavailable');
+    if (!anyMatch && !isClassifierOutage) {
+      console.log('[Apollo] Classifier rejected all leads (genuine mismatch — not outage). Returning 0 leads.');
+    }
+    if (isClassifierOutage) {
+      console.warn('[Apollo] Classifier outage detected — returning pre-filtered leads unverified.');
+    }
     const classified = leadsForClassification
       .map((l, i) => {
         const c = classMap[i+1] || { match: false, confidence: 'low', reason: 'unclassified' };
         return { ...l, _match: c.match, confidence: c.confidence, match_reason: c.reason };
       })
       // Confidence floor: only show high + medium ICP-confirmed leads.
-      // Exception: if classifier returned 0 matches (outage / total mismatch),
-      // fall through to show pre-filtered leads rather than a blank result.
-      .filter(l => anyMatch ? (l._match && l.confidence !== 'low') : true);
+      // Outage exception: classifier down → show pre-filtered leads (better than nothing).
+      // Genuine rejection → return empty (better than showing wrong leads).
+      .filter(l => isClassifierOutage ? true : (l._match && l.confidence !== 'low'));
 
     const ORDER = { high: 0, medium: 1, low: 2 };
     classified.sort((a, b) => (ORDER[a.confidence] || 1) - (ORDER[b.confidence] || 1));
