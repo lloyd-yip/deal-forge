@@ -940,35 +940,37 @@ async function fetchLeadsFromApollo(icp) {
         const hasBaltic = apolloGeo?.some(g => /estonia|latvia|lithuania|balti/i.test(g));
         const originalHadEurope = rawGeo?.some(g => /^europe$/i.test(g) || g === 'European Union');
 
-        // Step 2a: when original ICP included Europe/Baltic but returned sparse results,
-        // retry with explicit EU country names. Apollo matches country names reliably;
-        // "Europe" as a single value matches nothing in their geo index.
+        // Step 2a: retry with EU countries, dropping the industry keyword filter.
+        // q_organization_keyword_tags uses AND logic — 5 industry tags returns 0 results.
+        // Without the industry filter, Apollo returns companies by geo+size only.
+        // Haiku classifier verifies sector fit via website content.
         if (hasBaltic || originalHadEurope) {
-          console.log(`[Apollo] Only ${result.orgIds.length} orgs with primary geo — retrying with explicit EU countries`);
+          console.log(`[Apollo] Only ${result.orgIds.length} Baltic orgs — retrying EU countries (geo+size only, no industry AND-filter)`);
           const euBody = { per_page: 50 };
-          if (apolloIndustries) euBody.q_organization_keyword_tags      = apolloIndustries;
-          if (sizeRanges)       euBody.organization_num_employees_ranges = sizeRanges;
+          // INTENTIONALLY omit q_organization_keyword_tags — AND-logic kills EU results
+          if (sizeRanges) euBody.organization_num_employees_ranges = sizeRanges;
           euBody.q_organization_locations = EU_COUNTRIES;
           try {
             const er = await fetch('https://api.apollo.io/v1/organizations/search', { method: 'POST', headers: apolloHeaders, body: JSON.stringify(euBody), signal: AbortSignal.timeout(12000) });
             if (er.ok) {
               const ed = await er.json();
               const euIds = (ed.organizations || []).map(o => o.id).filter(Boolean);
-              console.log(`[Apollo] EU countries retry: ${euIds.length} orgs`);
+              console.log(`[Apollo] EU (geo+size only): ${euIds.length} orgs, total: ${ed.pagination?.total_entries}`);
               if (euIds.length > result.orgIds.length) {
                 result = { orgCount: ed.pagination?.total_entries || null, orgIds: euIds };
                 geoUsed = 'europe';
               }
+            } else {
+              const errText = await er.text().catch(() => '');
+              console.warn(`[Apollo] EU org retry HTTP ${er.status}: ${errText.slice(0,120)}`);
             }
           } catch(e) { console.warn('[Apollo] EU countries retry error:', e.message); }
         }
 
-        // Step 2b: for Baltic/EU ICPs, do NOT fall back to global org search.
-        // Global orgs = US/APAC companies → classifier rejects all on geo → 0 leads.
-        // When EU org search also returns 0, mark for title-first contacts/search below.
+        // Step 2b: if still no EU orgs, mark for contacts/search path (last resort for EU markets)
         if (result.orgIds.length === 0) {
-          console.log(`[Apollo] EU org search also returned 0 — will use title-first contacts/search for EU people`);
-          geoUsed = 'contacts_eu'; // signals the people-fetching step to use contacts/search with EU geo
+          console.log(`[Apollo] EU org search still 0 — will use contacts/search as last resort`);
+          geoUsed = 'contacts_eu';
         }
       }
       const { orgCount, orgIds: fetchedIds } = result;
