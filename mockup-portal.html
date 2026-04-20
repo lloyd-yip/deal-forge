@@ -1622,7 +1622,8 @@ function buildCompatSession(job) {
   ext._generated = {
     webinarTitles:   (tasks.webinar_titles && tasks.webinar_titles.output) || null,
     leads:           (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.leads) || null,
-    apolloTotal:     (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.total) || null,
+    apolloTotal:          (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.total) || null,
+    recommendedOutreach:  (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.recommendedOutreach) || null,
     leadsTaskStatus: (tasks.lead_list && tasks.lead_list.status) || null
   };
   return {
@@ -1855,12 +1856,16 @@ function runPersonalization(session) {
     if (tamTotal) {
       const tamEl = document.getElementById('tam-total-val');
       if (tamEl) tamEl.textContent = tamTotal >= 1000000 ? Math.round(tamTotal / 100000) / 10 + 'M' : tamTotal >= 1000 ? Math.round(tamTotal / 100) / 10 + 'K' : tamTotal.toLocaleString();
-      const cycleMonths = tamTotal > 60000 ? '~3 mo' : tamTotal > 20000 ? '~2 mo' : '~1 mo';
-      const cycleDivisor = tamTotal > 60000 ? 3 : tamTotal > 20000 ? 2 : 1;
+      // Lloyd's rep-proof outreach formula:
+      // TAM > 300K → 100K/mo (QS maximum), TAM ≤ 300K → exhaust in exactly 3 months
+      // Use server-computed value if available (same formula, avoids client-side drift)
+      monthlyRaw = gen.recommendedOutreach ||
+        (tamTotal > 300000
+          ? 100000
+          : Math.max(1000, Math.round(tamTotal / 3 / 1000) * 1000));
+      const cycleMonths = tamTotal > 300000 ? '~1 mo' : '~3 mo';
       const cycleEl = document.getElementById('tam-cycle-val');
       if (cycleEl) cycleEl.textContent = cycleMonths;
-      // Recommended outreach/month ≈ TAM ÷ cycle length, capped at 100K (QS practical limit)
-      monthlyRaw = Math.min(100000, Math.max(30000, Math.round(tamTotal / cycleDivisor / 5000) * 5000));
       monthlyLo = Math.round(monthlyRaw * 0.85 / 1000);
       monthlyHi = Math.min(100, Math.round(monthlyRaw * 1.15 / 1000));
       const monthlyEl = document.getElementById('tam-monthly-val');
@@ -1873,10 +1878,10 @@ function runPersonalization(session) {
 
       const cycleBadge = document.getElementById('tam-cycle-badge-text');
       if (cycleBadge) {
-        if (tamTotal > 60000) {
-          cycleBadge.innerHTML = 'At ' + vol + ' outreaches/mo, your full market cycles every <strong>' + cycleMonths.replace('~','') + '</strong> — run a new webinar topic each cycle to stay fresh';
+        if (tamTotal > 300000) {
+          cycleBadge.innerHTML = 'At ' + vol + ' outreaches/mo, you reach your entire market in under 1 month — <strong>run fresh webinar angles each cycle</strong> to maximize market penetration.';
         } else {
-          cycleBadge.innerHTML = 'With a focused TAM of ' + (tamTotal >= 1000 ? Math.round(tamTotal/1000) + 'K' : tamTotal) + ', ' + vol + ' outreaches/mo covers your market in ' + cycleMonths.replace('~','') + ' — refresh targeting each cycle.';
+          cycleBadge.innerHTML = 'With a focused TAM of ' + (tamTotal >= 1000 ? Math.round(tamTotal/1000) + 'K' : tamTotal) + ', ' + vol + ' outreaches/mo exhausts your market in <strong>exactly 3 months</strong> — rotate webinar topics each cycle to stay fresh.';
         }
       }
       const roiLocked = document.getElementById('roi-locked-monthly');

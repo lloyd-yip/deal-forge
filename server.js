@@ -1515,8 +1515,15 @@ async function handleLeadList(task, job) {
   // Do NOT call filterLeadsByWebsite here — that would re-scrape every site a second time.
   const result = await fetchLeadsFromApollo(icp);
   const leads  = result?.leads || [];
-  console.log(`[lead_list] Apollo returned ${leads.length} classified leads, TAM: ${result?.total}`);
-  return { leads, total: result?.total || 0 };
+  const tam    = result?.total || 0;
+  // Lloyd's rep-proof outreach formula:
+  // TAM > 300K → cap at 100K/mo (QS practical maximum)
+  // TAM ≤ 300K → exhaust market in exactly 3 months
+  const recommendedOutreach = tam > 300000
+    ? 100000
+    : tam > 0 ? Math.max(1000, Math.round(tam / 3 / 1000) * 1000) : 30000;
+  console.log(`[lead_list] Apollo returned ${leads.length} classified leads, TAM: ${tam}, Outreach: ${recommendedOutreach}/mo`);
+  return { leads, total: tam, recommendedOutreach };
 }
 
 async function handleWebinarTitles(task, job) {
