@@ -775,13 +775,13 @@ const PARKING_SIGNALS = ['domain for sale','this domain is for sale','buy this d
 // Replaces raw fetch() + HTML parser. Jina runs a headless browser on their end,
 // so React/Next.js/Vue sites return actual content instead of empty shells.
 // No API key required. Format: https://r.jina.ai/{full-url}
-async function websiteQualityCheck(url) {
+async function websiteQualityCheck(url, timeoutMs = 7000) {
   if (!url) return null;
   const jinaFetch = async (targetUrl) => {
     try {
       const res = await fetch(`https://r.jina.ai/${targetUrl}`, {
         headers: { 'Accept': 'text/plain', 'X-Return-Format': 'text' },
-        signal: AbortSignal.timeout(7000)
+        signal: AbortSignal.timeout(timeoutMs)
       });
       if (!res.ok) return '';
       return (await res.text()).trim();
@@ -849,9 +849,9 @@ Rules:
 1. PRIMARY SIGNAL — website content: does the copy, tone, and services described match the target sector? An agency writes about campaigns, clients, creative work. A university mentions students, courses, faculty, admissions. A consulting firm mentions strategy, engagements, frameworks.
 2. SECONDARY SIGNAL — LinkedIn headline: if the person's headline explicitly references the company type or sector, weight it heavily.
 3. SECTOR MISMATCH = NO MATCH. A CEO title does not overcome a wrong-sector company.
-4. GEOGRAPHY CHECK (HARD REJECT): If TARGET GEOGRAPHY is specified AND the company's apparent location is CLEARLY not in that geography — based on company name, domain (.co.uk, .com.au etc.), or website content mentioning a different region — reject it. Examples: TARGET GEOGRAPHY = Baltic states/Europe → company named "Bank of Africa" or "Bank of China" → reject. TARGET = Europe → US/Australian/African company with no EU presence → reject. Only reject on geography if you are confident. If geography is ambiguous or unknown, do NOT reject on geo alone.
-5. NO SIGNAL RULE: If no website content AND no headline → default match: false.
-6. CONFIDENCE: "high" = website/headline clearly confirms BOTH sector AND geo. "medium" = sector confirmed, geo plausible but not explicit. "low" = company name plausible but no confirmation.
+4. GEOGRAPHY CHECK (SOFT): If TARGET GEOGRAPHY is specified AND the company's location is CLEARLY and CONFIDENTLY in the wrong region (e.g., ".co.au" domain for a Baltic ICP, website explicitly says "serving Africa only") → reject. When geography is ambiguous, unclear, or the company operates internationally → INCLUDE with confidence "low". Do NOT reject on geography alone if you are less than highly confident. When in doubt, include the lead — the rep will verify.
+5. NO SIGNAL RULE: If no website content AND no headline → default match: true with confidence "low" (benefit of the doubt — better to review than miss).
+6. CONFIDENCE: "high" = website/headline clearly confirms BOTH sector AND geo. "medium" = sector confirmed, geo plausible but not explicit. "low" = company name plausible, geo ambiguous, or only partial confirmation.
 7. Return valid JSON only. No markdown.`,
       messages: [{ role: 'user', content: userMsg }]
     });
@@ -864,7 +864,8 @@ Rules:
 }
 // ── Path A: Industry pre-filter — fast keyword gate before AI classifier ─────
 // Removes obvious mismatches by company name before spending tokens on Haiku.
-// Better to miss an edge case than to show a client "Maple Online Learning" as a consulting lead.
+// Relaxed: requires 2+ keyword matches to reject (1 match was too aggressive —
+// e.g., "TechConsult" got blocked because it contained "tech" for a consulting ICP).
 function preFilterLeadsByIndustry(leads, icp) {
   const industry = (icp?.industry || '').toLowerCase();
   const BLOCKLISTS = {
@@ -875,14 +876,28 @@ function preFilterLeadsByIndustry(leads, icp) {
   };
   const pattern = BLOCKLISTS[industry];
   if (!pattern) return leads;
+
+  // Count matches per lead — require 2+ hits to reject
+  // Single-word matches are too prone to false positives (e.g. "TechConsult" for consulting ICP)
   const out = leads.filter(l => {
-    if (pattern.test(l.company || '')) {
-      console.log(`[PreFilter] Excluded "${l.company}" — wrong industry for ${industry} ICP`);
+    const name = l.company || '';
+    const words = name.match(/\b\w+\b/g) || [];
+    const hits = words.filter(w => pattern.test(w)).length;
+    if (hits >= 2) {
+      console.log(`[PreFilter] Excluded "${name}" — ${hits} blocklist hits for ${industry} ICP`);
       return false;
     }
     return true;
   });
-  console.log(`[PreFilter] ${out.length}/${leads.length} passed industry name check`);
+
+  // Safety escape: if pre-filter would remove >80% of leads, bypass it entirely
+  // Better to let Haiku classify a few bad leads than return 0 leads
+  if (out.length < leads.length * 0.20 && leads.length >= 5) {
+    console.warn(`[PreFilter] Bypassed — would have removed ${leads.length - out.length}/${leads.length} leads (>80%). Sending all to Haiku.`);
+    return leads;
+  }
+
+  console.log(`[PreFilter] ${out.length}/${leads.length} passed (2+ keyword threshold)`);
   return out;
 }
 
@@ -1062,12 +1077,66 @@ async function fetchLeadsFromApollo(icp) {
           });
           allPeople = people.map(p => normalizePerson(p, 'people/search'));
           usedPeopleSearch = true;
-          console.log(`[Apollo] people/search: ${allPeople.length} contacts from ${orgIds.length} validated orgs`);
+          console.log(`[Apollo] people/search (org-constrained): ${allPeople.length} contacts from ${orgIds.length} orgs`);
+
+          // 3e. If org-constrained results are thin (<5), retry people/search globally with geo+titles
+          // This provides a results path when Apollo org coverage is sparse in a market
+          if (allPeople.length < 5 && (apolloTitles?.length || apolloGeo?.length)) {
+            console.log('[Apollo] Org-constrained people/search thin — retrying globally with geo+titles');
+            const globalPeopleBody = { per_page: 25 };
+            if (apolloTitles?.length) globalPeopleBody.person_titles     = apolloTitles;
+            if (seniorities)          globalPeopleBody.person_seniorities = seniorities;
+            if (apolloGeo?.length)    globalPeopleBody.person_locations   = apolloGeo;
+            try {
+              const gpr = await fetch('https://api.apollo.io/v1/people/search', {
+                method: 'POST', headers: apolloHeaders,
+                body: JSON.stringify(globalPeopleBody), signal: AbortSignal.timeout(12000)
+              });
+              if (gpr.ok) {
+                const gpd = await gpr.json();
+                const gpPeople = (gpd.people || []).filter(p => {
+                  const n = (p.name || '').trim();
+                  return n.length > 2 && p.title && (p.organization_name || p.organization?.name);
+                }).map(p => normalizePerson(p, 'people/search-global'));
+                if (gpPeople.length > allPeople.length) {
+                  allPeople = gpPeople;
+                  console.log(`[Apollo] Global people/search: ${allPeople.length} candidates`);
+                }
+              }
+            } catch(e) { console.warn('[Apollo] Global people/search retry error:', e.message); }
+          }
         } else {
           const errText = await peopleRes.text().catch(() => '');
           console.warn(`[Apollo] people/search HTTP ${peopleRes.status} — falling back to contacts/search. ${errText.slice(0,120)}`);
         }
       } catch(e) { console.warn('[Apollo] people/search error:', e.message); }
+    } else {
+      // 3a. No org IDs at all — run people/search directly with geo+titles (not dependent on orgs)
+      console.log('[Apollo] No org IDs — trying direct people/search with geo+titles');
+      if (apolloTitles?.length || apolloGeo?.length) {
+        const directBody = { per_page: 25 };
+        if (apolloTitles?.length) directBody.person_titles     = apolloTitles;
+        if (seniorities)          directBody.person_seniorities = seniorities;
+        if (apolloGeo?.length)    directBody.person_locations   = apolloGeo;
+        try {
+          const dr = await fetch('https://api.apollo.io/v1/people/search', {
+            method: 'POST', headers: apolloHeaders,
+            body: JSON.stringify(directBody), signal: AbortSignal.timeout(12000)
+          });
+          if (dr.ok) {
+            const dd = await dr.json();
+            const dp = (dd.people || []).filter(p => {
+              const n = (p.name || '').trim();
+              return n.length > 2 && p.title && (p.organization_name || p.organization?.name);
+            }).map(p => normalizePerson(p, 'people/search-direct'));
+            allPeople = dp;
+            usedPeopleSearch = dp.length > 0;
+            console.log(`[Apollo] Direct people/search (no org IDs): ${allPeople.length} candidates`);
+          } else if (dr.status !== 403) {
+            console.warn(`[Apollo] Direct people/search HTTP ${dr.status}`);
+          }
+        } catch(e) { console.warn('[Apollo] Direct people/search error:', e.message); }
+      }
     }
 
     // ── Fallback: contacts/search (CRM-only, but workable) ───────────────────
@@ -1119,9 +1188,16 @@ async function fetchLeadsFromApollo(icp) {
     // ── Website excerpts — bonus signal, not a gate ───────────────────────────
     console.log(`[Apollo] Fetching website excerpts for ${rawLeads.length} pre-filtered leads...`);
     const qualityResults = [];
-    for (let i = 0; i < rawLeads.length; i += 10) {
-      const batch = rawLeads.slice(i, i + 10);
-      const batchResults = await Promise.all(batch.map(l => websiteQualityCheck(l.website)));
+    // 3d. Larger batches (15) + reduced timeout (4s) + early exit at 25 excerpts
+    for (let i = 0; i < rawLeads.length; i += 15) {
+      if (qualityResults.filter(Boolean).length >= 25) {
+        console.log('[Apollo] Early exit: 25+ excerpts collected, skipping remaining Jina checks');
+        // Pad remaining with nulls so indices align
+        while (qualityResults.length < rawLeads.length) qualityResults.push(null);
+        break;
+      }
+      const batch = rawLeads.slice(i, i + 15);
+      const batchResults = await Promise.all(batch.map(l => websiteQualityCheck(l.website, 4000)));
       qualityResults.push(...batchResults);
     }
     const leadsForClassification = rawLeads.map((l, i) =>
@@ -1150,15 +1226,24 @@ async function fetchLeadsFromApollo(icp) {
     if (isClassifierOutage) {
       console.warn('[Apollo] Classifier outage detected — returning pre-filtered leads unverified.');
     }
+    // 3c. Confidence floor — accept low-confidence leads as backfill when high+medium count is <10
+    // This prevents returning 0 leads when geo signals are ambiguous but sector looks correct
+    const highMediumCount = leadsForClassification.filter((l, i) => {
+      const c = classMap[i+1];
+      return c && c.match && c.confidence !== 'low';
+    }).length;
+    const useLowAsBackfill = highMediumCount < 10;
+    if (useLowAsBackfill && highMediumCount > 0) {
+      console.log(`[Apollo] Only ${highMediumCount} high/medium leads — including low-confidence as backfill`);
+    }
     const classified = leadsForClassification
       .map((l, i) => {
         const c = classMap[i+1] || { match: false, confidence: 'low', reason: 'unclassified' };
         return { ...l, _match: c.match, confidence: c.confidence, match_reason: c.reason };
       })
-      // Confidence floor: only show high + medium ICP-confirmed leads.
+      // Confidence floor: prefer high+medium. Backfill with low only when high+medium < 10.
       // Outage exception: classifier down → show pre-filtered leads (better than nothing).
-      // Genuine rejection → return empty (better than showing wrong leads).
-      .filter(l => isClassifierOutage ? true : (l._match && l.confidence !== 'low'));
+      .filter(l => isClassifierOutage ? true : (l._match && (l.confidence !== 'low' || useLowAsBackfill)));
 
     const ORDER = { high: 0, medium: 1, low: 2 };
     classified.sort((a, b) => (ORDER[a.confidence] || 1) - (ORDER[b.confidence] || 1));
