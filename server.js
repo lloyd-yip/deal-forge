@@ -512,29 +512,57 @@ async function findFirefliesTranscript(email, contactInfo = {}) {
 
 // ── Website scraper ───────────────────────────────────────────────────────────
 async function scrapeWebsite(domain) {
-  try {
-    const url = `https://${domain}`;
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
-      signal: AbortSignal.timeout(8000)
-    });
-    const html = await res.text();
-    const title    = (html.match(/<title[^>]*>([^<]+)<\/title>/i) || [])[1]?.trim() || '';
-    const metaDesc = (
-      html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{10,})/i) ||
-      html.match(/<meta[^>]+content=["']([^"']{10,})["'][^>]+name=["']description["']/i)
-    )?.[1]?.trim() || '';
-    const bodyText = html
-      .replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<nav[\s\S]*?<\/nav>/gi, '').replace(/<footer[\s\S]*?<\/footer>/gi, '')
-      .replace(/<header[\s\S]*?<\/header>/gi, '').replace(/<[^>]+>/g, ' ')
-      .replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim().slice(0, 3000);
-    console.log(`[scrape] ${domain} — "${title.slice(0, 60)}"`);
-    return { html, title, metaDesc, bodyText };
-  } catch(e) {
-    console.log(`[scrape] Failed for ${domain}:`, e.message);
-    return { html: '', title: '', metaDesc: '', bodyText: '' };
+  // Strip protocol if accidentally passed with it
+  const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const baseUrl = `https://${cleanDomain}`;
+
+  // ── Path A: Jina AI Reader — renders JS/SPA sites via headless browser ──────
+  // Returns clean markdown text — far better than regex-stripped HTML for briefs.
+  // No API key required. Already proven in websiteQualityCheck() for lead classification.
+  const jinaFetch = async (targetUrl) => {
+    try {
+      const res = await fetch(`https://r.jina.ai/${targetUrl}`, {
+        headers: { 'Accept': 'text/plain', 'X-Return-Format': 'text', 'X-Timeout': '8' },
+        signal: AbortSignal.timeout(9000)
+      });
+      if (!res.ok) return '';
+      return (await res.text()).trim();
+    } catch(e) { return ''; }
+  };
+
+  // ── Path B: Raw fetch — needed for HTML metadata (og:image, theme-color, etc.) ─
+  // brand_scrape depends on raw HTML for logo/color regex extraction.
+  const rawFetch = async () => {
+    try {
+      const res = await fetch(baseUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(8000)
+      });
+      return res.ok ? await res.text() : '';
+    } catch(e) { return ''; }
+  };
+
+  // Run both in parallel — no speed penalty
+  const [jinaText, html] = await Promise.all([jinaFetch(baseUrl), rawFetch()]);
+
+  // If Jina homepage is thin (<250 chars), try /about page for richer content
+  let bodyText = jinaText;
+  if (jinaText.length < 250) {
+    const aboutText = await jinaFetch(`${baseUrl}/about`);
+    if (aboutText.length > jinaText.length) bodyText = aboutText;
   }
+  bodyText = bodyText.slice(0, 3000);
+
+  // Extract title + metaDesc from raw HTML (they're in <head>, always server-rendered)
+  const title = (html.match(/<title[^>]*>([^<]+)<\/title>/i) || [])[1]?.trim() ||
+                bodyText.split('\n').find(l => l.trim().length > 10)?.trim().slice(0, 120) || '';
+  const metaDesc = (
+    html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{10,})/i) ||
+    html.match(/<meta[^>]+content=["']([^"']{10,})["'][^>]+name=["']description["']/i)
+  )?.[1]?.trim() || '';
+
+  console.log(`[scrape] ${cleanDomain} — Jina:${jinaText.length}chars, HTML:${html.length}chars, title:"${title.slice(0,60)}"`);
+  return { html, title, metaDesc, bodyText };
 }
 
 // ── Brief extraction from transcript + website ────────────────────────────────
