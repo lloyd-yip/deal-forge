@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment — NEVER commit API keys
+.env
+.env.local
+.env.*.local
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*

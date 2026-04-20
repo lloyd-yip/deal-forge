@@ -1,4 +1,7 @@
 'use strict';
+// Load .env file first — must be before ANY process.env reads
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+
 const http    = require('http');
 const https   = require('https');
 const fs      = require('fs');
