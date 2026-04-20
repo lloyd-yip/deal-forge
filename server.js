@@ -1726,7 +1726,7 @@ async function processNextTask() {
     if (!claimed) return; // another worker claimed it (shouldn't happen on single-server but safe)
 
     const job = await getJob(task.job_id);
-    if (!job) { await failTask(task.id, 'Parent job not found'); return; }
+    if (!job) { await retryOrFailTask(task, 'Parent job not found'); return; }
 
     console.log(`[worker] Running ${task.task_type} (task ${task.id}) for job ${task.job_id}`);
 
