@@ -726,8 +726,10 @@ function estimateGlobalTAM(icp) {
     if (/telecom/.test(s)) return 120000;
     return 1100000;
   }
-  // Each additional industry adds 60% of its base (avoid double-counting overlapping markets)
-  let base = industries.reduce((sum, ind, i) => sum + getIndBase(ind) * Math.pow(0.6, i), 0);
+  // Cap at first 2 industries — additional industries are likely overlapping markets
+  // More than 2 would compound the base unrealistically (old formula produced 8.5M for 3+ industries)
+  const cappedIndustries = industries.slice(0, 2);
+  let base = cappedIndustries.reduce((sum, ind, i) => sum + getIndBase(ind) * Math.pow(0.6, i), 0);
 
   // Size adjustment: larger company = fewer companies but same contact density
   const sizeStr = (icp?.company_size || '').toLowerCase();
@@ -761,9 +763,12 @@ function estimateGlobalTAM(icp) {
 
   const raw = Math.round(base * sizeMult * geoMult);
   // Round to a clean number — nearest 5K below 100K, nearest 25K above
-  if (raw < 10000) return Math.round(raw / 500) * 500;
-  if (raw < 100000) return Math.round(raw / 5000) * 5000;
-  return Math.round(raw / 25000) * 25000;
+  // Hard cap at 500K: if heuristic says more, it's almost certainly wrong
+  // (Apollo's org search returns real counts; this is only used as a fallback)
+  const capped = Math.min(500000, raw);
+  if (capped < 10000) return Math.round(capped / 500) * 500;
+  if (capped < 100000) return Math.round(capped / 5000) * 5000;
+  return Math.round(capped / 25000) * 25000;
 }
 const PARKING_SIGNALS = ['domain for sale','this domain is for sale','buy this domain','coming soon','under construction','parked by','domain parking'];
 // ── Jina AI Reader — JS-rendering-aware website scraper ─────────────────────
@@ -1003,9 +1008,32 @@ async function fetchLeadsFromApollo(icp) {
         }
       }
       const { orgCount, orgIds: fetchedIds } = result;
-      // TAM always comes from estimateGlobalTAM(icp) below — do NOT override with Apollo's filtered org count
       orgIds = fetchedIds;
       console.log(`[Apollo] Org search: ${orgCount} orgs found; extracted ${orgIds.length} org IDs for people search`);
+
+      // ── Dedicated TAM count query ─────────────────────────────────────────────
+      // Run a separate broad org search (geo + size only, NO industry keyword tags)
+      // to get Apollo's real pagination count as the TAM source.
+      // This is MORE accurate than the lead-finding search (which may be filtered)
+      // and MORE accurate than estimateGlobalTAM() (which uses hardcoded heuristics).
+      try {
+        const tamBody = { per_page: 1 }; // We only need pagination.total_entries
+        if (sizeRanges)  tamBody.organization_num_employees_ranges = sizeRanges;
+        if (apolloGeo?.length) tamBody.q_organization_locations = apolloGeo;
+        const tamRes = await fetch('https://api.apollo.io/v1/organizations/search', {
+          method: 'POST', headers: apolloHeaders,
+          body: JSON.stringify(tamBody), signal: AbortSignal.timeout(8000)
+        });
+        if (tamRes.ok) {
+          const tamData = await tamRes.json();
+          const realCount = tamData.pagination?.total_entries;
+          if (realCount && realCount > 0) {
+            total = realCount;
+            console.log(`[Apollo] TAM (Apollo real count, geo+size broad): ${total}`);
+          }
+        }
+      } catch(e) { console.warn('[Apollo] TAM count query failed:', e.message); }
+      // total falls back to estimateGlobalTAM(icp) at the end if still null
     } catch(e) { console.warn('[Apollo] Org search error:', e.message); }
 
     // ── Step 2: people/search at validated org IDs (Path B) ──────────────────
@@ -1135,10 +1163,11 @@ async function fetchLeadsFromApollo(icp) {
     const ORDER = { high: 0, medium: 1, low: 2 };
     classified.sort((a, b) => (ORDER[a.confidence] || 1) - (ORDER[b.confidence] || 1));
     const finalLeads = classified.slice(0, 25).map(({ _match, _excerpt, _source, ...l }) => l);
-    // total = org count × 2 from organizations/search (global Apollo DB), or estimated fallback
+    // TAM source: real Apollo count (from dedicated TAM query) or heuristic fallback
     const tam = total || estimateGlobalTAM(icp);
-    console.log(`[Apollo] Final: ${finalLeads.length} leads, TAM: ${tam}`);
-    return { leads: finalLeads, total: tam };
+    const tamSource = total ? 'apollo' : 'estimated';
+    console.log(`[Apollo] Final: ${finalLeads.length} leads, TAM: ${tam} (source: ${tamSource})`);
+    return { leads: finalLeads, total: tam, tamSource };
   };
   return Promise.race([apolloCore(), timeout270s]);
 }

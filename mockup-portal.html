@@ -1624,6 +1624,7 @@ function buildCompatSession(job) {
     leads:           (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.leads) || null,
     apolloTotal:          (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.total) || null,
     recommendedOutreach:  (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.recommendedOutreach) || null,
+    tamSource:            (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.tamSource) || null,
     leadsTaskStatus: (tasks.lead_list && tasks.lead_list.status) || null
   };
   return {
@@ -1640,6 +1641,9 @@ function buildCompatSession(job) {
   const params = new URLSearchParams(window.location.search);
   const jobId        = params.get('job');
   const sessionToken = params.get('session');
+  // Edit mode: reps access portal with ?edit=true — shows override controls, TAM source badges
+  // Prospect-shared link never includes this flag, so they never see the edit UI
+  const IS_EDIT_MODE = params.get('edit') === 'true';
 
   // Nothing to personalize
   if (!jobId && !sessionToken) {
@@ -1855,7 +1859,17 @@ function runPersonalization(session) {
     let monthlyLo = 25, monthlyHi = 35;
     if (tamTotal) {
       const tamEl = document.getElementById('tam-total-val');
-      if (tamEl) tamEl.textContent = tamTotal >= 1000000 ? Math.round(tamTotal / 100000) / 10 + 'M' : tamTotal >= 1000 ? Math.round(tamTotal / 100) / 10 + 'K' : tamTotal.toLocaleString();
+      if (tamEl) {
+        tamEl.textContent = tamTotal >= 1000000 ? Math.round(tamTotal / 100000) / 10 + 'M' : tamTotal >= 1000 ? Math.round(tamTotal / 100) / 10 + 'K' : tamTotal.toLocaleString();
+        // Edit mode only: show TAM source badge so rep knows if they should verify before sharing
+        if (IS_EDIT_MODE && gen.tamSource === 'estimated') {
+          const badge = document.createElement('span');
+          badge.title = 'TAM is estimated — Apollo returned no org count. You can override this value.';
+          badge.style.cssText = 'margin-left:8px;font-size:11px;font-weight:600;color:#f59e0b;background:rgba(245,158,11,0.15);padding:2px 6px;border-radius:4px;vertical-align:middle;cursor:help;';
+          badge.textContent = '⚠ Estimated';
+          tamEl.parentNode.appendChild(badge);
+        }
+      }
       // Lloyd's rep-proof outreach formula:
       // TAM > 300K → 100K/mo (QS maximum), TAM ≤ 300K → exhaust in exactly 3 months
       // Use server-computed value if available (same formula, avoids client-side drift)
