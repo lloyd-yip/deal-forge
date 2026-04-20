@@ -1619,20 +1619,35 @@ function buildCompatSession(job) {
   const ext = Object.assign({}, job.extracted_data || {});
   const tasks = job.tasks || {};
   const meta = ext._meta || {};
-  ext._generated = {
-    webinarTitles:   (tasks.webinar_titles && tasks.webinar_titles.output) || null,
-    leads:           (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.leads) || null,
+  ext._generated = applyOverrides({
+    webinarTitles:        (tasks.webinar_titles && tasks.webinar_titles.output) || null,
+    leads:               (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.leads) || null,
     apolloTotal:          (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.total) || null,
     recommendedOutreach:  (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.recommendedOutreach) || null,
     tamSource:            (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.tamSource) || null,
     leadsTaskStatus: (tasks.lead_list && tasks.lead_list.status) || null
-  };
+  }, ext._overrides);
   return {
     email:      job.prospect_email || '',
     domain:     job.prospect_website || '',
     transcript: meta.transcript || { found: false },
     website:    meta.website    || { domain: job.prospect_website, scraped: false },
     extracted:  ext
+  };
+}
+
+// ── Override precedence helper — reads rep edits over AI-generated values ─────
+// Always prefer _overrides > _generated > defaults
+function applyOverrides(gen, overrides) {
+  if (!overrides) return gen;
+  return {
+    ...gen,
+    apolloTotal:         overrides.tam_total         ?? gen.apolloTotal,
+    recommendedOutreach: overrides.recommended_outreach ?? gen.recommendedOutreach,
+    webinarTitleOverride: overrides.webinar_title    ?? null,
+    roiLtv:              overrides.roi_ltv           ?? gen.roiLtv,
+    roiShowRate:         overrides.roi_show_rate     ?? gen.roiShowRate,
+    roiCloseRate:        overrides.roi_close_rate    ?? gen.roiCloseRate,
   };
 }
 
@@ -1644,6 +1659,75 @@ function buildCompatSession(job) {
   // Edit mode: reps access portal with ?edit=true — shows override controls, TAM source badges
   // Prospect-shared link never includes this flag, so they never see the edit UI
   const IS_EDIT_MODE = params.get('edit') === 'true';
+
+  // ── Edit mode — inject nav banner + CSS for edit controls ─────────────────
+  if (IS_EDIT_MODE) {
+    const banner = document.createElement('div');
+    banner.id = 'edit-mode-banner';
+    banner.innerHTML = '✏️ <strong>Editing Mode</strong> — Changes save instantly and only you can see this bar. <a href="' + window.location.href.replace('&edit=true','').replace('?edit=true','').replace('edit=true','') + '" target="_blank" style="color:#86efac;margin-left:12px;">Open Prospect View ↗</a>';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#166534;color:#dcfce7;font-size:13px;padding:8px 20px;text-align:center;font-weight:500;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+    document.body.prepend(banner);
+    document.body.style.paddingTop = '40px';
+    const style = document.createElement('style');
+    style.textContent = `
+      .override-edit-btn { display:inline-flex !important; }
+      .override-field { border-bottom:1px dashed #86efac !important; cursor:pointer !important; }
+      .override-field:hover { background:rgba(134,239,172,0.1) !important; border-radius:4px !important; }
+      .override-input { background:#1e293b!important;color:#f1f5f9!important;border:1px solid #86efac!important;border-radius:6px!important;padding:4px 8px!important;font-size:inherit!important;width:auto!important;min-width:80px; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // ── saveOverride — PATCH override to backend, update display ─────────────
+  async function saveOverride(field, value, displayEl) {
+    if (!jobId) return;
+    try {
+      const r = await fetch('/api/jobs/' + encodeURIComponent(jobId) + '/overrides', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: isNaN(Number(value)) ? value : Number(value) })
+      });
+      if (!r.ok) throw new Error('Save failed: ' + r.status);
+      if (displayEl) displayEl.textContent = value;
+      console.log('[Edit Mode] Saved override:', field, '=', value);
+    } catch(e) {
+      alert('Could not save override: ' + e.message);
+    }
+  }
+
+  // ── addEditIcon — inject pencil icon next to an element in edit mode ───────
+  function addEditIcon(el, field, label) {
+    if (!IS_EDIT_MODE || !el) return;
+    el.classList.add('override-field');
+    const btn = document.createElement('button');
+    btn.className = 'override-edit-btn';
+    btn.title = 'Override ' + label;
+    btn.style.cssText = 'display:none;background:none;border:none;cursor:pointer;color:#86efac;font-size:14px;margin-left:6px;vertical-align:middle;padding:0;';
+    btn.textContent = '✏️';
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const current = el.textContent.replace(/[^0-9.]/g, '') || el.textContent;
+      const input = document.createElement('input');
+      input.className = 'override-input';
+      input.value = current;
+      input.style.width = Math.max(80, current.length * 10) + 'px';
+      const save = () => {
+        const v = input.value.trim();
+        if (v) saveOverride(field, v, el);
+        input.replaceWith(btn);
+        el.style.display = '';
+      };
+      input.onblur = save;
+      input.onkeydown = (ev) => { if (ev.key === 'Enter') save(); if (ev.key === 'Escape') { input.replaceWith(btn); el.style.display = ''; } };
+      el.style.display = 'none';
+      el.parentNode.insertBefore(input, el.nextSibling);
+      input.focus();
+      input.select();
+    };
+    el.parentNode.insertBefore(btn, el.nextSibling);
+    el.addEventListener('mouseenter', () => btn.style.display = 'inline-flex');
+    el.addEventListener('mouseleave', () => btn.style.display = 'none');
+  }
 
   // Nothing to personalize
   if (!jobId && !sessionToken) {
@@ -1884,6 +1968,9 @@ function runPersonalization(session) {
       monthlyHi = Math.min(100, Math.round(monthlyRaw * 1.15 / 1000));
       const monthlyEl = document.getElementById('tam-monthly-val');
       if (monthlyEl) monthlyEl.textContent = monthlyLo + '–' + monthlyHi + 'K';
+      // Edit mode: add override icons on TAM and outreach elements
+      addEditIcon(document.getElementById('tam-total-val'), 'tam_total', 'Market Size (TAM)');
+      addEditIcon(monthlyEl, 'recommended_outreach', 'Monthly Outreach Volume');
 
       // ── Sync MONTHLY_INVITES + update all static volume elements ─────────
       MONTHLY_INVITES = monthlyRaw;

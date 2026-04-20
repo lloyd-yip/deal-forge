@@ -257,7 +257,7 @@ async function parseBody(req) {
 }
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
@@ -2137,6 +2137,48 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ deleted: true }));
     } catch(e) {
       console.error('[DELETE /api/jobs]', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ── PATCH /api/jobs/:id/overrides — rep field override system ──────────────────
+  // Stores rep manual edits in extracted_data._overrides (separate from AI-generated data).
+  // Overrides persist across pipeline re-runs. Portal reads _overrides first, then _generated.
+  // Allowed fields: tam_total, recommended_outreach, webinar_title, roi_ltv, roi_show_rate, roi_close_rate
+  if (req.method === 'PATCH' && urlPath.startsWith('/api/jobs/') && urlPath.endsWith('/overrides')) {
+    setCors(res);
+    const jobId = urlPath.slice('/api/jobs/'.length, -'/overrides'.length);
+    try {
+      const body = await parseBody(req);
+      const ALLOWED = ['tam_total','recommended_outreach','webinar_title','roi_ltv','roi_show_rate','roi_close_rate'];
+      const safeOverrides = {};
+      for (const k of ALLOWED) {
+        if (body[k] !== undefined) safeOverrides[k] = body[k];
+      }
+      if (!Object.keys(safeOverrides).length) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: `No valid override fields. Allowed: ${ALLOWED.join(', ')}` }));
+        return;
+      }
+      // Fetch current job to merge overrides
+      const job = await getJob(jobId);
+      if (!job) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Job not found' })); return; }
+      const existingData = job.extracted_data || {};
+      const existingOverrides = existingData._overrides || {};
+      const mergedOverrides = { ...existingOverrides, ...safeOverrides, _updated_at: new Date().toISOString() };
+      const updatedData = { ...existingData, _overrides: mergedOverrides };
+      const r = await supabaseRequest('PATCH', `/rest/v1/jobs?id=eq.${jobId}`,
+        { extracted_data: updatedData, updated_at: new Date().toISOString() },
+        { 'Prefer': 'return=minimal' }
+      );
+      if (r.status >= 400) throw new Error(`Supabase PATCH failed: ${r.status}`);
+      console.log(`[PATCH /api/jobs/${jobId}/overrides] Saved:`, safeOverrides);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, overrides: mergedOverrides }));
+    } catch(e) {
+      console.error('[PATCH /api/jobs/overrides]', e.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }

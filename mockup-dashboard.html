@@ -1020,7 +1020,8 @@ function njGenerate() {
   .then(function(data) {
     if (data.error) throw new Error(data.error);
 
-    var portalUrl = data.portal_url || ('/?job=' + data.job_id);
+    var portalUrl     = data.portal_url || ('/?job=' + data.job_id);
+    var editPortalUrl = portalUrl + (portalUrl.includes('?') ? '&' : '?') + 'edit=true';
     var repName = rep === 'melissa' ? 'Melissa F.' : 'Ryan Matsumori';
     var today = new Date();
     var dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -1029,7 +1030,7 @@ function njGenerate() {
     // Inject row immediately (processing state)
     var jobRows = document.getElementById('job-rows');
     if (jobRows) {
-      var rowHtml = '<div class="row-item job-row" data-rep="' + rep + '" data-name="' + displayName.toLowerCase() + '" data-company="' + displayCompany.toLowerCase() + '" onclick="window.open(\'' + portalUrl + '\',\'_blank\')" style="display:flex;align-items:center;padding:15px 20px;">'
+      var rowHtml = '<div class="row-item job-row" data-rep="' + rep + '" data-name="' + displayName.toLowerCase() + '" data-company="' + displayCompany.toLowerCase() + '" onclick="window.open(\'' + editPortalUrl + '\',\'_blank\')" style="display:flex;align-items:center;padding:15px 20px;">'
         + '<div style="flex:1;">'
         + '<div style="font-size:13px;font-weight:500;color:#ffffff;">' + displayCompany + '</div>'
         + '<div style="font-size:12px;color:#71717a;margin-top:1px;">' + displayName + '</div>'
@@ -1046,7 +1047,7 @@ function njGenerate() {
     }
 
     njClose();
-    window.open(portalUrl, '_blank');
+    window.open(editPortalUrl, '_blank');
   })
   .catch(function(err) {
     console.error('Generate error:', err);
@@ -1058,10 +1059,22 @@ function njGenerate() {
 }
 
 function openPortalLink(btn) {
-  window.open('/', '_blank');
+  window.open('/?edit=true', '_blank');
   var orig = btn.innerHTML;
   btn.innerHTML = '<svg style="width:13px;height:13px;color:#8b5cf6;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Opened';
   setTimeout(function(){ btn.innerHTML = orig; }, 2000);
+}
+
+function copyProspectLink(url, btn) {
+  var fullUrl = window.location.origin + url;
+  navigator.clipboard.writeText(fullUrl).then(function() {
+    var orig = btn.innerHTML;
+    btn.innerHTML = '✅';
+    btn.title = 'Copied!';
+    setTimeout(function(){ btn.innerHTML = orig; btn.title = 'Copy prospect link (no edit mode)'; }, 2000);
+  }).catch(function() {
+    prompt('Copy this prospect link:', fullUrl);
+  });
 }
 
 // Escape key closes modal
@@ -1107,10 +1120,11 @@ function loadJobsFromServer() {
         var company = job.prospect_company || (job.prospect_email || '').split('@')[1] || 'Unknown';
         company = company.split('.')[0].charAt(0).toUpperCase() + company.split('.')[0].slice(1);
         var name = job.prospect_name || job.prospect_email || '';
-        var portalUrl = job.portal_url || ('/?job=' + job.job_id);
+        var portalUrl     = job.portal_url || ('/?job=' + job.job_id);
+        var editPortalUrl = portalUrl + (portalUrl.includes('?') ? '&' : '?') + 'edit=true';
         var date = job.created_at ? new Date(job.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
         var jobId = job.job_id || '';
-        var rowHtml = '<div class="row-item job-row" data-rep="all" data-name="' + name.toLowerCase() + '" data-company="' + company.toLowerCase() + '" onclick="window.open(\'' + portalUrl + '\',\'_blank\')" style="display:flex;align-items:center;padding:15px 20px;">'
+        var rowHtml = '<div class="row-item job-row" data-rep="all" data-name="' + name.toLowerCase() + '" data-company="' + company.toLowerCase() + '" onclick="window.open(\'' + editPortalUrl + '\',\'_blank\')" style="display:flex;align-items:center;padding:15px 20px;">'
           + '<div style="flex:1;">'
           + '<div style="font-size:13px;font-weight:500;color:#ffffff;">' + company + '</div>'
           + '<div style="font-size:12px;color:#71717a;margin-top:1px;">' + name + '</div>'
