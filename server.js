@@ -2268,12 +2268,23 @@ const server = http.createServer(async (req, res) => {
   // ── LinkedIn avatar proxy ─────────────────────────────────────────────────
   if (urlPath === '/lloyd-avatar') {
     const linkedinUrl = 'https://media.licdn.com/dms/image/v2/C4E03AQEtIxMkjlDmyA/profile-displayphoto-shrink_200_200/0/1638042721905';
+    let headersSent = false;
     https.get(linkedinUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.linkedin.com/', 'Accept': 'image/*' }
     }, (upstream) => {
-      if (upstream.statusCode === 200) { res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' }); upstream.pipe(res); }
-      else { res.writeHead(404); res.end(); }
-    }).on('error', () => { res.writeHead(404); res.end(); });
+      if (upstream.statusCode === 200) {
+        headersSent = true;
+        res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+        upstream.pipe(res);
+        upstream.on('error', () => res.destroy());
+      } else {
+        headersSent = true;
+        res.writeHead(404); res.end();
+      }
+    }).on('error', () => {
+      if (!headersSent) { headersSent = true; res.writeHead(404); res.end(); }
+      else { res.destroy(); }
+    });
     return;
   }
 
