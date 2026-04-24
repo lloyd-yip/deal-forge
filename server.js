@@ -1067,7 +1067,7 @@ async function fetchLeadsFromApollo(icp) {
         if (seniorities)          peopleBody.person_seniorities = seniorities;
         // NOTE: person_locations intentionally omitted — geo filtering on people is unreliable
         // for non-US markets. Classifier verifies geography via website + headline instead.
-        const peopleRes = await fetch('https://api.apollo.io/v1/people/search', {
+        const peopleRes = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
           method: 'POST', headers: apolloHeaders,
           body: JSON.stringify(peopleBody), signal: AbortSignal.timeout(15000)
         });
@@ -1078,20 +1078,20 @@ async function fetchLeadsFromApollo(icp) {
             const n = (p.name || '').trim();
             return n.length > 2 && !PLACEHOLDER_NAMES.has(n.toLowerCase()) && p.title && (p.organization_name || p.organization?.name);
           });
-          allPeople = people.map(p => normalizePerson(p, 'people/search'));
+          allPeople = people.map(p => normalizePerson(p, 'mixed_people/api_search'));
           usedPeopleSearch = true;
-          console.log(`[Apollo] people/search (org-constrained): ${allPeople.length} contacts from ${orgIds.length} orgs`);
+          console.log(`[Apollo] mixed_people/api_search (org-constrained): ${allPeople.length} contacts from ${orgIds.length} orgs`);
 
           // 3e. If org-constrained results are thin (<5), retry people/search globally with geo+titles
           // This provides a results path when Apollo org coverage is sparse in a market
           if (allPeople.length < 5 && (apolloTitles?.length || apolloGeo?.length)) {
-            console.log('[Apollo] Org-constrained people/search thin — retrying globally with geo+titles');
+            console.log('[Apollo] Org-constrained results thin — retrying globally with mixed_people/api_search + geo+titles');
             const globalPeopleBody = { per_page: 25 };
             if (apolloTitles?.length) globalPeopleBody.person_titles     = apolloTitles;
             if (seniorities)          globalPeopleBody.person_seniorities = seniorities;
             if (apolloGeo?.length)    globalPeopleBody.person_locations   = apolloGeo;
             try {
-              const gpr = await fetch('https://api.apollo.io/v1/people/search', {
+              const gpr = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
                 method: 'POST', headers: apolloHeaders,
                 body: JSON.stringify(globalPeopleBody), signal: AbortSignal.timeout(12000)
               });
@@ -1100,10 +1100,10 @@ async function fetchLeadsFromApollo(icp) {
                 const gpPeople = (gpd.people || []).filter(p => {
                   const n = (p.name || '').trim();
                   return n.length > 2 && p.title && (p.organization_name || p.organization?.name);
-                }).map(p => normalizePerson(p, 'people/search-global'));
+                }).map(p => normalizePerson(p, 'mixed_people/api_search-global'));
                 if (gpPeople.length > allPeople.length) {
                   allPeople = gpPeople;
-                  console.log(`[Apollo] Global people/search: ${allPeople.length} candidates`);
+                  console.log(`[Apollo] Global mixed_people/api_search: ${allPeople.length} candidates`);
                 }
               }
             } catch(e) { console.warn('[Apollo] Global people/search retry error:', e.message); }
@@ -1112,17 +1112,17 @@ async function fetchLeadsFromApollo(icp) {
           const errText = await peopleRes.text().catch(() => '');
           console.warn(`[Apollo] people/search HTTP ${peopleRes.status} — falling back to contacts/search. ${errText.slice(0,120)}`);
         }
-      } catch(e) { console.warn('[Apollo] people/search error:', e.message); }
+      } catch(e) { console.warn('[Apollo] mixed_people/api_search error:', e.message); }
     } else {
-      // 3a. No org IDs at all — run people/search directly with geo+titles (not dependent on orgs)
-      console.log('[Apollo] No org IDs — trying direct people/search with geo+titles');
+      // 3a. No org IDs at all — run mixed_people/api_search directly with geo+titles
+      console.log('[Apollo] No org IDs — trying direct mixed_people/api_search with geo+titles');
       if (apolloTitles?.length || apolloGeo?.length) {
         const directBody = { per_page: 25 };
         if (apolloTitles?.length) directBody.person_titles     = apolloTitles;
         if (seniorities)          directBody.person_seniorities = seniorities;
         if (apolloGeo?.length)    directBody.person_locations   = apolloGeo;
         try {
-          const dr = await fetch('https://api.apollo.io/v1/people/search', {
+          const dr = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
             method: 'POST', headers: apolloHeaders,
             body: JSON.stringify(directBody), signal: AbortSignal.timeout(12000)
           });
@@ -1131,14 +1131,15 @@ async function fetchLeadsFromApollo(icp) {
             const dp = (dd.people || []).filter(p => {
               const n = (p.name || '').trim();
               return n.length > 2 && p.title && (p.organization_name || p.organization?.name);
-            }).map(p => normalizePerson(p, 'people/search-direct'));
+            }).map(p => normalizePerson(p, 'mixed_people/api_search-direct'));
             allPeople = dp;
             usedPeopleSearch = dp.length > 0;
-            console.log(`[Apollo] Direct people/search (no org IDs): ${allPeople.length} candidates`);
-          } else if (dr.status !== 403) {
-            console.warn(`[Apollo] Direct people/search HTTP ${dr.status}`);
+            console.log(`[Apollo] Direct mixed_people/api_search (no org IDs): ${allPeople.length} candidates`);
+          } else {
+            const errText = await dr.text().catch(() => '');
+            console.warn(`[Apollo] Direct mixed_people/api_search HTTP ${dr.status}: ${errText.slice(0,120)}`);
           }
-        } catch(e) { console.warn('[Apollo] Direct people/search error:', e.message); }
+        } catch(e) { console.warn('[Apollo] Direct mixed_people/api_search error:', e.message); }
       }
     }
 
@@ -1206,7 +1207,7 @@ async function fetchLeadsFromApollo(icp) {
     const leadsForClassification = rawLeads.map((l, i) =>
       qualityResults[i] ? { ...l, _excerpt: qualityResults[i].excerpt } : l
     );
-    console.log(`[Apollo] Classifying ${leadsForClassification.length} leads (${leadsForClassification.filter(l => l._excerpt).length} with excerpts, source: ${usedPeopleSearch ? 'people/search' : 'contacts/search'})...`);
+    console.log(`[Apollo] Classifying ${leadsForClassification.length} leads (${leadsForClassification.filter(l => l._excerpt).length} with excerpts, source: ${usedPeopleSearch ? 'mixed_people/api_search' : 'contacts/search'})...`);
 
     // ── Haiku ICP classifier — always runs, fail-closed by default ──────────
     // When we fell back to EU or global search, pass the effective geo so the
@@ -1944,8 +1945,12 @@ async function resetStuckTasks() {
 
 // Start worker + recovery loops
 if (USE_SUPABASE) {
-  setInterval(processNextTask, 3000);
-  setInterval(resetStuckTasks, 2 * 60 * 1000);
+  // Wrap each invocation in .catch() so a network error (ECONNRESET, ETIMEDOUT)
+  // in one task cycle doesn't propagate to the top-level interval and silently
+  // stop the worker. The outer try/catch in processNextTask already handles most
+  // cases, but an unhandled rejection from an async timer edge-case can bypass it.
+  setInterval(() => processNextTask().catch(e => console.error('[worker] Interval error:', e.message)), 3000);
+  setInterval(() => resetStuckTasks().catch(e => console.error('[recovery] Interval error:', e.message)), 2 * 60 * 1000);
   console.log('[worker] Started (3s interval)');
   console.log('[recovery] Started (2min interval)');
 } else {
@@ -2050,7 +2055,12 @@ const server = http.createServer(async (req, res) => {
       }
 
       const job = await createJob(email, websiteUrl || null, brief);
-      await createTasks(job.id, ['lead_list']);  // Phase 1: lead list only
+      // Spawn the full pipeline immediately:
+      // - extract + prospect_research run now (re-extract with fresh transcript + LinkedIn)
+      // - lead_list runs now (uses brief ICP which is already confirmed by rep)
+      // - Stage 2 (brand_scrape, webinar_titles, roi_model) spawned by orchestrator when extract completes
+      // - Stage 3 (calendar_visual, webinar_mock) spawned when Stage 2 completes
+      await createTasks(job.id, ['extract', 'prospect_research', 'lead_list']);
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ job_id: job.id, portal_url: `/?job=${job.id}` }));
@@ -2077,7 +2087,7 @@ const server = http.createServer(async (req, res) => {
         prospect_email:  j.prospect_email,
         prospect_company: j.prospect_company,
         prospect_name:   j.prospect_name,
-        assigned_rep:    j.assigned_rep || null,
+        assigned_rep:    j.rep_name || null,
         portal_url:      `/?job=${j.id}`,
         created_at:      j.created_at,
         updated_at:      j.updated_at
