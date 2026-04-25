@@ -1651,16 +1651,76 @@ function applyOverrides(gen, overrides) {
   };
 }
 
+// ── Edit mode helpers — declared at module scope so runPersonalization can use them ──
+const IS_EDIT_MODE = new URLSearchParams(window.location.search).get('edit') === 'true';
+
+async function saveOverride(field, value, displayEl) {
+  const _jobId = new URLSearchParams(window.location.search).get('job');
+  if (!_jobId) return;
+  try {
+    const r = await fetch('/api/jobs/' + encodeURIComponent(_jobId) + '/overrides', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: isNaN(Number(value)) ? value : Number(value) })
+    });
+    if (!r.ok) throw new Error('Save failed: ' + r.status);
+    if (displayEl) displayEl.textContent = value;
+    console.log('[Edit Mode] Saved override:', field, '=', value);
+  } catch(e) {
+    alert('Could not save override: ' + e.message);
+  }
+}
+
+function addEditIcon(el, field, label) {
+  if (!IS_EDIT_MODE || !el) return;
+  // Prevent double-wiring if called again
+  if (el.dataset.editWired) return;
+  el.dataset.editWired = '1';
+  el.classList.add('override-field');
+
+  const btn = document.createElement('button');
+  btn.className = 'override-edit-btn';
+  btn.title = 'Edit ' + label;
+  btn.style.cssText = 'background:none;border:none;cursor:pointer;color:#86efac;font-size:13px;margin-left:5px;vertical-align:middle;padding:0;opacity:0.8;';
+  btn.textContent = '✏️';
+  el.parentNode.insertBefore(btn, el.nextSibling);
+
+  function activateEdit(e) {
+    e.stopPropagation();
+    if (el.parentNode.querySelector('.override-input')) return; // already open
+    const current = el.textContent.trim();
+    const input = document.createElement('input');
+    input.className = 'override-input';
+    input.value = current;
+    input.style.width = Math.max(100, current.length * 12) + 'px';
+    input.placeholder = label + '…';
+    const done = () => {
+      const v = input.value.trim();
+      if (v && v !== current) saveOverride(field, v, el);
+      if (input.parentNode) input.replaceWith(btn);
+      el.style.display = '';
+    };
+    input.onblur = done;
+    input.onkeydown = (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); done(); }
+      if (ev.key === 'Escape') { if (input.parentNode) input.replaceWith(btn); el.style.display = ''; }
+    };
+    el.style.display = 'none';
+    if (btn.parentNode) btn.parentNode.insertBefore(input, btn);
+    setTimeout(() => { input.focus(); input.select(); }, 10);
+  }
+
+  el.addEventListener('click', activateEdit);
+  btn.addEventListener('click', activateEdit);
+}
+
 // ── Personalization from session / job data ───────────────────────────────────
 (async function() {
   const params = new URLSearchParams(window.location.search);
   const jobId        = params.get('job');
   const sessionToken = params.get('session');
-  // Edit mode: reps access portal with ?edit=true — shows override controls, TAM source badges
-  // Prospect-shared link never includes this flag, so they never see the edit UI
-  const IS_EDIT_MODE = params.get('edit') === 'true';
 
-  // ── Edit mode — inject nav banner + CSS for edit controls ─────────────────
+  // ── Edit mode — inject banner + CSS when IS_EDIT_MODE ──────────────────────
   if (IS_EDIT_MODE) {
     const banner = document.createElement('div');
     banner.id = 'edit-mode-banner';
@@ -1678,68 +1738,7 @@ function applyOverrides(gen, overrides) {
     document.head.appendChild(style);
   }
 
-  // ── saveOverride — PATCH override to backend, update display ─────────────
-  async function saveOverride(field, value, displayEl) {
-    if (!jobId) return;
-    try {
-      const r = await fetch('/api/jobs/' + encodeURIComponent(jobId) + '/overrides', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: isNaN(Number(value)) ? value : Number(value) })
-      });
-      if (!r.ok) throw new Error('Save failed: ' + r.status);
-      if (displayEl) displayEl.textContent = value;
-      console.log('[Edit Mode] Saved override:', field, '=', value);
-    } catch(e) {
-      alert('Could not save override: ' + e.message);
-    }
-  }
-
-  // ── addEditIcon — click-to-edit any field in edit mode ────────────────────
-  function addEditIcon(el, field, label) {
-    if (!IS_EDIT_MODE || !el) return;
-    el.classList.add('override-field');
-
-    // Green dashed underline = editable in edit mode
-    el.style.borderBottom = '1px dashed rgba(134,239,172,0.5)';
-    el.style.cursor = 'text';
-    el.title = 'Click to edit ' + label;
-
-    const btn = document.createElement('button');
-    btn.className = 'override-edit-btn';
-    btn.title = 'Edit ' + label;
-    btn.style.cssText = 'background:none;border:none;cursor:pointer;color:#86efac;font-size:13px;margin-left:5px;vertical-align:middle;padding:0;opacity:0.8;';
-    btn.textContent = '✏️';
-    el.parentNode.insertBefore(btn, el.nextSibling);
-
-    function activateEdit(e) {
-      e.stopPropagation();
-      const current = el.textContent.trim();
-      const input = document.createElement('input');
-      input.className = 'override-input';
-      input.value = current;
-      input.style.width = Math.max(80, current.length * 10) + 'px';
-      input.placeholder = 'Enter ' + label + '…';
-      const save = () => {
-        const v = input.value.trim();
-        if (v && v !== current) saveOverride(field, v, el);
-        // restore original element
-        input.parentNode && input.replaceWith(btn);
-        el.style.display = '';
-      };
-      input.onblur = save;
-      input.onkeydown = (ev) => {
-        if (ev.key === 'Enter') save();
-        if (ev.key === 'Escape') { input.parentNode && input.replaceWith(btn); el.style.display = ''; }
-      };
-      el.style.display = 'none';
-      btn.parentNode.insertBefore(input, btn);
-      setTimeout(() => { input.focus(); input.select(); }, 10);
-    }
-
-    el.addEventListener('click', activateEdit);
-    btn.addEventListener('click', activateEdit);
-  }
+  // ── saveOverride and addEditIcon are now module-level (defined above IIFE)
 
   // Nothing to personalize
   if (!jobId && !sessionToken) {
