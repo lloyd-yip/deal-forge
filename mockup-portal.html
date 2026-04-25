@@ -1383,6 +1383,20 @@ function toggleMode(step, mode) {
   roiCalc();
 }
 
+// ── parseKM — safely parse any format: 75000, "75K", "$75,000", "75K80K" ──
+function parseKM(v) {
+  if (v == null || v === '') return null;
+  const s = String(v).replace(/[$,\s]/g, '');
+  // Take the first valid number+optional K/M unit found (ignores trailing garbage)
+  const m = s.match(/(\d+(?:\.\d+)?)(k|m)?/i);
+  if (!m) return null;
+  let n = parseFloat(m[1]);
+  const unit = (m[2] || '').toLowerCase();
+  if (unit === 'k') n *= 1000;
+  if (unit === 'm') n *= 1000000;
+  return isNaN(n) ? null : Math.round(n);
+}
+
 function roiCalc() {
   const ltv         = parseFloat(document.getElementById('ltv').value) || 0;
   const attendRate  = RATES.attend[_modes.attend];
@@ -1393,12 +1407,13 @@ function roiCalc() {
   document.getElementById('r-show-pill').textContent  = Math.round(showRate * 100) + '% show up to the call';
   document.getElementById('r-close-pill').textContent = Math.round(closeRate * 100) + '% close';
 
-  const attendees = Math.round(MONTHLY_INVITES * attendRate);
-  const booked    = Math.round(attendees * bookingRate);
-  const held      = Math.round(booked * showRate);
-  const clients   = Math.round(held * closeRate);
-  const monthly   = clients * ltv;
-  const annual    = monthly * 12;
+  const vol         = Math.max(1, isNaN(MONTHLY_INVITES) ? 30000 : MONTHLY_INVITES);
+  const attendees   = Math.round(vol * attendRate);
+  const booked      = Math.round(attendees * bookingRate);
+  const held        = Math.round(booked * showRate);
+  const clients     = Math.round(held * closeRate);
+  const monthly     = clients * ltv;
+  const annual      = monthly * 12;
 
   document.getElementById('r-attendees').textContent = fmtN(attendees);
   document.getElementById('r-booked').textContent    = fmtN(booked);
@@ -1948,14 +1963,20 @@ function runPersonalization(session) {
 
     // ── TAM stats from Apollo total ───────────────────────────────────────────
     const gen = (session.extracted || {})._generated || {};
-    const tamTotal = gen.apolloTotal;
+    // parseKM is module-level — safely converts "75K", "75000", "$75,000" or bad strings like "75K80K"
+    const tamTotal = parseKM(gen.tamTotal) || parseKM(gen.apolloTotal) || null;
     // monthlyRaw hoisted so calendar + ROI model can reference it
     let monthlyRaw = 30000;
     let monthlyLo = 25, monthlyHi = 35;
     if (tamTotal) {
       const tamEl = document.getElementById('tam-total-val');
       if (tamEl) {
-        tamEl.textContent = tamTotal >= 1000000 ? Math.round(tamTotal / 100000) / 10 + 'M' : tamTotal >= 1000 ? Math.round(tamTotal / 100) / 10 + 'K' : tamTotal.toLocaleString();
+        // Format the number for display — always safe since tamTotal is now a parsed integer
+        tamEl.textContent = tamTotal >= 1000000
+          ? (Math.round(tamTotal / 100000) / 10) + 'M'
+          : tamTotal >= 1000
+            ? (Math.round(tamTotal / 1000)) + 'K'
+            : tamTotal.toLocaleString();
         // Edit mode only: show TAM source badge so rep knows if they should verify before sharing
         if (IS_EDIT_MODE && gen.tamSource === 'estimated') {
           const badge = document.createElement('span');
@@ -1984,9 +2005,9 @@ function runPersonalization(session) {
       addEditIcon(monthlyEl, 'recommended_outreach', 'Monthly Outreach Volume');
 
       // ── Sync MONTHLY_INVITES + update all static volume elements ─────────
-      MONTHLY_INVITES = monthlyRaw;
-      const volFull = Math.round(monthlyRaw).toLocaleString();
-      const vol = monthlyRaw >= 1000 ? Math.round(monthlyRaw / 1000) + 'K' : volFull;
+      MONTHLY_INVITES = isNaN(monthlyRaw) ? 30000 : monthlyRaw;
+      const volFull = Math.round(MONTHLY_INVITES).toLocaleString();
+      const vol = MONTHLY_INVITES >= 1000 ? Math.round(MONTHLY_INVITES / 1000) + 'K' : volFull;
 
       const cycleBadge = document.getElementById('tam-cycle-badge-text');
       if (cycleBadge) {
