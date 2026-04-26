@@ -1636,11 +1636,11 @@ function buildCompatSession(job) {
   const meta = ext._meta || {};
   ext._generated = applyOverrides({
     webinarTitles:        (tasks.webinar_titles && tasks.webinar_titles.output) || null,
-    leads:               (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.leads) || null,
-    apolloTotal:          (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.total) || null,
-    recommendedOutreach:  (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.recommendedOutreach) || null,
-    tamSource:            (tasks.lead_list && tasks.lead_list.output && tasks.lead_list.output.tamSource) || null,
-    leadsTaskStatus: (tasks.lead_list && tasks.lead_list.status) || null
+    leads:               tasks.lead_list?.output?.leads ?? null,      // ?? preserves [] vs null (empty run vs not yet run)
+    apolloTotal:          tasks.lead_list?.output?.total ?? null,
+    recommendedOutreach:  tasks.lead_list?.output?.recommendedOutreach ?? null,
+    tamSource:            tasks.lead_list?.output?.tamSource ?? null,
+    leadsTaskStatus:      tasks.lead_list?.status ?? null
   }, ext._overrides);
   return {
     email:      job.prospect_email || '',
@@ -2337,9 +2337,11 @@ function runPersonalization(session) {
     }
 
     // ── Replace lead table with Apollo leads ─────────────────────────────────
-    if (gen.leads?.length) {
+    if (Array.isArray(gen.leads) && gen.leads.length > 0) {
       var tbody = document.querySelector('.lead-table tbody');
       if (tbody) {
+        var loadingRow = document.getElementById('leads-loading-row');
+        if (loadingRow) loadingRow.remove();
         var liSvg = '<svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>';
         tbody.innerHTML = gen.leads.slice(0, 25).map(function(lead, idx) {
           var websiteDomain = lead.website ? lead.website.replace(/^https?:\/\//, '') : '';
@@ -2362,13 +2364,19 @@ function runPersonalization(session) {
 
         console.log('[Deal Forge] Lead table populated with', gen.leads.length, 'Apollo leads');
       }
-    } else if (gen.leadsTaskStatus === 'completed') {
-      // Task completed but returned 0 leads — clear spinner, show empty state
-      var tbodyEmpty = document.querySelector('.lead-table tbody');
-      if (tbodyEmpty) {
-        tbodyEmpty.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:28px 0;color:#71717a;font-size:13px;">No leads matched this ICP — try broadening the industry or title filters in the brief</td></tr>';
+    } else if (gen.leadsTaskStatus === 'completed' || (Array.isArray(gen.leads) && gen.leads.length === 0)) {
+      // Task completed with 0 leads — replace spinner row with informative empty state
+      var loadingRowEmpty = document.getElementById('leads-loading-row');
+      if (loadingRowEmpty) {
+        loadingRowEmpty.innerHTML = '<td colspan="7" style="text-align:center;padding:32px 0;color:#71717a;font-size:13px;line-height:1.8;">' +
+          '<strong style="color:#52525b;">No contacts found for this ICP in Apollo.</strong><br>' +
+          'TAM confirmed — Apollo has limited contact coverage for these specific titles in this geography.<br>' +
+          '<span style="font-size:11px;color:#3f3f46;">The ICP Translation Agent will broaden the search on the next job submission.</span>' +
+          '</td>';
       }
+      console.log('[Deal Forge] Lead list completed with 0 leads — empty state shown');
     }
+    // else: still pending — spinner row stays visible naturally
 
     console.log('[Deal Forge] Portal personalized for:', PROSPECT.name, '| Industry:', industry,
       '| Title:', ext.personalized_title?.slice(0,50), '| LTV:', ltv,

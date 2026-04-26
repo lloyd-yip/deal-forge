@@ -922,6 +922,94 @@ function normalizePerson(p, source) {
   };
 }
 
+// ── ICP Translation Agent — converts human-readable ICP to Apollo-optimized params ──
+// Runs before every Apollo search. Uses Claude Haiku (~$0.001/call) to:
+//   1. Expand job titles into 10-15 LinkedIn-indexed variants (primary + extended tiers)
+//   2. Map industry descriptions to Apollo's taxonomy
+//   3. Flag if employee range may be too restrictive for the geography
+// Result: reliable lead retrieval across all prospect types (EU pharma, US tech, APAC, etc.)
+async function translateIcpForApollo(icp) {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  const rawTitles     = Array.isArray(icp?.apollo_titles)     && icp.apollo_titles.length     ? icp.apollo_titles     : (icp?.role ? [icp.role] : []);
+  const rawIndustries = Array.isArray(icp?.apollo_industries) && icp.apollo_industries.length ? icp.apollo_industries : (icp?.industry ? [icp.industry] : []);
+  const rawGeo        = Array.isArray(icp?.apollo_geography)  && icp.apollo_geography.length  ? icp.apollo_geography  : [];
+
+  if (!rawTitles.length && !rawIndustries.length) {
+    console.log('[ICP Translator] No titles or industries to translate — skipping');
+    return icp; // nothing to translate, return as-is
+  }
+
+  const prompt = `You are an expert at translating B2B ICP (Ideal Customer Profile) data into Apollo.io search parameters.
+
+Apollo.io indexes job titles exactly as they appear on LinkedIn profiles. Many professional titles are abbreviated, shortened, or phrased differently in LinkedIn profiles vs. how they're described in sales briefs.
+
+Given this ICP:
+- Target job titles: ${JSON.stringify(rawTitles)}
+- Industries: ${JSON.stringify(rawIndustries)}
+- Geography: ${JSON.stringify(rawGeo)}
+- Company size: ${icp?.company_size || 'not specified'}
+- Employee ranges (Apollo format): ${JSON.stringify(icp?.apollo_employee_ranges || [])}
+
+Your task:
+1. Generate a "primaryTitles" list: 6-8 COMMON titles that people in these roles actually use on LinkedIn. These should be the most widely indexed variants.
+2. Generate an "extendedTitles" list: 6-8 SPECIALIST or ALTERNATIVE titles for the same roles. Used as fallback when primary returns few results.
+3. Generate an "industries" list: map the given industries to Apollo's taxonomy. Apollo uses exact strings like "pharmaceuticals", "medical devices", "biotechnology", "information technology and services", "computer software", "financial services", "management consulting", etc.
+4. In "notes": briefly explain your translation strategy (1-2 sentences max).
+
+RULES:
+- Do NOT include overly generic titles like "Manager", "Director" without context
+- Combine seniority + function: "VP Sales" not just "VP"
+- For European markets, include European title variants (e.g., "Commercial Director" is more common than "VP Commercial" in Europe)
+- Return ONLY valid JSON, no markdown, no explanation outside the JSON
+
+Return this exact JSON structure:
+{
+  "primaryTitles": ["title1", "title2", ...],
+  "extendedTitles": ["title1", "title2", ...],
+  "industries": ["industry1", "industry2", ...],
+  "notes": "brief strategy note"
+}`;
+
+  try {
+    console.log('[ICP Translator] Translating ICP for Apollo — titles:', rawTitles.length, ', industries:', rawIndustries.length);
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const raw = msg.content?.[0]?.text?.trim() || '';
+    // Strip markdown code fences if present
+    const jsonStr = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    const parsed = JSON.parse(jsonStr);
+
+    const primaryTitles  = Array.isArray(parsed.primaryTitles)  && parsed.primaryTitles.length  ? parsed.primaryTitles  : rawTitles;
+    const extendedTitles = Array.isArray(parsed.extendedTitles) && parsed.extendedTitles.length ? parsed.extendedTitles : [];
+    const industries     = Array.isArray(parsed.industries)     && parsed.industries.length     ? parsed.industries     : rawIndustries;
+
+    // Merge primary + extended into a single deduplicated title array for Apollo
+    // Primary titles appear first (Apollo uses order-of-appearance weighting in some endpoints)
+    const seen = new Set(primaryTitles.map(t => t.toLowerCase()));
+    const allTitles = [...primaryTitles, ...extendedTitles.filter(t => !seen.has(t.toLowerCase()))];
+
+    console.log(`[ICP Translator] ✓ ${rawTitles.length} raw titles → ${allTitles.length} Apollo variants | Note: ${parsed.notes || 'n/a'}`);
+
+    // Return enriched ICP — all other fields (geography, employee ranges, seniorities) preserved
+    return {
+      ...icp,
+      apollo_titles:     allTitles,
+      apollo_industries: industries,
+      _translated:       true,  // flag so we can track in logs
+      _primaryTitles:    primaryTitles,
+      _extendedTitles:   extendedTitles
+    };
+  } catch (e) {
+    console.warn('[ICP Translator] Translation failed — using original ICP:', e.message);
+    return icp; // fail-safe: use original ICP unchanged
+  }
+}
+
 async function fetchLeadsFromApollo(icp) {
   const APOLLO_KEY = process.env.APOLLO_API_KEY;
   if (!APOLLO_KEY) { console.log('[Apollo] No API key — skipping'); return null; }
@@ -1629,9 +1717,13 @@ async function handleLeadList(task, job) {
   // apollo_industries, person_seniorities are all needed by fetchLeadsFromApollo.
   console.log('[lead_list] ICP from brief:', JSON.stringify(icp));
 
+  // ── ICP Translation Agent: expand titles + map industries to Apollo taxonomy ──
+  // Fail-safe: if translation fails, original icp is returned unchanged.
+  const enrichedIcp = await translateIcpForApollo(icp);
+
   // fetchLeadsFromApollo already runs website quality gate + Haiku classification internally.
   // Do NOT call filterLeadsByWebsite here — that would re-scrape every site a second time.
-  const result = await fetchLeadsFromApollo(icp);
+  const result = await fetchLeadsFromApollo(enrichedIcp);
   const leads  = result?.leads || [];
   const tam    = result?.total || 0;
   // Lloyd's rep-proof outreach formula:
@@ -1641,7 +1733,7 @@ async function handleLeadList(task, job) {
     ? 100000
     : tam > 0 ? Math.max(1000, Math.round(tam / 3 / 1000) * 1000) : 30000;
   console.log(`[lead_list] Apollo returned ${leads.length} classified leads, TAM: ${tam}, Outreach: ${recommendedOutreach}/mo`);
-  return { leads, total: tam, recommendedOutreach };
+  return { leads, total: tam, recommendedOutreach, tamSource: result?.tamSource || 'estimated' };
 }
 
 async function handleWebinarTitles(task, job) {
