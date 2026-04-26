@@ -1729,6 +1729,73 @@ function addEditIcon(el, field, label) {
   btn.addEventListener('click', activateEdit);
 }
 
+// ── wireROIEditMode — makes the Monthly Funnel Breakdown numbers editable in edit mode ──
+function wireROIEditMode() {
+  if (!IS_EDIT_MODE) return;
+
+  // ─ Monthly Outreach number — the main driver for all funnel calculations ─
+  const fbarEl = document.getElementById('roi-fbar-monthly');
+  if (fbarEl && !fbarEl.dataset.editWired) {
+    fbarEl.dataset.editWired = '1';
+    fbarEl.style.borderBottom = '1px dashed rgba(134,239,172,0.5)';
+    fbarEl.style.cursor = 'pointer';
+    fbarEl.title = 'Click to edit monthly outreach volume';
+    fbarEl.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (fbarEl.parentNode && fbarEl.parentNode.querySelector('.override-input')) return;
+      const current = Math.round(MONTHLY_INVITES);
+      const input = document.createElement('input');
+      input.className = 'override-input';
+      input.type = 'number';
+      input.value = current;
+      input.style.cssText = 'width:130px;font-size:inherit;font-weight:inherit;text-align:right;';
+      const done = () => {
+        const v = parseInt(input.value, 10);
+        if (!isNaN(v) && v > 0) {
+          MONTHLY_INVITES = v;
+          const vFull = v.toLocaleString();
+          fbarEl.textContent = vFull;
+          // Sync the locked pill on slide 0 and the funnel subtitle
+          const lockedEl = document.getElementById('roi-locked-monthly');
+          if (lockedEl) lockedEl.textContent = vFull;
+          const subEl = document.getElementById('roi-funnel-sub');
+          if (subEl) subEl.textContent = vFull + ' outreaches/month. Toggle each step conservative or aggressive to stress-test the numbers.';
+          roiCalc();
+          saveOverride('recommended_outreach', v, null);
+        }
+        if (input.parentNode) input.replaceWith(fbarEl);
+        fbarEl.style.display = '';
+      };
+      input.onblur = done;
+      input.onkeydown = ev => {
+        if (ev.key === 'Enter') { ev.preventDefault(); done(); }
+        if (ev.key === 'Escape') { if (input.parentNode) input.replaceWith(fbarEl); fbarEl.style.display = ''; }
+      };
+      fbarEl.style.display = 'none';
+      fbarEl.parentNode.appendChild(input);
+      setTimeout(() => { input.focus(); input.select(); }, 10);
+    });
+  }
+
+  // ─ LTV / Show Rate / Close Rate inputs — auto-save as overrides on change ─
+  const roiInputs = [
+    { id: 'ltv',        field: 'roi_ltv',        hint: 'Average Client LTV — changes save to this job' },
+    { id: 'show-rate',  field: 'roi_show_rate',   hint: 'Sales Call Show Rate — changes save to this job' },
+    { id: 'close-rate', field: 'roi_close_rate',  hint: 'Sales Close Rate — changes save to this job' },
+  ];
+  roiInputs.forEach(({ id, field, hint }) => {
+    const inp = document.getElementById(id);
+    if (!inp || inp.dataset.editWired) return;
+    inp.dataset.editWired = '1';
+    inp.title = hint;
+    inp.style.borderColor = 'rgba(134,239,172,0.4)';
+    inp.addEventListener('change', () => {
+      const v = parseFloat(inp.value);
+      if (!isNaN(v) && v > 0) saveOverride(field, v, null);
+    });
+  });
+}
+
 // ── Personalization from session / job data ───────────────────────────────────
 (async function() {
   const params = new URLSearchParams(window.location.search);
@@ -2023,7 +2090,14 @@ function runPersonalization(session) {
       if (roiFunnelSub) roiFunnelSub.textContent = volFull + ' outreaches/month. Toggle each step conservative or aggressive to stress-test the numbers.';
       const roiFbarMonthly = document.getElementById('roi-fbar-monthly');
       if (roiFbarMonthly) roiFbarMonthly.textContent = volFull;
-      roiCalc(); // Re-run ROI model with updated volume
+
+      // Pre-populate ROI inputs from saved overrides (persisted rep values)
+      if (gen.roiLtv)       { const el = document.getElementById('ltv');        if (el) el.value = gen.roiLtv; }
+      if (gen.roiShowRate)  { const el = document.getElementById('show-rate');  if (el) el.value = gen.roiShowRate; }
+      if (gen.roiCloseRate) { const el = document.getElementById('close-rate'); if (el) el.value = gen.roiCloseRate; }
+
+      roiCalc();          // Re-run ROI model with all updated values
+      wireROIEditMode();  // Wire funnel edit controls (idempotent in edit mode)
     } else if (!gen.leadsTaskStatus || gen.leadsTaskStatus === 'pending') {
       // Lead search still running — show searching state instead of static —
       var tamSearchEl = document.getElementById('tam-total-val');
