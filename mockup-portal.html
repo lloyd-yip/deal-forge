@@ -2056,17 +2056,28 @@ function runPersonalization(session) {
       // Lloyd's rep-proof outreach formula:
       // TAM > 300K → 100K/mo (QS maximum), TAM ≤ 300K → exhaust in exactly 3 months
       // Use server-computed value if available (same formula, avoids client-side drift)
+      // If rep has manually overridden, that value wins — and we reflect the real math.
+      const isOutreachOverride = !!gen.recommendedOutreach;
       monthlyRaw = gen.recommendedOutreach ||
         (tamTotal > 300000
           ? 100000
           : Math.max(1000, Math.round(tamTotal / 3 / 1000) * 1000));
-      const cycleMonths = tamTotal > 300000 ? '~1 mo' : '~3 mo';
+
+      // Compute actual cycle months from real numbers (works for overrides too)
+      const actualCycleRaw = tamTotal > 0 ? tamTotal / monthlyRaw : 3;
+      // Format: round to nearest 0.5 for clean display (e.g. 1.5, 2, 3)
+      const actualCycleRounded = Math.round(actualCycleRaw * 2) / 2;
+      const cycleMonths = actualCycleRounded < 1
+        ? '< 1 mo'
+        : actualCycleRounded === 1
+          ? '~1 mo'
+          : '~' + (Number.isInteger(actualCycleRounded) ? actualCycleRounded : actualCycleRounded.toFixed(1)) + ' mo';
       const cycleEl = document.getElementById('tam-cycle-val');
       if (cycleEl) cycleEl.textContent = cycleMonths;
       monthlyLo = Math.round(monthlyRaw * 0.85 / 1000);
       monthlyHi = Math.min(100, Math.round(monthlyRaw * 1.15 / 1000));
       const monthlyEl = document.getElementById('tam-monthly-val');
-      if (monthlyEl) monthlyEl.textContent = monthlyLo + '–' + monthlyHi + 'K';
+      if (monthlyEl) monthlyEl.textContent = monthlyLo + '–' + monthlyHi + 'K' + (isOutreachOverride && IS_EDIT_MODE ? ' ✏' : '');
       // Edit mode: add override icons on TAM and outreach elements
       addEditIcon(document.getElementById('tam-total-val'), 'tam_total', 'Market Size (TAM)');
       addEditIcon(monthlyEl, 'recommended_outreach', 'Monthly Outreach Volume');
@@ -2075,13 +2086,17 @@ function runPersonalization(session) {
       MONTHLY_INVITES = isNaN(monthlyRaw) ? 30000 : monthlyRaw;
       const volFull = Math.round(MONTHLY_INVITES).toLocaleString();
       const vol = MONTHLY_INVITES >= 1000 ? Math.round(MONTHLY_INVITES / 1000) + 'K' : volFull;
+      const tamStr = tamTotal >= 1000 ? Math.round(tamTotal / 1000) + 'K' : tamTotal;
 
       const cycleBadge = document.getElementById('tam-cycle-badge-text');
       if (cycleBadge) {
-        if (tamTotal > 300000) {
-          cycleBadge.innerHTML = 'At ' + vol + ' outreaches/mo, you reach your entire market in under 1 month — <strong>run fresh webinar angles each cycle</strong> to maximize market penetration.';
+        const overrideNote = isOutreachOverride ? ' <span style="font-size:11px;color:#71717a;font-weight:400;">(manually set)</span>' : '';
+        if (actualCycleRounded < 1.1) {
+          cycleBadge.innerHTML = 'At ' + vol + ' outreaches/mo' + overrideNote + ', you reach your entire market in under 1 month — <strong>run fresh webinar angles each cycle</strong> to maximize market penetration.';
+        } else if (Number.isInteger(actualCycleRounded)) {
+          cycleBadge.innerHTML = 'With a focused TAM of ' + tamStr + ', ' + vol + ' outreaches/mo' + overrideNote + ' exhausts your market in <strong>exactly ' + actualCycleRounded + ' month' + (actualCycleRounded > 1 ? 's' : '') + '</strong> — rotate webinar topics each cycle to stay fresh.';
         } else {
-          cycleBadge.innerHTML = 'With a focused TAM of ' + (tamTotal >= 1000 ? Math.round(tamTotal/1000) + 'K' : tamTotal) + ', ' + vol + ' outreaches/mo exhausts your market in <strong>exactly 3 months</strong> — rotate webinar topics each cycle to stay fresh.';
+          cycleBadge.innerHTML = 'With a focused TAM of ' + tamStr + ', ' + vol + ' outreaches/mo' + overrideNote + ' exhausts your market in <strong>~' + actualCycleRounded.toFixed(1) + ' months</strong> — rotate webinar topics each cycle to stay fresh.';
         }
       }
       const roiLocked = document.getElementById('roi-locked-monthly');
