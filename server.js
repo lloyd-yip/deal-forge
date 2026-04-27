@@ -889,10 +889,9 @@ async function fetchLeadsFromApollo(icp) {
   const apolloHeaders = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    'x-api-key': APOLLO_KEY,
-    // Apollo's docs currently show bearer-style auth in the reference UI.
-    // Send both headers so we tolerate either validation path.
-    'Authorization': `Bearer ${APOLLO_KEY}`
+    // Apollo's API examples consistently use x-api-key header auth.
+    // Sending an Authorization bearer token alongside it triggered blanket 401s in prod.
+    'x-api-key': APOLLO_KEY
   };
   // Clean geo: Apollo understands country names and city names, but NOT "Europe" or "European Union" as region values.
   // Strip those → they silently match nothing, wasting the primary geo slot.
