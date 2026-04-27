@@ -151,6 +151,186 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .slide { display: none; flex: 1; border-radius: 14px; overflow: hidden; min-height: 380px; }
 .slide.active { display: flex; }
 
+/* Prospect brand color variables — injected at runtime from brand_data */
+:root {
+  --prospect-primary: #4f46e5;
+  --prospect-secondary: #34d399;
+}
+
+/* Source Intelligence Panel */
+.source-intel-panel {
+  margin: 24px 0;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.02);
+}
+.source-intel-header {
+  padding: 14px 20px;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  font-size: 13px;
+  font-weight: 600;
+  color: #a1a1aa;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.source-intel-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+.source-col {
+  padding: 16px 20px;
+}
+.source-col:first-child {
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+.source-col-header {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #71717a;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.source-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.source-badge.ok { background: rgba(52,211,153,0.12); color: #34d399; }
+.source-badge.missing { background: rgba(239,68,68,0.12); color: #f87171; }
+.source-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.source-row-label {
+  color: #52525b;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+.source-row-value {
+  color: #d4d4d8;
+  line-height: 1.4;
+}
+.source-text-block {
+  font-size: 12px;
+  color: #a1a1aa;
+  line-height: 1.6;
+  font-style: italic;
+  border-left: 2px solid rgba(255,255,255,0.1);
+  padding-left: 10px;
+  margin-top: 8px;
+}
+
+/* Brand Gallery Panel (edit mode only) */
+.brand-gallery-panel {
+  margin: 16px 0;
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(99,102,241,0.04);
+}
+.brand-gallery-header {
+  padding: 12px 18px;
+  background: rgba(99,102,241,0.08);
+  border-bottom: 1px solid rgba(99,102,241,0.2);
+  font-size: 12px;
+  font-weight: 600;
+  color: #818cf8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.brand-gallery-body {
+  padding: 16px 18px;
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 20px;
+}
+.brand-logo-block { display: flex; flex-direction: column; gap: 10px; }
+.brand-logo-preview {
+  width: 120px; height: 60px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  object-fit: contain;
+  background: rgba(255,255,255,0.05);
+  padding: 6px;
+}
+.brand-colors-block { display: flex; flex-direction: column; gap: 8px; }
+.brand-color-row { display: flex; align-items: center; gap: 8px; }
+.brand-swatch {
+  width: 20px; height: 20px; border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.15);
+  cursor: pointer; flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.brand-swatch:hover { transform: scale(1.2); }
+.brand-swatch-hex {
+  font-size: 11px; color: #71717a; font-family: monospace;
+  cursor: pointer;
+}
+.brand-swatch-hex:hover { color: #a1a1aa; }
+.brand-images-grid {
+  grid-column: 1 / -1;
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;
+}
+.brand-image-thumb {
+  width: 80px; height: 56px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  object-fit: cover;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.brand-image-thumb:hover {
+  border-color: rgba(99,102,241,0.6);
+  transform: scale(1.05);
+}
+.brand-image-thumb.selected { border-color: #6366f1; }
+
+/* ICP Match badge in lead table */
+.th-match { width: 70px; }
+.td-match { white-space: nowrap; }
+.icp-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 2px 8px; border-radius: 20px;
+  white-space: nowrap; display: inline-block;
+}
+
+/* Lead detail expandable row */
+.data-row { cursor: pointer; transition: background 0.15s; }
+.data-row:hover { background: rgba(255,255,255,0.025) !important; }
+.data-row.row-expanded { background: rgba(99,102,241,0.06) !important; }
+.lead-detail-row .lead-detail-cell {
+  padding: 14px 20px; background: rgba(99,102,241,0.04);
+  border-bottom: 1px solid rgba(99,102,241,0.15);
+}
+.lead-detail-inner { display: flex; flex-direction: column; gap: 10px; }
+.match-reason { font-size: 12px; color: #71717a; }
+.match-reason strong { color: #a1a1aa; }
+.match-breakdown { display: flex; gap: 8px; flex-wrap: wrap; }
+.match-tag { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
+.match-hit  { color: #22c55e; background: rgba(34,197,94,0.10); }
+.match-miss { color: #71717a; background: rgba(113,113,122,0.10); }
+
+/* Slide prospect color theming */
+.live-badge { border-color: var(--prospect-primary, #34d399) !important; }
+.live-dot   { background:   var(--prospect-primary, #34d399) !important; }
+
+/* Slide 1 slide-tag prospect branding */
+#slide-tag { transition: color 0.3s; }
+
 /* Slide 1: Hero — real QS brand */
 .slide-1 {
   background: linear-gradient(160deg, #050a0a 0%, #061510 40%, #071a10 70%, #050a0a 100%);
@@ -453,6 +633,49 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 
     </div>
   </div>
+
+  <!-- ── Source Intelligence Panel — rep-facing only ──────────────────── -->
+  <div id="source-intelligence-panel" class="source-intel-panel" style="max-width:960px;margin:0 auto 40px;">
+    <div class="source-intel-header">
+      <span>🔍 Source Intelligence — Where each piece of intel came from</span>
+      <span id="si-overall-status" style="font-size:11px;font-weight:500;color:#52525b;">Loading…</span>
+    </div>
+    <div class="source-intel-body">
+      <!-- Left column: From the call (Fireflies) -->
+      <div class="source-col">
+        <div class="source-col-header">
+          📞 From the Call
+          <span id="si-transcript-badge" class="source-badge missing">No transcript</span>
+        </div>
+        <div id="si-call-rows">
+          <div class="source-row"><span class="source-row-label">Company</span><span class="source-row-value" id="si-call-company">—</span></div>
+          <div class="source-row"><span class="source-row-label">Contact</span><span class="source-row-value" id="si-call-contact">—</span></div>
+          <div class="source-row"><span class="source-row-label">LTV</span><span class="source-row-value" id="si-call-ltv">—</span></div>
+          <div class="source-row"><span class="source-row-label">Close rate</span><span class="source-row-value" id="si-call-close">—</span></div>
+          <div class="source-row"><span class="source-row-label">Pain</span><span class="source-row-value" id="si-call-pain">—</span></div>
+          <div class="source-row"><span class="source-row-label">Goal</span><span class="source-row-value" id="si-call-goal">—</span></div>
+          <div class="source-row"><span class="source-row-label">ICP Titles</span><span class="source-row-value" id="si-call-icp-titles">—</span></div>
+          <div class="source-row"><span class="source-row-label">ICP Industries</span><span class="source-row-value" id="si-call-icp-industries">—</span></div>
+        </div>
+      </div>
+      <!-- Right column: From their website (brand_scrape) -->
+      <div class="source-col">
+        <div class="source-col-header">
+          🌐 From Their Website
+          <span id="si-website-badge" class="source-badge missing">Not scraped</span>
+        </div>
+        <div id="si-web-rows">
+          <div class="source-row"><span class="source-row-label">Company</span><span class="source-row-value" id="si-web-company">—</span></div>
+          <div class="source-row"><span class="source-row-label">Domain</span><span class="source-row-value" id="si-web-domain">—</span></div>
+          <div class="source-row"><span class="source-row-label">Tagline</span><span class="source-row-value" id="si-web-tagline">—</span></div>
+          <div class="source-row"><span class="source-row-label">Colors</span><span class="source-row-value" id="si-web-colors">—</span></div>
+          <div class="source-row"><span class="source-row-label">Logo</span><span class="source-row-value" id="si-web-logo">—</span></div>
+          <div class="source-row"><span class="source-row-label">Images found</span><span class="source-row-value" id="si-web-images">—</span></div>
+        </div>
+        <div id="si-web-summary" class="source-text-block" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════ -->
@@ -496,7 +719,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 
     <!-- Lead Table -->
     <table class="lead-table">
-      <thead><tr><th>#</th><th>Name</th><th>Title</th><th>Company</th><th>Size</th><th>Website</th><th>LinkedIn</th></tr></thead>
+      <thead><tr><th>#</th><th class="th-match">Match</th><th>Name</th><th>Title</th><th>Company</th><th>Size</th><th>Website</th><th>LinkedIn</th></tr></thead>
       <tbody id="leads-tbody">
         <tr id="leads-loading-row"><td colspan="7" style="text-align:center;padding:28px 0;color:#52525b;font-size:13px;">
           <svg style="display:inline;width:14px;height:14px;vertical-align:-2px;margin-right:6px;animation:spin 1s linear infinite;" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.2" cx="12" cy="12" r="10" stroke="#34b433" stroke-width="3"/><path style="opacity:0.9" fill="#34b433" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
@@ -662,6 +885,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
                 <div>
                   <div class="host-name" id="host-name-el">Your Host</div>
                   <div class="host-title" id="host-title-el">Webinar Host</div>
+                  <div id="prospect-attribution" style="display:none;font-size:10px;color:#52525b;margin-top:3px;font-style:italic;"></div>
                 </div>
               </div>
               <div class="slide-1-stats">
@@ -740,6 +964,36 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
           <div class="chat-msg chat-booking"><div class="chat-name support">QS Support</div><div class="chat-text">🎉 Ryan Calloway just booked — can't wait to go through the numbers with you, Ryan</div></div>
           <div class="chat-msg"><div class="chat-name">Leila A.</div><div class="chat-text">The Phase 2 outreach volume is wild — didn't know this was possible without a massive team</div></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Brand Gallery Panel — edit mode only ──────────────────────────── -->
+  <div id="brand-gallery-panel" class="brand-gallery-panel" style="display:none;max-width:960px;margin:0 auto 40px;">
+    <div class="brand-gallery-header">
+      <span>🎨 Brand Assets — Scraped from prospect website</span>
+      <span id="brand-gallery-domain" style="font-size:11px;font-weight:400;color:#6366f1;opacity:0.7;"></span>
+    </div>
+    <div class="brand-gallery-body">
+      <!-- Logo + Favicon -->
+      <div class="brand-logo-block">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#52525b;margin-bottom:6px;">Logo</div>
+        <img id="brand-logo-preview" class="brand-logo-preview" src="" alt="Logo" style="display:none;" onerror="this.style.display='none'">
+        <span id="brand-logo-none" style="font-size:11px;color:#3f3f46;">Not found</span>
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#52525b;margin-top:12px;margin-bottom:6px;">Favicon (256px)</div>
+        <img id="brand-favicon-preview" class="brand-logo-preview" src="" alt="Favicon" style="width:48px;height:48px;display:none;" onerror="this.style.display='none'">
+      </div>
+      <!-- Colors -->
+      <div class="brand-colors-block">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#52525b;margin-bottom:10px;">Colors</div>
+        <div id="brand-colors-list"></div>
+        <div style="font-size:10px;color:#3f3f46;margin-top:6px;">Click any swatch or hex to copy</div>
+      </div>
+      <!-- Image Gallery -->
+      <div style="grid-column:1/-1;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#52525b;margin-bottom:10px;">Images from Homepage</div>
+        <div id="brand-images-grid" class="brand-images-grid"></div>
+        <div id="brand-images-none" style="font-size:11px;color:#3f3f46;display:none;">No images collected</div>
       </div>
     </div>
   </div>
@@ -1593,16 +1847,48 @@ document.addEventListener('click', function(e) {
 
 switchVariant(0);
 
-// ── Prospect branding (static default) ───────────────────────────────────────
-function applyProspectBranding() {
+// ── Prospect branding — injects brand assets from brand_data into portal ─────
+// brand_data is populated by the brand_scrape task (logo, colors, tagline, images)
+function applyProspectBranding(brandData) {
+  // 1. Company name labels
   const label = document.getElementById('prospect-label');
-  const favicon = document.getElementById('prospect-favicon');
   const preparedFor = document.querySelector('.prepared-for');
   if (label) label.textContent = PROSPECT.name;
   if (preparedFor) preparedFor.textContent = 'Prepared for ' + PROSPECT.name;
-  if (favicon && PROSPECT.domain) {
-    favicon.src = `https://www.google.com/s2/favicons?domain=${PROSPECT.domain}&sz=64`;
-    favicon.onload = () => { favicon.style.display = 'inline'; };
+
+  // 2. Logo/favicon in webinar top bar — use scraped logo_url, fall back to Google Favicon
+  const faviconEl = document.getElementById('prospect-favicon');
+  const brandDomain = brandData?.domain || PROSPECT.domain || (PROSPECT.email ? PROSPECT.email.split('@')[1] : null);
+  const logoSrc = brandData?.logo_url || (brandDomain ? `https://www.google.com/s2/favicons?domain=${brandDomain}&sz=128` : null);
+  if (faviconEl && logoSrc) {
+    faviconEl.src = logoSrc;
+    faviconEl.style.cssText = 'width:18px;height:18px;border-radius:3px;object-fit:contain;display:inline-block;vertical-align:middle;';
+    faviconEl.onerror = () => {
+      if (brandDomain) faviconEl.src = `https://www.google.com/s2/favicons?domain=${brandDomain}&sz=64`;
+      else faviconEl.style.display = 'none';
+    };
+  }
+
+  // 3. CSS color variables — applied to webinar UI accents
+  if (brandData?.primary_color) {
+    document.documentElement.style.setProperty('--prospect-primary', brandData.primary_color);
+    document.documentElement.style.setProperty('--prospect-secondary', brandData.secondary_color || brandData.accent_color || brandData.primary_color);
+  }
+
+  // 4. Tagline on slide 1 sub-tag
+  if (brandData?.tagline) {
+    const slideTag = document.getElementById('slide-tag');
+    if (slideTag) {
+      slideTag.textContent = brandData.tagline.slice(0, 60) + (brandData.tagline.length > 60 ? '…' : '');
+      slideTag.title = brandData.tagline; // full text on hover
+    }
+  }
+
+  // 5. "Presented for" attribution in slide 1 footer
+  const prospectAttr = document.getElementById('prospect-attribution');
+  if (prospectAttr) {
+    prospectAttr.textContent = `Presented for ${brandData?.company_name || PROSPECT.name}`;
+    prospectAttr.style.display = 'block';
   }
 }
 
@@ -1647,7 +1933,8 @@ function buildCompatSession(job) {
     domain:     job.prospect_website || '',
     transcript: meta.transcript || { found: false },
     website:    meta.website    || { domain: job.prospect_website, scraped: false },
-    extracted:  ext
+    extracted:  ext,
+    brand:      job.brand_data  || null   // website scrape assets: logo, colors, images
   };
 }
 
@@ -1824,7 +2111,7 @@ function wireROIEditMode() {
 
   // Nothing to personalize
   if (!jobId && !sessionToken) {
-    applyProspectBranding();
+    applyProspectBranding(typeof SESSION !== "undefined" ? SESSION.brand : null);
     return;
   }
 
@@ -1832,12 +2119,12 @@ function wireROIEditMode() {
   if (!jobId && sessionToken) {
     try {
       const res = await fetch('/api/portal-data?session=' + encodeURIComponent(sessionToken));
-      if (!res.ok) { applyProspectBranding(); return; }
+      if (!res.ok) { applyProspectBranding(typeof SESSION !== "undefined" ? SESSION.brand : null); return; }
       const session = await res.json();
       runPersonalization(session);
     } catch(err) {
       console.warn('[Deal Forge] Legacy session load failed:', err.message);
-      applyProspectBranding();
+      applyProspectBranding(typeof SESSION !== "undefined" ? SESSION.brand : null);
     }
     return;
   }
@@ -1863,6 +2150,7 @@ function wireROIEditMode() {
       if (!extractApplied) {
         extractApplied = true;
         const session = buildCompatSession(job);
+        window.SESSION = session; // global — used by applyProspectBranding for brand assets
         runPersonalization(session);
       }
 
@@ -1872,6 +2160,7 @@ function wireROIEditMode() {
         if (llStatus === 'completed') {
           assetsChecked['leads'] = true;
           const session2 = buildCompatSession(job);
+          window.SESSION = session2;
           runPersonalization(session2);
           console.log('[Deal Forge] Lead list complete — personalization updated with real leads');
         } else if (llStatus === 'failed' || llStatus === 'needs_input') {
@@ -1914,6 +2203,211 @@ function wireROIEditMode() {
   pollJob();
 })();
 
+// ── Populate Source Intelligence Panel ────────────────────────────────────────
+function populateSourceIntelligence(session) {
+  const ext   = session.extracted || {};
+  const brand = session.brand     || null;
+  const prospect    = ext.prospect  || {};
+  const icp         = ext.icp       || {};
+  const business    = Object.assign({}, ext.business || {}, ext.metrics || {});
+  const transcriptFound = session.transcript?.found === true;
+  const websiteScraped  = brand?.scraped === true;
+
+  // Overall status label
+  const statusEl = document.getElementById('si-overall-status');
+  if (statusEl) {
+    const parts = [];
+    if (transcriptFound) parts.push('✅ Call data');
+    else parts.push('⚠️ No transcript');
+    if (websiteScraped)  parts.push('✅ Website scraped');
+    else parts.push('⚠️ Website not scraped');
+    statusEl.textContent = parts.join(' · ');
+  }
+
+  // Transcript badge
+  const tBadge = document.getElementById('si-transcript-badge');
+  if (tBadge) {
+    tBadge.textContent  = transcriptFound ? 'Found' : 'No transcript';
+    tBadge.className    = 'source-badge ' + (transcriptFound ? 'ok' : 'missing');
+  }
+
+  // Website badge
+  const wBadge = document.getElementById('si-website-badge');
+  if (wBadge) {
+    wBadge.textContent = websiteScraped ? 'Scraped ✓' : 'Not scraped';
+    wBadge.className   = 'source-badge ' + (websiteScraped ? 'ok' : 'missing');
+  }
+
+  // ── Left column: call data ────────────────────────────────────────────────
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val || '—';
+  };
+  set('si-call-company',        prospect.company);
+  set('si-call-contact',        [prospect.name, prospect.title].filter(Boolean).join(', '));
+  set('si-call-ltv',            business.ltv || business.deal_size);
+  set('si-call-close',          business.close_rate);
+  set('si-call-pain',           ext.angle?.pain || ext.pain);
+  set('si-call-goal',           ext.angle?.desired_result || ext.desired_result);
+  set('si-call-icp-titles',     Array.isArray(icp.titles) ? icp.titles.slice(0,3).join(', ') : (icp.titles || ''));
+  set('si-call-icp-industries', Array.isArray(icp.industries) ? icp.industries.slice(0,3).join(', ') : (icp.industries || ''));
+
+  // ── Right column: website data ────────────────────────────────────────────
+  if (brand && brand.scraped) {
+    set('si-web-company', brand.company_name);
+    set('si-web-domain',  brand.domain || session.domain || '—');
+    set('si-web-tagline', brand.tagline);
+    // Colors as colored swatches inline
+    const colorsEl = document.getElementById('si-web-colors');
+    if (colorsEl) {
+      const colors = [brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean);
+      if (colors.length) {
+        colorsEl.innerHTML = colors.map(c =>
+          `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;">
+            <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:${c};border:1px solid rgba(255,255,255,0.2);"></span>
+            <span style="font-size:11px;font-family:monospace;color:#71717a;">${c}</span>
+          </span>`
+        ).join('');
+      } else { colorsEl.textContent = 'None extracted'; }
+    }
+    // Logo
+    const logoEl = document.getElementById('si-web-logo');
+    if (logoEl && brand.logo_url) {
+      logoEl.innerHTML = `<img src="${brand.logo_url}" style="height:20px;border-radius:2px;vertical-align:middle;margin-right:4px;" onerror="this.remove()"> <a href="${brand.logo_url}" target="_blank" style="color:#6366f1;font-size:11px;">View</a>`;
+    }
+    // Images count
+    set('si-web-images', brand.images?.length ? `${brand.images.length} collected` : 'None collected');
+    // Website summary excerpt
+    if (brand.website_summary) {
+      const sumEl = document.getElementById('si-web-summary');
+      if (sumEl) { sumEl.textContent = brand.website_summary.slice(0, 300) + (brand.website_summary.length > 300 ? '…' : ''); sumEl.style.display = 'block'; }
+    }
+  }
+}
+
+// ── scoreIcpMatch — local ICP scoring for lead table badges ────────────────────
+function scoreIcpMatch(lead, session) {
+  var ext      = (session && session.extracted) || {};
+  var icp      = ext.icp || ext.prospect?.icp || {};
+  var icpTitles    = (Array.isArray(icp.titles)     ? icp.titles     : [icp.titles    ]).filter(Boolean).map(function(t){ return t.toLowerCase(); });
+  var icpIndustries= (Array.isArray(icp.industries)  ? icp.industries  : [icp.industries]).filter(Boolean).map(function(i){ return i.toLowerCase(); });
+  var title    = (lead.title    || '').toLowerCase();
+  var company  = (lead.company  || '').toLowerCase();
+  var industry = (lead.industry || company).toLowerCase();
+
+  var reasons = [], misses = [], score = 0;
+
+  // Title match
+  var titleHit = icpTitles.length && icpTitles.some(function(t){ return title.includes(t); });
+  if (titleHit)      { score += 2; reasons.push('Title matches ICP (' + lead.title + ')'); }
+  else if (icpTitles.length) { misses.push('Title not in ICP list'); }
+
+  // Industry match
+  var industryHit = icpIndustries.length && icpIndustries.some(function(i){ return industry.includes(i); });
+  if (industryHit)   { score += 1; reasons.push('Industry matches ICP'); }
+  else if (icpIndustries.length) { misses.push('Industry not in ICP list'); }
+
+  // Company size check (basic)
+  if (lead.company_size) { score += 1; reasons.push('Company size available (' + lead.company_size + ')'); }
+
+  if (!reasons.length && !misses.length) {
+    reasons.push('No ICP criteria to compare — included by default');
+  }
+
+  if (score >= 3) return { label: 'High',   color: '#22c55e', bg: 'rgba(34,197,94,0.12)',    reasons: reasons, misses: misses };
+  if (score >= 1) return { label: 'Medium', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  reasons: reasons, misses: misses };
+  return           { label: 'Low',    color: '#ef4444', bg: 'rgba(239,68,68,0.10)',     reasons: reasons, misses: misses };
+}
+
+// ── toggleLeadDetail — expand/collapse ICP detail row under a lead row ─────────
+function toggleLeadDetail(row) {
+  var detailRow = row.nextElementSibling;
+  if (!detailRow || !detailRow.classList.contains('lead-detail-row')) return;
+  var isOpen = detailRow.style.display !== 'none';
+  // Close all open rows first
+  document.querySelectorAll('.lead-detail-row').forEach(function(r){ r.style.display = 'none'; });
+  document.querySelectorAll('.data-row').forEach(function(r){ r.classList.remove('row-expanded'); });
+  if (!isOpen) {
+    detailRow.style.display = 'table-row';
+    row.classList.add('row-expanded');
+  }
+}
+
+// ── Populate Brand Gallery Panel (edit mode only) ──────────────────────────────
+function populateBrandGallery(session) {
+  const brand   = session.brand || null;
+  const panel   = document.getElementById('brand-gallery-panel');
+  const isEdit  = new URLSearchParams(window.location.search).get('edit') === 'true';
+  if (!panel || !isEdit) return;
+  panel.style.display = 'block';
+
+  const domainLabel = (brand && brand.domain) || session.domain || '';
+  if (domainLabel) {
+    const domainEl = document.getElementById('brand-gallery-domain');
+    if (domainEl) domainEl.textContent = domainLabel;
+  }
+
+  if (!brand || !brand.scraped) return;
+
+  // Logo
+  const logoPreview = document.getElementById('brand-logo-preview');
+  const logoNone    = document.getElementById('brand-logo-none');
+  if (brand.logo_url && logoPreview) {
+    logoPreview.src           = brand.logo_url;
+    logoPreview.style.display = 'block';
+    if (logoNone) logoNone.style.display = 'none';
+  }
+
+  // Favicon
+  const faviconPreview = document.getElementById('brand-favicon-preview');
+  if (brand.favicon_url && faviconPreview) {
+    faviconPreview.src           = brand.favicon_url;
+    faviconPreview.style.display = 'block';
+  }
+
+  // Colors
+  const colorsList = document.getElementById('brand-colors-list');
+  if (colorsList) {
+    const colorDefs = [
+      { color: brand.primary_color,   label: 'Primary' },
+      { color: brand.secondary_color, label: 'Secondary' },
+      { color: brand.accent_color,    label: 'Accent' },
+    ].filter(c => c.color);
+    colorsList.innerHTML = colorDefs.map(c => `
+      <div class="brand-color-row">
+        <span class="brand-swatch" style="background:${c.color};" title="Click to copy" onclick="navigator.clipboard.writeText('${c.color}').then(()=>this.title='Copied!')"></span>
+        <span class="brand-swatch-hex" onclick="navigator.clipboard.writeText('${c.color}')" title="Click to copy">${c.color}</span>
+        <span style="font-size:11px;color:#52525b;margin-left:4px;">${c.label}</span>
+      </div>
+    `).join('') || '<span style="font-size:11px;color:#3f3f46;">No colors extracted</span>';
+  }
+
+  // Images
+  const imagesGrid = document.getElementById('brand-images-grid');
+  const imagesNone = document.getElementById('brand-images-none');
+  if (imagesGrid && brand.images?.length) {
+    imagesGrid.innerHTML = brand.images.map((img, i) => `
+      <img class="brand-image-thumb"
+           src="${img.url}"
+           alt="${img.alt || 'Image ' + (i+1)}"
+           title="${img.type} — ${img.alt || img.url}"
+           onclick="selectFeaturedImage('${img.url}')"
+           onerror="this.style.display='none'">
+    `).join('');
+  } else if (imagesNone) {
+    imagesNone.style.display = 'block';
+  }
+}
+
+function selectFeaturedImage(url) {
+  document.querySelectorAll('.brand-image-thumb').forEach(el => el.classList.remove('selected'));
+  const clicked = [...document.querySelectorAll('.brand-image-thumb')].find(el => el.src === url);
+  if (clicked) clicked.classList.add('selected');
+  // Persist as override (same mechanism as other rep overrides)
+  console.log('[Deal Forge] Featured image selected:', url);
+  // Could wire to saveOverride() if that function exists
+}
+
 function runPersonalization(session) {
   try {
     const ext = session.extracted || {};
@@ -1927,8 +2421,10 @@ function runPersonalization(session) {
     if (prospect.website) PROSPECT.domain = prospect.website.replace(/^https?:\/\//, '').split('/')[0];
     else if (session.domain) PROSPECT.domain = session.domain;
 
-    // Apply branding
-    applyProspectBranding();
+    // Apply branding + populate intelligence panels
+    applyProspectBranding(typeof SESSION !== "undefined" ? SESSION.brand : null);
+    populateSourceIntelligence(session);
+    populateBrandGallery(session);
 
     // ── Pre-fill ROI inputs ──────────────────────────────────────────────────
     // Parse LTV: "$48,000" or "48000" or "$48K"
@@ -2366,8 +2862,22 @@ function runPersonalization(session) {
           var liCell = lead.linkedin_url
             ? '<a class="li-link" href="' + lead.linkedin_url + '" target="_blank">' + liSvg + ' View</a>'
             : '<span style="color:#9ca3af">—</span>';
-          return '<tr class="data-row">' +
+          // ICP match scoring
+          var matchResult = scoreIcpMatch(lead, window.SESSION);
+          var matchBadge = '<span class="icp-badge" style="color:' + matchResult.color + ';background:' + matchResult.bg + ';">' + matchResult.label + '</span>';
+          // Build why-text for expandable row
+          var whyParts = matchResult.reasons || [];
+          var missParts = matchResult.misses || [];
+          var whyHtml = '<div class="lead-detail-inner">' +
+            '<div class="match-reason">ICP Analysis for <strong>' + lead.name + '</strong> at <strong>' + lead.company + '</strong></div>' +
+            '<div class="match-breakdown">' +
+              whyParts.map(function(r) { return '<span class="match-tag match-hit">✓ ' + r + '</span>'; }).join('') +
+              missParts.map(function(r) { return '<span class="match-tag match-miss">✗ ' + r + '</span>'; }).join('') +
+            '</div>' +
+          '</div>';
+          var dataRow = '<tr class="data-row" onclick="toggleLeadDetail(this)">' +
             '<td style="color:#3f3f46;font-size:12px;">' + (idx + 1) + '</td>' +
+            '<td class="td-match">' + matchBadge + '</td>' +
             '<td class="td-name">' + lead.name + '</td>' +
             '<td class="td-title">' + lead.title + '</td>' +
             '<td class="td-company">' + lead.company + '</td>' +
@@ -2375,6 +2885,8 @@ function runPersonalization(session) {
             '<td>' + websiteCell + '</td>' +
             '<td>' + liCell + '</td>' +
             '</tr>';
+          var detailRow = '<tr class="lead-detail-row" style="display:none;"><td colspan="8" class="lead-detail-cell">' + whyHtml + '</td></tr>';
+          return dataRow + detailRow;
         }).join('');
 
         console.log('[Deal Forge] Lead table populated with', gen.leads.length, 'Apollo leads');
@@ -2399,7 +2911,7 @@ function runPersonalization(session) {
 
   } catch(err) {
     console.warn('[Deal Forge] Session load failed, using defaults:', err.message);
-    applyProspectBranding();
+    applyProspectBranding(typeof SESSION !== "undefined" ? SESSION.brand : null);
   }
 }
 </script>

@@ -1556,35 +1556,58 @@ async function handleProspectResearch(task, job) {
   }
 
   try {
-    const items = await runApifyActor('apify/linkedin-profile-scraper', { profileUrls: [linkedinUrl] }, 60000);
+    // LinkedIn profile via Apify — harvestapi/linkedin-profile-scraper (LpVuK3Zozwuipa5bp)
+    // Confirmed working: input key is 'urls' (not 'profileUrls')
+    // Output schema: firstName, lastName, headline, about, profilePicture/photo
+    const items = await runApifyActor('LpVuK3Zozwuipa5bp', {
+      urls: [linkedinUrl]
+    }, 90000);
+
     const profile = items?.[0];
-    if (!profile || !profile.fullName) {
+    if (!profile) {
+      console.warn('[prospect_research] Apify returned no profile');
       await updateJobResearchData(job.id, { host: { name: null, title: null, bio: null, headshot_url: null, linkedin_url: linkedinUrl }, scraped: false });
       return { host: null, scraped: false };
     }
 
+    // Normalise field names — harvestapi uses firstName + lastName (no combined fullName)
+    const fullName = (profile.firstName && profile.lastName)
+      ? `${profile.firstName} ${profile.lastName}`.trim()
+      : (profile.fullName || profile.name || null);
+    const headline = profile.headline || profile.title || null;
+    const photo    = profile.profilePicture || profile.photo || profile.photoUrl || null;
+    const summary  = profile.about || profile.summary || '';
+
+    if (!fullName) {
+      console.warn('[prospect_research] Apify profile missing name:', JSON.stringify(profile).slice(0,200));
+      await updateJobResearchData(job.id, { host: { name: null, title: null, bio: null, headshot_url: null, linkedin_url: linkedinUrl }, scraped: false });
+      return { host: null, scraped: false };
+    }
+
+    // Use Claude Haiku to write a short professional bio
     let bio = null;
-    if (profile.fullName && (profile.summary || profile.headline)) {
+    if (headline) {
       const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const msg = await anthropic.messages.create({
         model: 'claude-haiku-4-5-20251001', max_tokens: 300, temperature: 0,
         system: 'You are writing a short professional bio for a webinar host. Write in third person. 2–3 sentences maximum. Confident and credible tone. Focus on their expertise and who they help. Do not mention the webinar.',
-        messages: [{ role: 'user', content: `Write a short host bio from this LinkedIn data:\n\nName: ${profile.fullName}\nHeadline: ${profile.headline || ''}\nSummary: ${profile.summary || ''}\nMost recent role: ${profile.experiences?.[0]?.title || ''} at ${profile.experiences?.[0]?.company || ''}\n\nReturn only the bio text. No labels, no markdown.` }]
+        messages: [{ role: 'user', content: `Write a short host bio from this LinkedIn data:\n\nName: ${fullName}\nHeadline: ${headline}\nSummary: ${summary}\n\nReturn only the bio text. No labels, no markdown.` }]
       });
       bio = msg.content[0].text.trim();
     }
 
     const researchData = {
       host: {
-        name:         profile.fullName,
-        title:        profile.headline || null,
+        name:         fullName,
+        title:        headline || null,
         bio,
-        headshot_url: profile.profilePicture || null,
+        headshot_url: photo || null,
         linkedin_url: linkedinUrl
       },
       scraped: true
     };
     await updateJobResearchData(job.id, researchData);
+    console.log(`[prospect_research] Done via Apify: name=${fullName}, headshot=${!!photo}, bio=${!!bio}`);
     return researchData;
   } catch(e) {
     console.warn('[prospect_research] Apify failed:', e.message);
@@ -1597,85 +1620,185 @@ async function handleBrandScrape(task, job) {
   const website = job.prospect_website;
   console.log(`[brand_scrape] ${website ? 'Scraping ' + website : 'No website — completing with null'}`);
 
-  const nullOutput = { logo_url: null, primary_color: null, secondary_color: null, tagline: null, company_name: null, scraped: false };
+  const nullOutput = { logo_url: null, favicon_url: null, primary_color: null, secondary_color: null, accent_color: null, all_colors: [], tagline: null, company_name: null, website_summary: null, images: [], scraped: false, source: 'none' };
 
   if (!website) {
     await updateJobBrandData(job.id, nullOutput);
     return nullOutput;
   }
 
-  // Try Apify web scraper first, fall back to direct HTTP
-  let html = '';
-  try {
-    const url = website.startsWith('http') ? website : `https://${website}`;
-    if (process.env.APIFY_API_TOKEN) {
-      const items = await runApifyActor('apify/web-scraper', {
-        startUrls: [{ url }], maxCrawlPages: 1, maxCrawlDepth: 0
-      }, 60000);
-      html = items?.[0]?.html || items?.[0]?.content || '';
-    }
-    if (!html) {
-      const scraped = await scrapeWebsite(website);
-      html = scraped.html || '';
-    }
-  } catch(e) {
-    console.warn('[brand_scrape] Scrape failed, trying direct:', e.message);
-    try { const scraped = await scrapeWebsite(website); html = scraped.html || ''; } catch(_) {}
-  }
+  const domain = website.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
-  if (!html) {
-    await updateJobBrandData(job.id, nullOutput);
+  // Use existing scrapeWebsite() — already runs Jina + raw HTML in parallel, no extra cost
+  let scraped = { html: '', bodyText: '', title: '', metaDesc: '' };
+  try { scraped = await scrapeWebsite(domain); }
+  catch(e) { console.warn('[brand_scrape] scrapeWebsite failed:', e.message); }
+
+  const html     = scraped.html     || '';
+  const bodyText = scraped.bodyText || '';
+
+  if (!html && !bodyText) {
+    await updateJobBrandData(job.id, { ...nullOutput, scraped: false });
     return nullOutput;
   }
 
-  // Extract brand assets from HTML
-  // 1. Logo URL
+  // ── 1. LOGO: 4-path waterfall ────────────────────────────────────────────────
+  const resolveUrl = (src) => {
+    if (!src) return null;
+    src = src.split(' ')[0].trim();
+    if (src.startsWith('http')) return src;
+    if (src.startsWith('//'))   return 'https:' + src;
+    if (src.startsWith('/'))    return `https://${domain}${src}`;
+    return `https://${domain}/${src}`;
+  };
+
   let logoUrl = null;
+
+  // Path 1: og:image
   const ogImage = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
                   html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1];
-  if (ogImage) logoUrl = ogImage;
-  else {
-    const logoImgMatch = html.match(/<img[^>]+(?:class|id|src)=["'][^"']*logo[^"']*["'][^>]*src=["']([^"']+)["']/i) ||
-                         html.match(/<img[^>]+src=["']([^"']*logo[^"']*)["']/i);
-    if (logoImgMatch) logoUrl = logoImgMatch[1];
-  }
-  if (logoUrl && !logoUrl.startsWith('http')) {
-    const base = `https://${website}`;
-    logoUrl = logoUrl.startsWith('/') ? base + logoUrl : `${base}/${logoUrl}`;
-  }
+  if (ogImage) logoUrl = resolveUrl(ogImage);
 
-  // 2. Primary color
-  let primaryColor = null;
-  const themeColor = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
-                     html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']theme-color["']/i)?.[1];
-  if (themeColor) primaryColor = themeColor;
-  else {
-    const cssVar = html.match(/--(?:primary|brand)-color\s*:\s*(#[0-9a-fA-F]{3,6})/i)?.[1];
-    if (cssVar) primaryColor = cssVar;
-    else {
-      const headerColors = [];
-      const headerBg = html.match(/(?:header|nav)[^{]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/ig) || [];
-      headerBg.forEach(m => { const c = m.match(/#[0-9a-fA-F]{3,6}/); if (c) headerColors.push(c[0]); });
-      if (headerColors.length) {
-        const notWhiteBlack = headerColors.filter(c => !['#fff','#ffffff','#FFF','#FFFFFF','#000','#000000'].includes(c));
-        primaryColor = notWhiteBlack[0] || null;
-      }
+  // Path 2: <img> / <source> with "logo" in class, id, alt, or src
+  if (!logoUrl) {
+    const logoPatterns = [
+      /<img[^>]+(?:class|id|alt)=["'][^"']*logo[^"']*["'][^>]+src=["']([^"']+)["']/i,
+      /<img[^>]+src=["']([^"']+)["'][^>]+(?:class|id|alt)=["'][^"']*logo[^"']*["']/i,
+      /<img[^>]+src=["']([^"']*logo[^"'"]*)["']/i,
+      /<source[^>]+srcset=["']([^"']*logo[^"'"]+\.(?:png|svg|webp|jpg)[^"' ]*)["' ]/i,
+    ];
+    for (const p of logoPatterns) {
+      const m = html.match(p);
+      if (m?.[1]) { logoUrl = resolveUrl(m[1]); break; }
     }
   }
 
-  // 3. Tagline
-  const tagline = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{10,})["']/i)?.[1] ||
-                  html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']{10,})["']/i)?.[1] || null;
+  // Path 3: Apple touch icon or high-res <link rel="icon">
+  if (!logoUrl) {
+    const iconMatch =
+      html.match(/<link[^>]+rel=["']apple-touch-icon(?:-precomposed)?["'][^>]+href=["']([^"']+)["']/i) ||
+      html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']apple-touch-icon(?:-precomposed)?["']/i) ||
+      html.match(/<link[^>]+rel=["']icon["'][^>]+sizes=["'](?:192|180|128|96|64)x\d+["'][^>]+href=["']([^"']+)["']/i);
+    if (iconMatch?.[1]) logoUrl = resolveUrl(iconMatch[1]);
+  }
 
-  // 4. Company name from og:site_name or title
-  const siteName = html.match(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
-                   html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:site_name["']/i)?.[1];
-  const titleTag  = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.split(/[|\-–—]/)[0]?.trim();
+  // Path 4: Google Favicon CDN — guaranteed, free, no API key (already used in portal nav)
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=256`;
+  if (!logoUrl) logoUrl = faviconUrl;
+
+  // ── 2. COLORS: 4-path waterfall ──────────────────────────────────────────────
+  const isValidColor = (c) => {
+    if (!c || !/^#[0-9a-fA-F]{3,8}$/.test(c)) return false;
+    return !['#fff','#ffffff','#000','#000000','#fafafa','#f5f5f5','#eeeeee','#e5e5e5'].includes(c.toLowerCase());
+  };
+  const allColors = [];
+  let primaryColor = null, secondaryColor = null, accentColor = null;
+
+  // Path 1: theme-color meta
+  const themeColor =
+    html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']theme-color["']/i)?.[1];
+  if (isValidColor(themeColor)) { primaryColor = themeColor; allColors.push(themeColor); }
+
+  // Path 2: CSS variables in inline <style> blocks
+  const styleBlocks = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map(m => m[1]).join('\n');
+  const parseCssColors = (css) => ({
+    primary:   [...css.matchAll(/--(?:primary|brand-primary|color-primary|theme-primary|main-color|key-color|color-brand)\s*:\s*(#[0-9a-fA-F]{3,8})/gi)].map(m=>m[1]).filter(isValidColor),
+    secondary: [...css.matchAll(/--(?:secondary|brand-secondary|color-secondary|theme-secondary)\s*:\s*(#[0-9a-fA-F]{3,8})/gi)].map(m=>m[1]).filter(isValidColor),
+    accent:    [...css.matchAll(/--(?:accent|highlight|cta|button-color|action|color-cta|link-color)\s*:\s*(#[0-9a-fA-F]{3,8})/gi)].map(m=>m[1]).filter(isValidColor),
+  });
+  const inline = parseCssColors(styleBlocks);
+  if (!primaryColor   && inline.primary[0])   { primaryColor   = inline.primary[0];   allColors.push(primaryColor); }
+  if (!secondaryColor && inline.secondary[0]) { secondaryColor = inline.secondary[0]; allColors.push(secondaryColor); }
+  if (!accentColor    && inline.accent[0])    { accentColor    = inline.accent[0];    allColors.push(accentColor); }
+
+  // Path 3: Fetch linked CSS files — KEY FIX for Wix/Webflow/Squarespace
+  // Modern builders load all CSS variables from external .css files, never inline.
+  if (!primaryColor) {
+    const cssLinks = [...html.matchAll(/<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+\.css[^"']*)["']/gi)]
+      .map(m => m[1])
+      .map(h => h.startsWith('http') ? h : h.startsWith('//') ? 'https:'+h : `https://${domain}${h.startsWith('/')?h:'/'+h}`)
+      .slice(0, 3);
+    if (cssLinks.length) {
+      const cssTexts = await Promise.all(cssLinks.map(async url => {
+        try { const r = await fetch(url, {signal:AbortSignal.timeout(3000)}); return r.ok ? await r.text() : ''; }
+        catch { return ''; }
+      }));
+      const ext = parseCssColors(cssTexts.join('\n'));
+      if (!primaryColor   && ext.primary[0])   { primaryColor   = ext.primary[0];   allColors.push(primaryColor); }
+      if (!secondaryColor && ext.secondary[0]) { secondaryColor = ext.secondary[0]; allColors.push(secondaryColor); }
+      if (!accentColor    && ext.accent[0])    { accentColor    = ext.accent[0];    allColors.push(accentColor); }
+      console.log(`[brand_scrape] CSS files: ${cssLinks.length} checked, primary=${primaryColor || 'none'}`);
+    }
+  }
+
+  // Path 4: Background colors from inline style attributes (last resort)
+  if (!primaryColor) {
+    const bgMatches = [...html.matchAll(/background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8})/gi)].map(m=>m[1]).filter(isValidColor);
+    if (bgMatches[0]) { primaryColor = bgMatches[0]; allColors.push(bgMatches[0]); }
+  }
+
+  // ── 3. IMAGE COLLECTION (max 8, typed: hero / team / general) ────────────────
+  const images = [];
+  const skipImg  = /icon|flag|avatar|pixel|tracking|analytics|sprite|arrow|chevron|placeholder|spacer|blank/i;
+  const heroImg  = /hero|banner|header|main|cover|background|bg-|slide/i;
+  const teamImg  = /team|people|staff|about|office|founder|headshot|portrait/i;
+  const seenImgs = new Set();
+
+  const addImage = (url, alt = '') => {
+    if (!url || !url.startsWith('http') || seenImgs.has(url) || skipImg.test(url)) return;
+    seenImgs.add(url);
+    const sig = (url + ' ' + alt).toLowerCase();
+    images.push({ url, alt: alt.slice(0, 100), type: heroImg.test(sig) ? 'hero' : teamImg.test(sig) ? 'team' : 'general' });
+  };
+
+  // og:image and twitter:image (highest quality — curated by site owner)
+  [...html.matchAll(/<meta[^>]+(?:property=["']og:image["']|name=["']twitter:image["'])[^>]+content=["']([^"']+)["']/gi)]
+    .forEach(m => addImage(m[1]));
+
+  // Large or meaningfully-alt'd <img> tags
+  [...html.matchAll(/<img([^>]+)>/gi)].forEach(m => {
+    if (images.length >= 8) return;
+    const attrs = m[1];
+    const src = attrs.match(/src=["']([^"']+)["']/i)?.[1];
+    const alt = attrs.match(/alt=["']([^"']*)["']/i)?.[1] || '';
+    const w   = parseInt(attrs.match(/width=["']?(\d+)/i)?.[1]  || '0');
+    const h   = parseInt(attrs.match(/height=["']?(\d+)/i)?.[1] || '0');
+    if (!src) return;
+    const resolved = resolveUrl(src);
+    if (resolved && (w >= 200 || h >= 150 || alt.length >= 5) && !skipImg.test(resolved)) addImage(resolved, alt);
+  });
+
+  // ── 4. METADATA + WEBSITE SUMMARY ────────────────────────────────────────────
+  const tagline = scraped.metaDesc?.slice(0, 200) ||
+    html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']{10,})["']/i)?.[1]?.slice(0, 200) || null;
+
+  const siteName    = html.match(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
+                      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:site_name["']/i)?.[1];
+  const titleTag    = scraped.title?.split(/[|\-\u2013\u2014]/)[0]?.trim();
   const companyName = siteName || titleTag || job.prospect_company || null;
 
-  const brandData = { logo_url: logoUrl, primary_color: primaryColor, secondary_color: null, tagline: tagline?.slice(0, 200) || null, company_name: companyName, scraped: true };
+  // website_summary: first 600 chars of Jina-rendered text — shown in Source Intelligence panel
+  const websiteSummary = bodyText.slice(0, 600) || null;
+
+  const brandData = {
+    scraped:          true,
+    source:           'html',
+    domain:           domain,           // raw domain scraped (e.g. xeleratio.com)
+    company_name:     companyName,
+    tagline:          tagline?.trim() || null,
+    website_summary:  websiteSummary,
+    logo_url:         logoUrl,
+    favicon_url:      faviconUrl,
+    primary_color:    primaryColor,
+    secondary_color:  secondaryColor,
+    accent_color:     accentColor,
+    all_colors:       [...new Set(allColors)].filter(isValidColor).slice(0, 6),
+    images:           images.slice(0, 8),
+  };
+
   await updateJobBrandData(job.id, brandData);
-  console.log(`[brand_scrape] Done: logo=${!!logoUrl}, color=${primaryColor}`);
+  console.log(`[brand_scrape] Done: logo=${!!logoUrl}, color=${primaryColor||'none'}, images=${images.length}, summary=${websiteSummary?.length||0}chars`);
   return brandData;
 }
 
