@@ -1825,7 +1825,8 @@ function runPersonalization(session) {
     }
 
     // ── Host elements (calendar event + webinar slide) ────────────────────────
-    const hostName = prospect.company || prospect.name || 'Your Host';
+    const prospectContactName = prospect.contact_name || prospect.name || '';
+    const hostName = prospect.company || prospectContactName || 'Your Host';
     const hostCompany = prospect.company || '';
 
     const calHostName = document.getElementById('cal-host-name');
@@ -2048,9 +2049,9 @@ function runPersonalization(session) {
     }
 
     // ── Reminder emails — personalize prospect name + host ────────────────────
-    const prospectFirst = (prospect.name || '').split(' ')[0] ||
+    const prospectFirst = (prospectContactName || '').split(' ')[0] ||
                           (session.email || '').split('@')[0] || '';
-    const hostFirst = prospect.name ? prospect.name.split(' ')[0] :
+    const hostFirst = prospectContactName ? prospectContactName.split(' ')[0] :
                       (prospect.company ? prospect.company.split(' ')[0] : 'Your host');
 
     const e1preview = document.getElementById('email-1-preview');
