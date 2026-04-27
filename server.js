@@ -785,32 +785,7 @@ async function classifyLeadsWithHaiku(leads, icp) {
   const targetSector  = icp.industry || icp.role || 'the target sector';
   const targetTitles  = icp.apollo_titles?.join(', ') || icp.role || null;
   const targetGeo     = icp.apollo_geography?.join(', ') || icp.geography || null;
-
-  const leadLines = leads.map((l, i) => {
-    const lines = [`Lead ${i+1}: ${l.name} | ${l.title} | ${l.company}${l.company_size ? ' (' + l.company_size + ')' : ''}`];
-    if (l._headline) lines.push(`  Headline: "${l._headline}"`);
-    if (l._excerpt)  lines.push(`  Website:  ${l._excerpt.slice(0, 300)}`);
-    if (!l._headline && !l._excerpt) lines.push(`  (no additional signal available)`);
-    return lines.join('\n');
-  }).join('\n\n');
-
-  const userMsg = [
-    `TARGET SECTOR: ${targetSector}`,
-    targetTitles ? `TARGET ROLES: ${targetTitles}` : null,
-    targetGeo    ? `TARGET GEOGRAPHY: ${targetGeo}` : null,
-    '',
-    'LEADS TO CLASSIFY:',
-    leadLines,
-    '',
-    'Return a JSON array — one entry per lead:',
-    '[{ "index": N, "match": true/false, "confidence": "high"|"medium"|"low", "reason": "one sentence" }]',
-    'Valid JSON only, no markdown.'
-  ].filter(l => l !== null).join('\n');
-
-  try {
-    const msg = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6', max_tokens: 2000, temperature: 0,
-      system: `You are a strict B2B lead classifier. Your job: determine if each company matches the target ICP on TWO dimensions — sector AND geography (if specified).
+  const systemPrompt = `You are a strict B2B lead classifier. Your job: determine if each company matches the target ICP on TWO dimensions — sector AND geography (if specified).
 
 Rules:
 1. PRIMARY SIGNAL — website content: does the copy, tone, and services described match the target sector? An agency writes about campaigns, clients, creative work. A university mentions students, courses, faculty, admissions. A consulting firm mentions strategy, engagements, frameworks.
@@ -819,15 +794,57 @@ Rules:
 4. GEOGRAPHY CHECK (HARD REJECT): If TARGET GEOGRAPHY is specified AND the company's apparent location is CLEARLY not in that geography — based on company name, domain (.co.uk, .com.au etc.), or website content mentioning a different region — reject it. Examples: TARGET GEOGRAPHY = Baltic states/Europe → company named "Bank of Africa" or "Bank of China" → reject. TARGET = Europe → US/Australian/African company with no EU presence → reject. Only reject on geography if you are confident. If geography is ambiguous or unknown, do NOT reject on geo alone.
 5. NO SIGNAL RULE: If no website content AND no headline → default match: false.
 6. CONFIDENCE: "high" = website/headline clearly confirms BOTH sector AND geo. "medium" = sector confirmed, geo plausible but not explicit. "low" = company name plausible but no confirmation.
-7. Return valid JSON only. No markdown.`,
-      messages: [{ role: 'user', content: userMsg }]
-    });
-    const raw = msg.content[0].text;
-    return parseModelJson(raw, 'array');
-  } catch(e) {
-    console.warn('[Haiku classify] Failed:', e.message);
-    return leads.map((_, i) => ({ index: i+1, match: false, confidence: 'low', reason: 'classification unavailable' }));
+7. Return valid JSON only. No markdown.`;
+  const chunkSize = 12;
+  const out = [];
+
+  for (let start = 0; start < leads.length; start += chunkSize) {
+    const chunk = leads.slice(start, start + chunkSize);
+    const leadLines = chunk.map((l, i) => {
+      const lines = [`Lead ${i+1}: ${l.name} | ${l.title} | ${l.company}${l.company_size ? ' (' + l.company_size + ')' : ''}`];
+      if (l._headline) lines.push(`  Headline: "${l._headline}"`);
+      if (l._excerpt)  lines.push(`  Website:  ${l._excerpt.slice(0, 300)}`);
+      if (!l._headline && !l._excerpt) lines.push('  (no additional signal available)');
+      return lines.join('\n');
+    }).join('\n\n');
+
+    const userMsg = [
+      `TARGET SECTOR: ${targetSector}`,
+      targetTitles ? `TARGET ROLES: ${targetTitles}` : null,
+      targetGeo    ? `TARGET GEOGRAPHY: ${targetGeo}` : null,
+      '',
+      'LEADS TO CLASSIFY:',
+      leadLines,
+      '',
+      'Return a JSON array — one entry per lead:',
+      '[{ "index": N, "match": true/false, "confidence": "high"|"medium"|"low", "reason": "one sentence" }]',
+      'Valid JSON only, no markdown.'
+    ].filter(l => l !== null).join('\n');
+
+    try {
+      const msg = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6', max_tokens: 1400, temperature: 0,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMsg }]
+      });
+      const raw = msg.content[0]?.text || '';
+      const parsed = parseModelJson(raw, 'array');
+      const chunkResults = Array.isArray(parsed) ? parsed : [];
+      chunk.forEach((_, i) => {
+        const found = chunkResults.find(r => Number(r?.index) === i + 1);
+        out.push(found
+          ? { ...found, index: start + i + 1 }
+          : { index: start + i + 1, match: false, confidence: 'low', reason: 'classification unavailable' });
+      });
+    } catch(e) {
+      console.warn('[Haiku classify] Failed:', e.message);
+      chunk.forEach((_, i) => {
+        out.push({ index: start + i + 1, match: false, confidence: 'low', reason: 'classification unavailable' });
+      });
+    }
   }
+
+  return out;
 }
 // ── Path A: Industry pre-filter — fast keyword gate before AI classifier ─────
 // Removes obvious mismatches by company name before spending tokens on Haiku.
@@ -973,6 +990,19 @@ const GEO_REGION_TO_PARENT = {
   'latin america': 'latam'
 };
 
+const BROAD_GEO_KEYS = new Set([
+  'europe',
+  'eu',
+  'european union',
+  'north america',
+  'na',
+  'latin america',
+  'latam',
+  'apac',
+  'mena',
+  'middle east'
+]);
+
 function dedupeStrings(arr) {
   return (arr || []).filter(Boolean).map(v => String(v).trim()).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
 }
@@ -987,7 +1017,9 @@ function canonicalGeo(geo) {
 
 function buildGeoPlan(rawGeo) {
   const requested = dedupeStrings(rawGeo || []);
-  const primaryLocations = [];
+  const explicitCountries = [];
+  const specificRegionKeys = [];
+  const broadRegionKeys = [];
   const fallbackSets = [];
   const seenFallbacks = new Set();
 
@@ -1006,15 +1038,29 @@ function buildGeoPlan(rawGeo) {
 
   requested.forEach(geo => {
     const key = canonicalGeo(geo);
-    const expanded = GEO_REGION_GROUPS[key];
-    if (expanded?.length) primaryLocations.push(...expanded);
-    else primaryLocations.push(geo);
+    if (!GEO_REGION_GROUPS[key]) {
+      explicitCountries.push(geo);
+      return;
+    }
+    if (BROAD_GEO_KEYS.has(key)) broadRegionKeys.push(key);
+    else specificRegionKeys.push(key);
   });
 
+  const primaryLocations = explicitCountries.length
+    ? dedupeStrings(explicitCountries)
+    : specificRegionKeys.length
+      ? dedupeStrings(specificRegionKeys.flatMap(key => GEO_REGION_GROUPS[key] || []))
+      : dedupeStrings(broadRegionKeys.flatMap(key => GEO_REGION_GROUPS[key] || []));
   const dedupedPrimary = dedupeStrings(primaryLocations);
+
   requested.forEach(geo => {
     const key = canonicalGeo(geo);
     if (GEO_REGION_GROUPS[key]) {
+      if (BROAD_GEO_KEYS.has(key)) {
+        if (explicitCountries.length || specificRegionKeys.length) pushFallback(key, 'requested_broad_region');
+        return;
+      }
+      pushFallback(key, 'requested_region');
       const parent = GEO_REGION_TO_PARENT[key];
       if (parent) pushFallback(parent, 'parent_region');
       return;
