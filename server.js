@@ -905,10 +905,19 @@ function preFilterLeadsByIndustry(leads, icp) {
 }
 
 function normalizePerson(p, source) {
-  // Normalize contact shape from people/search and contacts/search into one format
+  // Normalize contact shape from people/search and contacts/search into one format.
+  // Apollo mixed_people/api_search returns obfuscated data on some plans:
+  //   - last_name_obfuscated instead of last_name
+  //   - no combined `name` field — must build from first_name + last_name_obfuscated
+  //   - organization.name instead of organization_name
+  //   - no linkedin_url on the free tier
   const org = p.organization || p.account || {};
+  const name = p.name
+    || (p.first_name && (p.last_name || p.last_name_obfuscated)
+        ? `${p.first_name} ${p.last_name || p.last_name_obfuscated}`.trim()
+        : (p.first_name || null));
   return {
-    name: p.name,
+    name,
     title: p.title,
     company: p.organization_name || org.name || '',
     company_size: fmtEmp(org.estimated_num_employees),
@@ -1058,10 +1067,13 @@ async function fetchLeadsFromApollo(icp) {
     // than to under-fetch and show 0 leads.
     const runOrgSearch = async (withGeo) => {
       const orgBody = { per_page: 50 };
-      // q_organization_keyword_tags intentionally omitted — Apollo applies AND logic across all values,
-      // returning near-0 results when ICP has 5+ industry tags. Haiku classifier verifies sector fit.
+      // Use the PRIMARY industry tag only (single tag) — Apollo applies AND logic across all values,
+      // so using 5 tags returns near-0 results. Single tag gives industry-relevant orgs.
+      // Haiku classifier still verifies sector fit for any edge cases.
+      const primaryIndustry = apolloIndustries?.[0] || null;
+      if (primaryIndustry)  orgBody.q_organization_keyword_tags   = [primaryIndustry];
       if (sizeRanges)       orgBody.organization_num_employees_ranges = sizeRanges;
-      if (withGeo && apolloGeo) orgBody.q_organization_locations     = apolloGeo;
+      if (withGeo && apolloGeo) orgBody.q_organization_locations   = apolloGeo;
       const orgRes = await fetch('https://api.apollo.io/v1/organizations/search', {
         method: 'POST', headers: apolloHeaders,
         body: JSON.stringify(orgBody), signal: AbortSignal.timeout(10000)
@@ -1142,93 +1154,90 @@ async function fetchLeadsFromApollo(icp) {
       // total falls back to estimateGlobalTAM(icp) at the end if still null
     } catch(e) { console.warn('[Apollo] Org search error:', e.message); }
 
-    // ── Step 2: people/search at validated org IDs (Path B) ──────────────────
-    // people/search searches globally, not just CRM. If plan doesn't allow it (403),
-    // fall back to contacts/search with the same filters.
+    // ── Step 2: people search — direct geo+titles (reliable on all Apollo plans) ──
+    // IMPORTANT: mixed_people/api_search with organization_ids returns 0 contacts on the basic plan.
+    // The reliable path is geo+titles directly, which works and returns real results.
+    // We still try org-constrained first (it's more precise), but immediately fall back
+    // to geo+titles when it returns <5 results.
     let allPeople = [];
     let usedPeopleSearch = false;
+
+    const runDirectGeoTitlesSearch = async (label) => {
+      if (!apolloTitles?.length && !apolloGeo?.length) return [];
+      const directBody = { per_page: 25 };
+      if (apolloTitles?.length)      directBody.person_titles        = apolloTitles;
+      if (seniorities)               directBody.person_seniorities   = seniorities;
+      if (apolloGeo?.length)         directBody.person_locations     = apolloGeo;
+      if (sizeRanges)                directBody.organization_num_employees_ranges = sizeRanges;
+      try {
+        const dr = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
+          method: 'POST', headers: apolloHeaders,
+          body: JSON.stringify(directBody), signal: AbortSignal.timeout(15000)
+        });
+        if (!dr.ok) {
+          const errText = await dr.text().catch(() => '');
+          console.warn(`[Apollo] ${label} HTTP ${dr.status}: ${errText.slice(0,120)}`);
+          return [];
+        }
+        const dd = await dr.json();
+        const dp = (dd.people || []).filter(p => {
+          const firstName = p.first_name || '';
+          const n = (p.name || (firstName + ' ' + (p.last_name || p.last_name_obfuscated || '')).trim() || firstName).trim();
+          const company = p.organization_name || p.organization?.name || '';
+          return n.length > 2 && p.title && company;
+        }).map(p => normalizePerson(p, label));
+        console.log(`[Apollo] ${label}: ${dp.length} candidates`);
+        return dp;
+      } catch(e) {
+        console.warn(`[Apollo] ${label} error:`, e.message);
+        return [];
+      }
+    };
 
     if (orgIds.length) {
       try {
         const peopleBody = { organization_ids: orgIds, per_page: 25 };
         if (apolloTitles?.length) peopleBody.person_titles      = apolloTitles;
         if (seniorities)          peopleBody.person_seniorities = seniorities;
-        // NOTE: person_locations intentionally omitted — geo filtering on people is unreliable
-        // for non-US markets. Classifier verifies geography via website + headline instead.
         const peopleRes = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
           method: 'POST', headers: apolloHeaders,
           body: JSON.stringify(peopleBody), signal: AbortSignal.timeout(15000)
         });
         if (peopleRes.ok) {
           const peopleData = await peopleRes.json();
-          const PLACEHOLDER_NAMES = new Set(['n/a', 'na', 'unknown', 'no name', '(no name)', 'none', 'null', 'anonymous']);
           const people = (peopleData.people || []).filter(p => {
-            const n = (p.name || '').trim();
-            return n.length > 2 && !PLACEHOLDER_NAMES.has(n.toLowerCase()) && p.title && (p.organization_name || p.organization?.name);
+            const firstName = p.first_name || '';
+            const n = (p.name || (firstName + ' ' + (p.last_name || p.last_name_obfuscated || '')).trim() || firstName).trim();
+            const company = p.organization_name || p.organization?.name || '';
+            return n.length > 2 && p.title && company;
           });
           allPeople = people.map(p => normalizePerson(p, 'mixed_people/api_search'));
-          usedPeopleSearch = true;
           console.log(`[Apollo] mixed_people/api_search (org-constrained): ${allPeople.length} contacts from ${orgIds.length} orgs`);
 
-          // 3e. If org-constrained results are thin (<5), retry people/search globally with geo+titles
-          // This provides a results path when Apollo org coverage is sparse in a market
-          if (allPeople.length < 5 && (apolloTitles?.length || apolloGeo?.length)) {
-            console.log('[Apollo] Org-constrained results thin — retrying globally with mixed_people/api_search + geo+titles');
-            const globalPeopleBody = { per_page: 25 };
-            if (apolloTitles?.length) globalPeopleBody.person_titles     = apolloTitles;
-            if (seniorities)          globalPeopleBody.person_seniorities = seniorities;
-            if (apolloGeo?.length)    globalPeopleBody.person_locations   = apolloGeo;
-            try {
-              const gpr = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
-                method: 'POST', headers: apolloHeaders,
-                body: JSON.stringify(globalPeopleBody), signal: AbortSignal.timeout(12000)
-              });
-              if (gpr.ok) {
-                const gpd = await gpr.json();
-                const gpPeople = (gpd.people || []).filter(p => {
-                  const n = (p.name || '').trim();
-                  return n.length > 2 && p.title && (p.organization_name || p.organization?.name);
-                }).map(p => normalizePerson(p, 'mixed_people/api_search-global'));
-                if (gpPeople.length > allPeople.length) {
-                  allPeople = gpPeople;
-                  console.log(`[Apollo] Global mixed_people/api_search: ${allPeople.length} candidates`);
-                }
-              }
-            } catch(e) { console.warn('[Apollo] Global people/search retry error:', e.message); }
+          // If org-constrained returns thin results (<5), fall back to direct geo+titles.
+          // This happens on Apollo basic plans where organization_ids is not fully supported.
+          if (allPeople.length < 5) {
+            console.log('[Apollo] Org-constrained thin — falling back to direct geo+titles search');
+            const direct = await runDirectGeoTitlesSearch('mixed_people/api_search-geo');
+            if (direct.length > allPeople.length) { allPeople = direct; }
           }
+          usedPeopleSearch = allPeople.length > 0;
         } else {
           const errText = await peopleRes.text().catch(() => '');
-          console.warn(`[Apollo] people/search HTTP ${peopleRes.status} — falling back to contacts/search. ${errText.slice(0,120)}`);
+          console.warn(`[Apollo] people/search HTTP ${peopleRes.status} — falling back to geo+titles. ${errText.slice(0,120)}`);
+          allPeople = await runDirectGeoTitlesSearch('mixed_people/api_search-geo-fallback');
+          usedPeopleSearch = allPeople.length > 0;
         }
-      } catch(e) { console.warn('[Apollo] mixed_people/api_search error:', e.message); }
-    } else {
-      // 3a. No org IDs at all — run mixed_people/api_search directly with geo+titles
-      console.log('[Apollo] No org IDs — trying direct mixed_people/api_search with geo+titles');
-      if (apolloTitles?.length || apolloGeo?.length) {
-        const directBody = { per_page: 25 };
-        if (apolloTitles?.length) directBody.person_titles     = apolloTitles;
-        if (seniorities)          directBody.person_seniorities = seniorities;
-        if (apolloGeo?.length)    directBody.person_locations   = apolloGeo;
-        try {
-          const dr = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
-            method: 'POST', headers: apolloHeaders,
-            body: JSON.stringify(directBody), signal: AbortSignal.timeout(12000)
-          });
-          if (dr.ok) {
-            const dd = await dr.json();
-            const dp = (dd.people || []).filter(p => {
-              const n = (p.name || '').trim();
-              return n.length > 2 && p.title && (p.organization_name || p.organization?.name);
-            }).map(p => normalizePerson(p, 'mixed_people/api_search-direct'));
-            allPeople = dp;
-            usedPeopleSearch = dp.length > 0;
-            console.log(`[Apollo] Direct mixed_people/api_search (no org IDs): ${allPeople.length} candidates`);
-          } else {
-            const errText = await dr.text().catch(() => '');
-            console.warn(`[Apollo] Direct mixed_people/api_search HTTP ${dr.status}: ${errText.slice(0,120)}`);
-          }
-        } catch(e) { console.warn('[Apollo] Direct mixed_people/api_search error:', e.message); }
+      } catch(e) {
+        console.warn('[Apollo] mixed_people/api_search error:', e.message);
+        allPeople = await runDirectGeoTitlesSearch('mixed_people/api_search-geo-catch');
+        usedPeopleSearch = allPeople.length > 0;
       }
+    } else {
+      // No org IDs — go directly to geo+titles search
+      console.log('[Apollo] No org IDs — running direct geo+titles search');
+      allPeople = await runDirectGeoTitlesSearch('mixed_people/api_search-direct');
+      usedPeopleSearch = allPeople.length > 0;
     }
 
     // ── Fallback: contacts/search (CRM-only, but workable) ───────────────────
