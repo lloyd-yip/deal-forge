@@ -1488,7 +1488,10 @@ async function handleBrandScrape(task, job) {
   const website = job.prospect_website;
   console.log(`[brand_scrape] ${website ? 'Scraping ' + website : 'No website — completing with null'}`);
 
-  const nullOutput = { logo_url: null, primary_color: null, secondary_color: null, tagline: null, company_name: null, scraped: false };
+  const normalizedDomain = website
+    ? website.replace(/^https?:\/\//, '').replace(/\/.*$/, '')
+    : null;
+  const nullOutput = { logo_url: null, primary_color: null, secondary_color: null, tagline: null, company_name: null, domain: normalizedDomain, scraped: false };
 
   if (!website) {
     await updateJobBrandData(job.id, nullOutput);
@@ -1564,7 +1567,15 @@ async function handleBrandScrape(task, job) {
   const titleTag  = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.split(/[|\-–—]/)[0]?.trim();
   const companyName = siteName || titleTag || job.prospect_company || null;
 
-  const brandData = { logo_url: logoUrl, primary_color: primaryColor, secondary_color: null, tagline: tagline?.slice(0, 200) || null, company_name: companyName, scraped: true };
+  const brandData = {
+    logo_url: logoUrl,
+    primary_color: primaryColor,
+    secondary_color: null,
+    tagline: tagline?.slice(0, 200) || null,
+    company_name: companyName,
+    domain: normalizedDomain,
+    scraped: true
+  };
   await updateJobBrandData(job.id, brandData);
   console.log(`[brand_scrape] Done: logo=${!!logoUrl}, color=${primaryColor}`);
   return brandData;
@@ -1612,12 +1623,19 @@ async function handleLeadList(task, job) {
   // Do NOT call filterLeadsByWebsite here — that would re-scrape every site a second time.
   const result = await fetchLeadsFromApollo(icp);
   const leads  = result?.leads || [];
-  console.log(`[lead_list] Apollo returned ${leads.length} classified leads, TAM: ${result?.total}`);
+  const tam    = result?.total || 0;
+  const recommendedOutreach = result?.recommendedOutreach ||
+    (tam > 300000
+      ? 100000
+      : tam > 0
+        ? Math.max(1000, Math.round(tam / 3 / 1000) * 1000)
+        : 30000);
+  console.log(`[lead_list] Apollo returned ${leads.length} classified leads, TAM: ${tam}`);
   return {
     leads,
-    total: result?.total || 0,
-    tamSource: result?.total ? 'estimated' : 'unknown',
-    recommendedOutreach: Math.min(100000, Math.max(30000, Math.round(((result?.total || 0) / 3) / 5000) * 5000 || 30000)),
+    total: tam,
+    tamSource: result?.tamSource || 'estimated',
+    recommendedOutreach,
     source: result?.source || null,
     diagnostics: result?.diagnostics || null
   };
@@ -2127,6 +2145,57 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ deleted: true }));
     } catch(e) {
       console.error('[DELETE /api/jobs]', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ── PATCH /api/jobs/:id/overrides — persist rep edits separate from AI output ──
+  if (req.method === 'PATCH' && urlPath.startsWith('/api/jobs/') && urlPath.endsWith('/overrides')) {
+    setCors(res);
+    const jobId = urlPath.slice('/api/jobs/'.length, -'/overrides'.length);
+    try {
+      const body = await parseBody(req);
+      const allowed = ['tam_total', 'recommended_outreach', 'webinar_title', 'roi_ltv', 'roi_show_rate', 'roi_close_rate'];
+      const safeOverrides = {};
+      for (const key of allowed) {
+        if (body[key] !== undefined) safeOverrides[key] = body[key];
+      }
+      if (!Object.keys(safeOverrides).length) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: `No valid override fields. Allowed: ${allowed.join(', ')}` }));
+        return;
+      }
+
+      const job = await getJob(jobId);
+      if (!job) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Job not found' }));
+        return;
+      }
+
+      const existingData = job.extracted_data || {};
+      const existingOverrides = existingData._overrides || {};
+      const mergedOverrides = {
+        ...existingOverrides,
+        ...safeOverrides,
+        _updated_at: new Date().toISOString()
+      };
+      const updatedData = { ...existingData, _overrides: mergedOverrides };
+      const r = await supabaseRequest(
+        'PATCH',
+        `/rest/v1/jobs?id=eq.${jobId}`,
+        { extracted_data: updatedData, updated_at: new Date().toISOString() },
+        { 'Prefer': 'return=minimal' }
+      );
+      if (r.status >= 400) throw new Error(`Supabase PATCH failed: ${r.status}`);
+
+      console.log(`[PATCH /api/jobs/${jobId}/overrides] Saved:`, safeOverrides);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, overrides: mergedOverrides }));
+    } catch (e) {
+      console.error('[PATCH /api/jobs/overrides]', e.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
