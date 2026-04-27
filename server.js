@@ -809,7 +809,7 @@ async function classifyLeadsWithHaiku(leads, icp) {
 
   try {
     const msg = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001', max_tokens: 2000, temperature: 0,
+      model: 'claude-sonnet-4-6', max_tokens: 2000, temperature: 0,
       system: `You are a strict B2B lead classifier. Your job: determine if each company matches the target ICP on TWO dimensions — sector AND geography (if specified).
 
 Rules:
