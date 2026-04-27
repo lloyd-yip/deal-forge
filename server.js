@@ -823,7 +823,7 @@ Rules:
       messages: [{ role: 'user', content: userMsg }]
     });
     const raw = msg.content[0].text;
-    return JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] || raw);
+    return parseModelJson(raw, 'array');
   } catch(e) {
     console.warn('[Haiku classify] Failed:', e.message);
     return leads.map((_, i) => ({ index: i+1, match: false, confidence: 'low', reason: 'classification unavailable' }));
@@ -853,20 +853,56 @@ function preFilterLeadsByIndustry(leads, icp) {
   return out;
 }
 
-function normalizePerson(p, source) {
+function parseModelJson(raw, kind = 'object') {
+  const text = String(raw || '').trim();
+  const attempts = [
+    text,
+    text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
+  ];
+  const patterns = kind === 'array' ? [/\[[\s\S]*\]/] : [/\{[\s\S]*\}/];
+
+  for (const attempt of attempts) {
+    if (!attempt) continue;
+    try { return JSON.parse(attempt); } catch (_) {}
+    for (const pattern of patterns) {
+      const match = attempt.match(pattern);
+      if (!match) continue;
+      try { return JSON.parse(match[0]); } catch (_) {}
+    }
+  }
+  throw new Error(`unparseable ${kind} JSON`);
+}
+
+function normalizePerson(p, source, orgMetaLookup = null) {
   // Normalize contact shape from people/search and contacts/search into one format
   const org = p.organization || p.account || {};
+  const orgId = p.organization_id || org.organization_id || org.id || p.account_id || null;
+  const company = p.organization_name || org.name || p.account?.name || p.current_employer_name || '';
+  const orgMeta = orgMetaLookup
+    ? (orgMetaLookup.byId.get(String(orgId)) || orgMetaLookup.byName.get(String(company).toLowerCase()) || null)
+    : null;
   const name = p.name ||
     [p.first_name, p.last_name].filter(Boolean).join(' ').trim() ||
     [p.first_name, p.last_name_obfuscated].filter(Boolean).join(' ').trim() ||
     null;
-  const employeeCount = org.estimated_num_employees || org.num_employees || p.organization_num_employees || null;
+  const employeeCount =
+    org.estimated_num_employees ||
+    org.num_employees ||
+    p.organization_num_employees ||
+    orgMeta?.employeeCount ||
+    null;
+  const website =
+    (org.primary_domain ? `https://${org.primary_domain}` : null) ||
+    org.website_url ||
+    p.organization_website_url ||
+    orgMeta?.website ||
+    null;
   return {
     name,
     title: p.title,
-    company: p.organization_name || org.name || p.account?.name || p.current_employer_name || '',
+    company,
     company_size: fmtEmp(employeeCount),
-    website: org.primary_domain ? `https://${org.primary_domain}` : (org.website_url || p.organization_website_url || null),
+    website,
     linkedin_url: p.linkedin_url || p.linkedin_url_obfuscated || null,
     // LinkedIn headline — Apollo scrapes this from LinkedIn profiles. Far more specific
     // than org.industry tags. "VP Strategy at Gov of Estonia | EU Policy Advisor" is
@@ -920,6 +956,7 @@ async function fetchLeadsFromApollo(icp) {
   const apolloCore = async () => {
     let total = null;
     let orgIds = [];
+    const orgMetaLookup = { byId: new Map(), byName: new Map() };
     let geoUsed = 'original'; // tracks which geo tier was actually used for org search
     const debug = {
       geoRequested: apolloGeo || [],
@@ -959,6 +996,19 @@ async function fetchLeadsFromApollo(icp) {
       }
       const orgData = await orgRes.json();
       const organizations = orgData.organizations || orgData.accounts || [];
+      organizations.forEach(o => {
+        const id = o.organization_id || o.id;
+        const name = String(o.name || '').trim();
+        const website = o.primary_domain ? `https://${o.primary_domain}` : (o.website_url || null);
+        const meta = {
+          id: id ? String(id) : null,
+          name,
+          website,
+          employeeCount: o.estimated_num_employees || o.num_employees || null
+        };
+        if (meta.id) orgMetaLookup.byId.set(meta.id, meta);
+        if (name) orgMetaLookup.byName.set(name.toLowerCase(), meta);
+      });
       debug.orgSearch.totalEntries = orgData.pagination?.total_entries || orgData.total_entries || null;
       debug.orgSearch.orgIds = organizations.length;
       return {
@@ -1044,10 +1094,10 @@ async function fetchLeadsFromApollo(icp) {
         if (peopleRes.ok) {
           const peopleData = await peopleRes.json();
           const people = (peopleData.people || []).filter(p => {
-            const normalized = normalizePerson(p, 'mixed_people/api_search:org_ids');
+            const normalized = normalizePerson(p, 'mixed_people/api_search:org_ids', orgMetaLookup);
             return normalized.name && normalized.title && normalized.company;
           });
-          allPeople = people.map(p => normalizePerson(p, 'people/search'));
+          allPeople = people.map(p => normalizePerson(p, 'people/search', orgMetaLookup));
           usedPeopleSearch = true;
           debug.peopleSearch.candidates = allPeople.length;
           debug.source = 'people_search_org_ids';
@@ -1099,10 +1149,10 @@ async function fetchLeadsFromApollo(icp) {
             }
             const data = await res.json();
             const batch = (data.people || []).filter(p => {
-              const normalized = normalizePerson(p, 'mixed_people/api_search');
+              const normalized = normalizePerson(p, 'mixed_people/api_search', orgMetaLookup);
               return normalized.name && normalized.title && normalized.company;
             });
-            attemptPeople.push(...batch.map(p => normalizePerson(p, 'mixed_people/api_search')));
+            attemptPeople.push(...batch.map(p => normalizePerson(p, 'mixed_people/api_search', orgMetaLookup)));
             console.log(`[Apollo] direct people API p${page}: ${batch.length} people, total_entries=${data.total_entries || data.pagination?.total_entries || 'n/a'}`);
             if (batch.length < 50) break;
           }
@@ -1148,10 +1198,10 @@ async function fetchLeadsFromApollo(icp) {
           debug.contactsSearch.pagesFetched = page;
           const data = await res.json();
           const batch = (data.contacts || []).filter(p => {
-            const normalized = normalizePerson(p, 'contacts/search');
+            const normalized = normalizePerson(p, 'contacts/search', orgMetaLookup);
             return normalized.name && normalized.title && normalized.company;
           });
-          allPeople.push(...batch.map(p => normalizePerson(p, 'contacts/search')));
+          allPeople.push(...batch.map(p => normalizePerson(p, 'contacts/search', orgMetaLookup)));
           if (batch.length < 25) break;
         }
         debug.contactsSearch.candidates = allPeople.length;
