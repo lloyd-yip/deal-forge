@@ -60,6 +60,21 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .filter-group-label { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #3f3f46; margin-right: 2px; }
 .filter-tag { font-size: 11px; font-weight: 500; color: #a1a1aa; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; padding: 3px 9px; }
 .filter-sep { color: #3f3f46; font-size: 12px; }
+.lead-diag { margin-top: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 16px; }
+.lead-diag-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.lead-diag-title { font-size: 12px; font-weight: 700; color: #e4e4e7; }
+.lead-diag-pill { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 999px; padding: 5px 9px; }
+.lead-diag-pill.ok { color: #86efac; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.24); }
+.lead-diag-pill.warn { color: #fbbf24; background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.24); }
+.lead-diag-pill.bad { color: #fca5a5; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.24); }
+.lead-diag-pill.neutral { color: #93c5fd; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.24); }
+.lead-diag-copy { font-size: 12px; color: #a1a1aa; line-height: 1.55; margin-bottom: 10px; }
+.lead-diag-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; }
+.lead-diag-item { font-size: 11px; color: #71717a; line-height: 1.5; }
+.lead-diag-label { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #3f3f46; margin-bottom: 2px; }
+.lead-diag-value { color: #d4d4d8; }
+.lead-diag-attempts { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.lead-diag-chip { font-size: 10px; color: #cbd5e1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; padding: 4px 8px; }
 .tam-blurb { font-size: 13px; color: #71717a; line-height: 1.65; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); }
 .tam-blurb strong { color: #a1a1aa; }
 
@@ -501,6 +516,7 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
         <span class="filter-tag" style="color:#52525b;background:none;border:none;">Loading ICP parameters...</span>
       </div>
       <div id="tam-kpi-line" style="display:none;font-size:12px;color:#52525b;margin-top:10px;line-height:1.5;"></div>
+      <div id="lead-diagnostics-panel" class="lead-diag" style="display:none;"></div>
 
     </div>
 
@@ -1808,6 +1824,116 @@ function wireROIEditMode() {
   });
 }
 
+function formatDiagLocations(arr, maxItems) {
+  if (!Array.isArray(arr) || !arr.length) return 'None';
+  const list = arr.slice(0, maxItems || 5);
+  const suffix = arr.length > list.length ? ' +' + (arr.length - list.length) : '';
+  return list.join(', ') + suffix;
+}
+
+function friendlyLeadSource(source) {
+  var labels = {
+    people_search_org_ids: 'Org-validated people search',
+    people_search_direct: 'Direct people search',
+    contacts_search: 'CRM contacts fallback'
+  };
+  return labels[source] || source || 'Unknown';
+}
+
+function buildLeadDiagnosticsSummary(gen) {
+  var diagnostics = gen && gen.diagnostics;
+  if (!diagnostics) return null;
+  var leadCount = Array.isArray(gen.leads) ? gen.leads.length : 0;
+  if (diagnostics.classification && diagnostics.classification.outage) {
+    return {
+      tone: 'warn',
+      pill: 'Fallback',
+      copy: 'Apollo retrieval worked, but the ICP classifier fell back to unverified candidates. Treat this list as a raw shortlist.'
+    };
+  }
+  if (leadCount > 0) {
+    return {
+      tone: 'ok',
+      pill: 'Healthy',
+      copy: 'This market produced qualified leads through the live retrieval ladder. The summary below shows which search tier actually won.'
+    };
+  }
+  if ((diagnostics.classification && diagnostics.classification.rejectedAll) || (diagnostics.classifiedCount > 0 && diagnostics.finalLeadCount === 0)) {
+    return {
+      tone: 'warn',
+      pill: 'Rejected',
+      copy: 'Candidates were found, but none cleared the ICP filter. That usually means the market exists in Apollo, but the sector, geography, or title fit is still too loose.'
+    };
+  }
+  if ((diagnostics.peopleSearch && diagnostics.peopleSearch.httpStatus >= 400) || (diagnostics.orgSearch && diagnostics.orgSearch.httpStatus >= 400)) {
+    return {
+      tone: 'bad',
+      pill: 'Blocked',
+      copy: 'The search ladder hit an API problem before it could retrieve enough candidates. Check the status codes and fallback chips below.'
+    };
+  }
+  return {
+    tone: 'neutral',
+    pill: 'Limited',
+    copy: 'This market completed, but the retrieval ladder did not surface enough ICP-fit leads yet. Use the ladder summary below to see where it thinned out.'
+  };
+}
+
+function renderLeadDiagnostics(gen) {
+  var panel = document.getElementById('lead-diagnostics-panel');
+  if (!panel) return;
+  var diagnostics = gen && gen.diagnostics;
+  if (!diagnostics) {
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    return;
+  }
+
+  var summary = buildLeadDiagnosticsSummary(gen);
+  var rows = [
+    { label: 'Source', value: friendlyLeadSource(diagnostics.source) },
+    { label: 'Requested Geo', value: formatDiagLocations(diagnostics.geoRequested, 4) },
+    { label: 'Primary Geo', value: formatDiagLocations(diagnostics.geoPrimaryLocations, 4) },
+    { label: 'Geo Used', value: diagnostics.geoUsed || 'original' },
+    { label: 'Org Count', value: String(diagnostics.orgSearch && diagnostics.orgSearch.orgIds != null ? diagnostics.orgSearch.orgIds : '0') },
+    { label: 'People Count', value: String(diagnostics.peopleSearch && diagnostics.peopleSearch.candidates != null ? diagnostics.peopleSearch.candidates : (diagnostics.directPeople && diagnostics.directPeople.candidates) || 0) },
+    { label: 'Excerpt Count', value: String((diagnostics.classification && diagnostics.classification.excerptCount) || 0) },
+    { label: 'Final Leads', value: String(diagnostics.finalLeadCount != null ? diagnostics.finalLeadCount : ((gen.leads && gen.leads.length) || 0)) }
+  ];
+  var orgAttemptChips = (diagnostics.orgAttempts || []).map(function(attempt) {
+    var geoLabel = attempt.label === 'primary' ? 'primary' : attempt.label;
+    var status = attempt.httpStatus || 'n/a';
+    return '<span class="lead-diag-chip">' + geoLabel + ' · HTTP ' + status + (attempt.useIndustryTag ? ' · industry tag' : '') + '</span>';
+  });
+  var directAttemptChips = [];
+  var seenKeys = {};
+  (diagnostics.directPeople && diagnostics.directPeople.attempts || []).forEach(function(attempt) {
+    if (!attempt || seenKeys[attempt.key]) return;
+    seenKeys[attempt.key] = true;
+    directAttemptChips.push('<span class="lead-diag-chip">' + attempt.key.replace(':', ' · ') + ' · HTTP ' + attempt.httpStatus + '</span>');
+  });
+  var fallbackLine = (diagnostics.geoFallbackChain || []).map(function(fallback) {
+    return fallback.key + ' (' + formatDiagLocations(fallback.locations, 3) + ')';
+  }).join(' → ');
+
+  panel.style.display = 'block';
+  panel.innerHTML =
+    '<div class="lead-diag-head">' +
+      '<div class="lead-diag-title">Lead Retrieval Diagnostics</div>' +
+      '<div class="lead-diag-pill ' + summary.tone + '">' + summary.pill + '</div>' +
+    '</div>' +
+    '<div class="lead-diag-copy">' + summary.copy + '</div>' +
+    '<div class="lead-diag-grid">' +
+      rows.map(function(row) {
+        return '<div class="lead-diag-item"><span class="lead-diag-label">' + row.label + '</span><span class="lead-diag-value">' + row.value + '</span></div>';
+      }).join('') +
+    '</div>' +
+    (fallbackLine ? '<div class="lead-diag-copy" style="margin-top:10px;margin-bottom:0;"><strong style="color:#d4d4d8;">Fallback Ladder:</strong> ' + fallbackLine + '</div>' : '') +
+    ((orgAttemptChips.length || directAttemptChips.length)
+      ? '<div class="lead-diag-attempts">' + orgAttemptChips.concat(directAttemptChips).slice(0, 8).join('') + '</div>'
+      : '');
+}
+
 function scoreIcpMatch(lead, session) {
   var icp = (session && session.extracted && session.extracted.icp) || {};
   var title = String(lead.title || '').toLowerCase();
@@ -2293,6 +2419,7 @@ function runPersonalization(session) {
       kpiLine.style.display = 'block';
       kpiLine.innerHTML = '→ These are the <strong>' + icpRoleShort + 's</strong> you could be helping improve their <strong>' + kpiText + '</strong>.';
     }
+    renderLeadDiagnostics(generated);
 
     // ── Live chat personalization ─────────────────────────────────────────────
     const chatPanel = document.querySelector('.chat-messages');
@@ -2436,7 +2563,9 @@ function runPersonalization(session) {
       // Task completed but returned 0 leads — clear spinner, show empty state
       var tbodyEmpty = document.querySelector('.lead-table tbody');
       if (tbodyEmpty) {
-        tbodyEmpty.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px 0;color:#71717a;font-size:13px;line-height:1.8;"><strong style="color:#52525b;">No contacts cleared the lead filter for this ICP.</strong><br>That usually means Apollo found a market size, but the title, geography, or company fit was too narrow to surface strong sample leads.</td></tr>';
+        var diagSummary = buildLeadDiagnosticsSummary(generated);
+        var detail = diagSummary ? diagSummary.copy : 'Apollo found a market size, but the title, geography, or company fit was too narrow to surface strong sample leads.';
+        tbodyEmpty.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px 0;color:#71717a;font-size:13px;line-height:1.8;"><strong style="color:#52525b;">No contacts cleared the lead filter for this ICP.</strong><br>' + detail + '</td></tr>';
       }
     }
 

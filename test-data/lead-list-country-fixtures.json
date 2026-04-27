@@ -1,0 +1,59 @@
+[
+  {
+    "label": "Baltics / Gov",
+    "prospect_email": "rait@planpro.ee",
+    "expected_source": "people_search_org_ids",
+    "expected_min_people_candidates": 25,
+    "expected_min_final_leads": 1,
+    "notes": "Sparse market. Should exercise country-first search with usable fallback ladder."
+  },
+  {
+    "label": "United States / Control",
+    "prospect_email": "peter@peterryding.com",
+    "expected_min_people_candidates": 25,
+    "expected_min_final_leads": 1,
+    "notes": "Large-market control. Should not depend on regional fallback."
+  },
+  {
+    "label": "DACH / Consulting",
+    "prospect_email": "karsten@xeleratio.com",
+    "expected_min_people_candidates": 25,
+    "expected_min_final_leads": 1,
+    "notes": "Should tolerate DACH or single-country geography prompts."
+  },
+  {
+    "label": "United Kingdom / Financial Services",
+    "prospect_email": "sgoldstucker@purposebrand.com",
+    "expected_min_people_candidates": 25,
+    "expected_min_final_leads": 0,
+    "notes": "Useful for distinguishing broad-market retrieval from genuine ICP rejection."
+  },
+  {
+    "label": "North America / Broad B2B",
+    "prospect_email": "zeeshan.akbari@projectadvisor.com",
+    "expected_min_people_candidates": 25,
+    "expected_min_final_leads": 1,
+    "notes": "Checks multi-country geography expansion and title handling."
+  },
+  {
+    "label": "Nordics / Enterprise",
+    "prospect_email": "",
+    "expected_min_people_candidates": 10,
+    "expected_min_final_leads": 1,
+    "notes": "Add a real Nordic prospect once available."
+  },
+  {
+    "label": "APAC / Enterprise",
+    "prospect_email": "",
+    "expected_min_people_candidates": 10,
+    "expected_min_final_leads": 1,
+    "notes": "Add a real APAC prospect once available."
+  },
+  {
+    "label": "LATAM / Mid-Market",
+    "prospect_email": "",
+    "expected_min_people_candidates": 10,
+    "expected_min_final_leads": 1,
+    "notes": "Add a real LATAM prospect once available."
+  }
+]
