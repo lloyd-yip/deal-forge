@@ -847,6 +847,7 @@ async function classifyLeadsWithHaiku(leads, briefOrIcp) {
   const icp = brief.icp || {};
   const context = brief.context || {};
   const angle = brief.angle || {};
+  const leadProfile = buildLeadProfile(brief);
 
   // The sector is the primary classification signal.
   // Titles/seniority are already pre-filtered by Apollo — we only need to confirm
@@ -860,6 +861,9 @@ async function classifyLeadsWithHaiku(leads, briefOrIcp) {
   const targetProfile = icp.company_size || null;
   const targetPain    = brief.customer_pain || angle.pain || icp.target_pain || null;
   const targetGoal    = brief.goals || context.goals || icp.target_goal || null;
+  const targetPreferences = leadProfile.strong_preferences.join(', ') || null;
+  const targetNegatives = leadProfile.negatives.join(', ') || null;
+  const targetHypotheses = leadProfile.search_hypotheses.join(', ') || null;
   const systemPrompt = `You are a strict B2B lead classifier. Your job: determine if each company matches the target ICP on TWO dimensions — sector AND geography (if specified).
 
 Rules:
@@ -872,9 +876,11 @@ Rules:
 7. EXCLUDE MEGA-BRAND RULE: if the target profile sounds like growth-stage or mid-market operators, reject obvious hyperscalers, household-name mega brands, giant public tech platforms, universities, governments, and institutions unless the brief explicitly targets that class.
 8. BUYER-CONTEXT RULE: use TARGET BUYER CONTEXT to sanity-check fit. If the brief is about founder/CEO coaching, scale-ups, shareholder value, exits, PE-backed leadership, or similar, prefer operating companies whose CEOs plausibly buy that service. Reject candidates that only match by sector keyword but obviously miss the buyer context.
 9. GEOGRAPHY CHECK (HARD REJECT): If TARGET GEOGRAPHY is specified AND the company's apparent location is CLEARLY not in that geography — based on company name, domain (.co.uk, .com.au etc.), or website content mentioning a different region — reject it. Examples: TARGET GEOGRAPHY = Baltic states/Europe → company named "Bank of Africa" or "Bank of China" → reject. TARGET = Europe → US/Australian/African company with no EU presence → reject. Only reject on geography if you are confident. If geography is ambiguous or unknown, do NOT reject on geo alone.
-10. NO SIGNAL RULE: If no website content AND no headline → default match: false.
-11. CONFIDENCE: "high" = website/headline clearly confirms fit. "medium" = fit is plausible and company profile aligns, but not every dimension is explicit. "low" = company name plausible but no confirmation.
-12. Return valid JSON only. No markdown.`;
+10. NEGATIVE RULE: if TARGET NEGATIVES explicitly name a company class and the candidate clearly falls into that class, reject it unless the website evidence strongly overrides the negative.
+11. HYPOTHESIS RULE: use TARGET SEARCH HYPOTHESES as hints for the buyer shapes the prospect is likely to want. A candidate should feel like it belongs in at least one of those shapes.
+12. NO SIGNAL RULE: If no website content AND no headline → default match: false.
+13. CONFIDENCE: "high" = website/headline clearly confirms fit. "medium" = fit is plausible and company profile aligns, but not every dimension is explicit. "low" = company name plausible but no confirmation.
+14. Return valid JSON only. No markdown.`;
   const chunkSize = 12;
   const out = [];
 
@@ -893,6 +899,9 @@ Rules:
       targetTitles ? `TARGET ROLES: ${targetTitles}` : null,
       targetGeo    ? `TARGET GEOGRAPHY: ${targetGeo}` : null,
       targetProfile ? `TARGET COMPANY PROFILE: ${targetProfile}` : null,
+      targetPreferences ? `TARGET STRONG PREFERENCES: ${targetPreferences}` : null,
+      targetNegatives ? `TARGET NEGATIVES: ${targetNegatives}` : null,
+      targetHypotheses ? `TARGET SEARCH HYPOTHESES: ${targetHypotheses}` : null,
       targetPain ? `TARGET BUYER CONTEXT: ${targetPain}` : null,
       targetGoal ? `TARGET GOAL: ${targetGoal}` : null,
       '',
@@ -1198,6 +1207,191 @@ function buildDirectLocationVariants(geoPlan) {
   return variants;
 }
 
+function buildLeadProfile(briefOrIcp) {
+  const brief = briefOrIcp && briefOrIcp.icp ? briefOrIcp : { icp: briefOrIcp || {} };
+  const icp = brief.icp || {};
+  const angle = brief.angle || {};
+  const context = brief.context || {};
+  const situation = brief.situation || {};
+
+  const sectors = dedupeStrings(
+    Array.isArray(icp.apollo_industries) && icp.apollo_industries.length
+      ? icp.apollo_industries
+      : (icp.industry ? [icp.industry] : [])
+  );
+  const titles = dedupeStrings(icp.apollo_titles || []);
+  const seniorities = dedupeStrings(icp.person_seniorities || []);
+  const geos = dedupeStrings(icp.apollo_geography || []);
+  const employeeRanges = dedupeStrings(icp.apollo_employee_ranges || []);
+  const profileText = [
+    icp.role,
+    icp.company_size,
+    icp.company_revenue,
+    sectors.join(', '),
+    titles.join(', '),
+    seniorities.join(', '),
+    angle.pain,
+    angle.result,
+    angle.proof,
+    context.goals,
+    context.why_webinar,
+    situation.current_lead_gen,
+    situation.biggest_challenge
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  const strongPreferences = [];
+  const negatives = [];
+  const hypotheses = [];
+
+  if (/(private equity|venture capital|growth equity|investor[- ]backed|sponsor[- ]backed|portfolio compan|pe\/vc|shareholder|board|exit)/i.test(profileText)) {
+    strongPreferences.push('investor-backed or sponsor-backed operating companies');
+    negatives.push('public institutions');
+    negatives.push('universities and schools');
+    negatives.push('government bodies');
+    negatives.push('obvious mega-brand public tech platforms');
+    hypotheses.push('investor-backed operators');
+  }
+  if (/(founder|owner-led|founder-led|entrepreneur)/i.test(profileText) || seniorities.includes('founder') || seniorities.includes('owner')) {
+    strongPreferences.push('founder-led or owner-led businesses');
+    hypotheses.push('founder-led operators');
+  }
+  if (/(mid-market|mid market|201,500|501,1000|1001,10000|enterprise|large)/i.test(profileText)) {
+    strongPreferences.push('mid-market to large operating companies');
+  }
+  if (/(b2b|enterprise|complex sale|multiple stakeholders|leadership|operator|shareholder)/i.test(profileText)) {
+    strongPreferences.push('complex B2B operating environment');
+  }
+  if (/(consulting|advisory|professional services)/i.test(profileText)) {
+    hypotheses.push('consulting or advisory operators');
+  }
+  if (/(software|saas|information technology|technology)/i.test(profileText)) {
+    hypotheses.push('software or technology operators');
+  }
+  if (/(coaching|leadership|executive|strategy)/i.test(profileText)) {
+    strongPreferences.push('leaders likely to buy transformation, coaching, or strategy offers');
+  }
+  if (/(consumer|b2c|retail stores|ecommerce brands|restaurants|hospitality|local business)/i.test(profileText)) {
+    negatives.push('small local consumer businesses');
+  }
+  if (!/(government administration|education management|nonprofit)/i.test(sectors.join(' ').toLowerCase())) {
+    negatives.push('universities and schools');
+    negatives.push('government bodies');
+  }
+
+  return {
+    hard_constraints: {
+      geographies: geos,
+      titles,
+      seniorities,
+      employee_ranges: employeeRanges
+    },
+    strong_preferences: dedupeStrings(strongPreferences).slice(0, 6),
+    negatives: dedupeStrings(negatives).slice(0, 8),
+    search_hypotheses: dedupeStrings([...hypotheses, ...sectors.slice(0, 3).map(sector => `${sector} leaders`)]).slice(0, 6)
+  };
+}
+
+function buildApolloSearchSlices(briefOrIcp, leadProfile, baseEmployeeRanges) {
+  const brief = briefOrIcp && briefOrIcp.icp ? briefOrIcp : { icp: briefOrIcp || {} };
+  const icp = brief.icp || {};
+  const rawIndustries = dedupeStrings(
+    Array.isArray(icp.apollo_industries) && icp.apollo_industries.length
+      ? icp.apollo_industries
+      : (icp.industry ? [icp.industry] : [])
+  );
+  const investorBacked = leadProfile.strong_preferences.some(v => /investor-backed|sponsor-backed/i.test(v));
+  const leadershipOffer = /coach|leadership|strategy|transformation/i.test([
+    brief.prospect?.contact_title,
+    brief.angle?.pain,
+    brief.angle?.result,
+    brief.context?.goals
+  ].filter(Boolean).join(' '));
+  const employeeRanges = dedupeStrings(baseEmployeeRanges || []);
+  const trimmedRanges = (investorBacked || leadershipOffer) && employeeRanges.includes('1001,10000') && employeeRanges.length > 1
+    ? employeeRanges.filter(r => r !== '1001,10000')
+    : employeeRanges;
+
+  const industryPriority = {
+    'management consulting': 0,
+    'software development': 1,
+    'information technology and services': 2,
+    'financial services': 3,
+    manufacturing: 4,
+    retail: 5,
+    'private equity': 6
+  };
+
+  const rankedIndustries = rawIndustries
+    .filter(ind => {
+      const normalized = ind.toLowerCase();
+      return !(normalized === 'private equity' && rawIndustries.length > 1);
+    })
+    .sort((a, b) => {
+      const pa = industryPriority[a.toLowerCase()] ?? 50;
+      const pb = industryPriority[b.toLowerCase()] ?? 50;
+      return pa - pb;
+    });
+
+  const slices = [];
+  const seen = new Set();
+  const push = (slice) => {
+    const key = JSON.stringify({
+      industryTag: slice.industryTag || null,
+      employeeRanges: slice.employeeRanges || [],
+      qKeywords: slice.qKeywords || null
+    });
+    if (seen.has(key)) return;
+    seen.add(key);
+    slices.push(slice);
+  };
+
+  if (investorBacked) {
+    push({
+      key: 'investor_mid_market',
+      label: 'investor-backed mid-market operators',
+      industryTag: null,
+      qKeywords: 'private equity venture capital growth equity portfolio company',
+      employeeRanges: trimmedRanges.length ? trimmedRanges : employeeRanges,
+      priority: 1
+    });
+  }
+
+  rankedIndustries.slice(0, 4).forEach((industry, index) => {
+    push({
+      key: `industry_${index + 1}`,
+      label: `${industry} operators`,
+      industryTag: industry,
+      qKeywords: null,
+      employeeRanges: trimmedRanges.length ? trimmedRanges : employeeRanges,
+      priority: index + 2
+    });
+  });
+
+  if (!slices.length) {
+    push({
+      key: 'broad',
+      label: 'broad icp search',
+      industryTag: null,
+      qKeywords: null,
+      employeeRanges,
+      priority: 99
+    });
+  }
+
+  if (trimmedRanges.length && trimmedRanges.length !== employeeRanges.length) {
+    push({
+      key: 'broad_full_size',
+      label: 'broad full-size fallback',
+      industryTag: null,
+      qKeywords: null,
+      employeeRanges,
+      priority: 100
+    });
+  }
+
+  return slices.slice(0, 6);
+}
+
 function normalizePerson(p, source, orgMetaLookup = null) {
   // Normalize contact shape from people/search and contacts/search into one format
   const org = p.organization || p.account || {};
@@ -1233,6 +1427,8 @@ function normalizePerson(p, source, orgMetaLookup = null) {
     // than org.industry tags. "VP Strategy at Gov of Estonia | EU Policy Advisor" is
     // an instant sector signal without any additional web request.
     _headline: p.headline || null,
+    _slice: orgMeta?.sliceLabel || null,
+    _slice_priority: orgMeta?.slicePriority ?? 999,
     _source: source
   };
 }
@@ -1240,6 +1436,7 @@ function normalizePerson(p, source, orgMetaLookup = null) {
 async function fetchLeadsFromApollo(briefOrIcp) {
   const brief = briefOrIcp && briefOrIcp.icp ? briefOrIcp : { icp: briefOrIcp || {} };
   const icp = brief.icp || {};
+  const leadProfile = buildLeadProfile(brief);
   const APOLLO_KEY = process.env.APOLLO_API_KEY;
   if (!APOLLO_KEY) { console.log('[Apollo] No API key — skipping'); return null; }
 
@@ -1264,8 +1461,9 @@ async function fetchLeadsFromApollo(briefOrIcp) {
     ? icp.apollo_employee_ranges
     : (icp?.company_size ? mapCompanySize(icp.company_size) : null);
   const seniorities   = Array.isArray(icp?.person_seniorities) && icp.person_seniorities.length ? icp.person_seniorities : null;
+  const searchSlices = buildApolloSearchSlices(brief, leadProfile, sizeRanges);
 
-  console.log('[Apollo] Starting org-first lead search:', JSON.stringify({ apolloIndustries, apolloTitles, apolloGeo }));
+  console.log('[Apollo] Starting org-first lead search:', JSON.stringify({ apolloIndustries, apolloTitles, apolloGeo, searchSlices }));
   const timeout270s = new Promise(resolve => setTimeout(() => { console.warn('[Apollo] 4.5min timeout'); resolve(null); }, 270000));
 
   const apolloCore = async () => {
@@ -1274,6 +1472,8 @@ async function fetchLeadsFromApollo(briefOrIcp) {
     const orgMetaLookup = { byId: new Map(), byName: new Map() };
     let geoUsed = 'original'; // tracks which geo tier was actually used for org search
     const debug = {
+      leadProfile,
+      searchSlices,
       geoRequested: rawGeo || [],
       geoPrimaryLocations: apolloGeo || [],
       geoFallbackChain: geoPlan.fallbackSets.map(f => ({ key: f.key, reason: f.reason, locations: f.locations })),
@@ -1297,15 +1497,15 @@ async function fetchLeadsFromApollo(briefOrIcp) {
     // If geo-restricted search returns < 5 orgs, retry without geo and let the classifier
     // do geo verification via website content + headline. Better to over-fetch and classify
     // than to under-fetch and show 0 leads.
-    const runOrgSearch = async (locations, label, useIndustryTag) => {
-      const shouldUseIndustryTag = useIndustryTag && Array.isArray(apolloIndustries) && apolloIndustries.length === 1;
+    const runOrgSearch = async (locations, label, slice) => {
       const orgIds = [];
       let orgCount = null;
       for (let page = 1; page <= 3; page++) {
         const orgBody = { per_page: 50, page };
-        // Only apply the primary industry tag for truly single-sector ICPs.
-        if (shouldUseIndustryTag) orgBody.q_organization_keyword_tags = [apolloIndustries[0]];
-        if (sizeRanges) orgBody.organization_num_employees_ranges = sizeRanges;
+        if (slice?.industryTag) orgBody.q_organization_keyword_tags = [slice.industryTag];
+        if (slice?.qKeywords) orgBody.q_keywords = slice.qKeywords;
+        if (slice?.employeeRanges?.length) orgBody.organization_num_employees_ranges = slice.employeeRanges;
+        else if (sizeRanges) orgBody.organization_num_employees_ranges = sizeRanges;
         if (locations?.length) orgBody.organization_locations = locations;
         const orgRes = await fetch('https://api.apollo.io/api/v1/mixed_companies/search', {
           method: 'POST', headers: apolloHeaders,
@@ -1314,7 +1514,10 @@ async function fetchLeadsFromApollo(briefOrIcp) {
         debug.orgAttempts.push({
           label: page === 1 ? label : `${label}:p${page}`,
           locations: locations || [],
-          useIndustryTag: shouldUseIndustryTag,
+          slice: slice?.label || null,
+          industryTag: slice?.industryTag || null,
+          qKeywords: slice?.qKeywords || null,
+          employeeRanges: slice?.employeeRanges || sizeRanges || null,
           httpStatus: orgRes.status
         });
         debug.orgSearch.httpStatus = orgRes.status;
@@ -1334,10 +1537,12 @@ async function fetchLeadsFromApollo(briefOrIcp) {
             id: id ? String(id) : null,
             name,
             website,
-            employeeCount: o.estimated_num_employees || o.num_employees || null
+            employeeCount: o.estimated_num_employees || o.num_employees || null,
+            sliceLabel: slice?.label || null,
+            slicePriority: slice?.priority ?? 999
           };
-          if (meta.id) orgMetaLookup.byId.set(meta.id, meta);
-          if (name) orgMetaLookup.byName.set(name.toLowerCase(), meta);
+          if (meta.id && !orgMetaLookup.byId.has(meta.id)) orgMetaLookup.byId.set(meta.id, meta);
+          if (name && !orgMetaLookup.byName.has(name.toLowerCase())) orgMetaLookup.byName.set(name.toLowerCase(), meta);
           if (id) orgIds.push(id);
         });
         if (organizations.length < 50 || orgIds.length >= 150 || (orgCount != null && orgCount <= 50)) break;
@@ -1347,16 +1552,38 @@ async function fetchLeadsFromApollo(briefOrIcp) {
       debug.orgSearch.orgIds = uniqueOrgIds.length;
       return {
         orgCount,
-        orgIds: uniqueOrgIds
+        orgIds: uniqueOrgIds,
+        slice
       };
     };
+    const runSliceSet = async (locations, labelPrefix) => {
+      let orgCount = null;
+      let mergedOrgIds = [];
+      const slicesUsed = [];
+      for (const slice of searchSlices) {
+        const sliceResult = await runOrgSearch(locations, `${labelPrefix}:${slice.key}`, slice);
+        if (sliceResult.orgCount != null) orgCount = orgCount == null ? sliceResult.orgCount : Math.max(orgCount, sliceResult.orgCount);
+        if (sliceResult.orgIds.length) {
+          mergedOrgIds = [...new Set([...mergedOrgIds, ...sliceResult.orgIds])].slice(0, 150);
+          slicesUsed.push({
+            key: slice.key,
+            label: slice.label,
+            orgIds: sliceResult.orgIds.length,
+            industryTag: slice.industryTag || null,
+            qKeywords: slice.qKeywords || null
+          });
+        }
+        if (mergedOrgIds.length >= 75) break;
+      }
+      return { orgCount, orgIds: mergedOrgIds, slicesUsed };
+    };
     try {
-      let result = await runOrgSearch(apolloGeo, 'primary', true);
+      let result = await runSliceSet(apolloGeo, 'primary');
       if (result.orgIds.length < 5 && geoPlan.fallbackSets.length) {
         for (const fallback of geoPlan.fallbackSets) {
           console.log(`[Apollo] Only ${result.orgIds.length} orgs for primary geo — retrying ${fallback.label} (${fallback.reason})`);
           if (fallback.key === 'europe') debug.euRetry.attempted = true;
-          const fallbackResult = await runOrgSearch(fallback.locations, fallback.key, false);
+          const fallbackResult = await runSliceSet(fallback.locations, fallback.key);
           if (fallback.key === 'europe') {
             debug.euRetry.httpStatus = debug.orgSearch.httpStatus;
             debug.euRetry.totalEntries = fallbackResult.orgCount;
@@ -1381,6 +1608,7 @@ async function fetchLeadsFromApollo(briefOrIcp) {
       orgIds = fetchedIds;
       debug.orgSearch.totalEntries = orgCount;
       debug.orgSearch.orgIds = orgIds.length;
+      debug.selectedSlices = result.slicesUsed || [];
       console.log(`[Apollo] Org search: ${orgCount} orgs found; extracted ${orgIds.length} org IDs for people search`);
     } catch(e) { console.warn('[Apollo] Org search error:', e.message); }
 
@@ -1602,8 +1830,15 @@ async function fetchLeadsFromApollo(briefOrIcp) {
       .filter(l => isClassifierOutage ? true : (l._match && l.confidence !== 'low'));
 
     const ORDER = { high: 0, medium: 1, low: 2 };
-    classified.sort((a, b) => (ORDER[a.confidence] || 1) - (ORDER[b.confidence] || 1));
-    const finalLeads = classified.slice(0, 25).map(({ _match, _excerpt, _source, ...l }) => l);
+    classified.sort((a, b) => {
+      const byConfidence = (ORDER[a.confidence] || 1) - (ORDER[b.confidence] || 1);
+      if (byConfidence !== 0) return byConfidence;
+      return (a._slice_priority ?? 999) - (b._slice_priority ?? 999);
+    });
+    const finalLeads = classified.slice(0, 25).map(({ _match, _excerpt, _source, _slice_priority, _slice, ...l }) => ({
+      ...l,
+      source_slice: _slice || null
+    }));
     debug.finalLeadCount = finalLeads.length;
     debug.geoUsed = geoUsed;
     // total = org count × 2 from organizations/search (global Apollo DB), or estimated fallback
