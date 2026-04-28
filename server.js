@@ -233,6 +233,30 @@ async function getTasksByJobId(jobId) {
   return Array.isArray(r.body) ? r.body : [];
 }
 
+async function getRecentJobsByEmail(email, limit = 5) {
+  const r = await supabaseRequest(
+    'GET',
+    `/rest/v1/jobs?prospect_email=eq.${encodeURIComponent(email)}&order=updated_at.desc&limit=${limit}`
+  );
+  if (r.status !== 200 || !Array.isArray(r.body)) return [];
+  return r.body;
+}
+
+async function getHistoricalContextByEmail(email) {
+  const rows = await getRecentJobsByEmail(email, 5);
+  if (!rows.length) return null;
+  for (const row of rows) {
+    const brief = row.extracted_data || null;
+    const company = row.prospect_company || brief?.prospect?.company || null;
+    const name = row.prospect_name || brief?.prospect?.contact_name || null;
+    const website = row.prospect_website || null;
+    if (brief || company || name || website) {
+      return { brief, company, name, website, jobId: row.id || row.job_id || null };
+    }
+  }
+  return null;
+}
+
 async function getPendingTasks(limit = 5) {
   const r = await supabaseRequest('GET', `/rest/v1/tasks?status=eq.pending&order=created_at.asc&limit=${limit}`);
   if (r.status !== 200) return [];
@@ -348,6 +372,24 @@ async function lookupGHLContact(email) {
   }
 }
 
+function normalizeToken(str) {
+  return String(str || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function uniqueTokens(values, minLength = 3) {
+  const out = [];
+  const seen = new Set();
+  for (const value of values || []) {
+    for (const token of normalizeToken(value).split(/\s+/)) {
+      if (!token || token.length < minLength) continue;
+      if (seen.has(token)) continue;
+      seen.add(token);
+      out.push(token);
+    }
+  }
+  return out;
+}
+
 // ── Fireflies GraphQL helper ──────────────────────────────────────────────────
 async function firefliesQuery(gql, variables) {
   const res = await fetch('https://api.fireflies.ai/graphql', {
@@ -406,6 +448,8 @@ async function findFirefliesTranscript(email, contactInfo = {}) {
   const emailLocal = email.split('@')[0].toLowerCase();
   const NON_GENERIC    = new Set(['info','admin','contact','hello','sales','support','team','office','mail','noreply','no-reply','hi','hey']);
   const GENERIC_DOMAINS = new Set(['gmail','yahoo','hotmail','outlook','icloud','proton','me','live','aol']);
+  const nameTokens = uniqueTokens([contactInfo.name]);
+  const companyTokens = uniqueTokens([contactInfo.company, domainBase], 4);
 
   // ── Build ordered search terms: best signal first ───────────────────────────
   const terms = []; // { keyword, source, acceptLoose }
@@ -447,12 +491,29 @@ async function findFirefliesTranscript(email, contactInfo = {}) {
   // ── Match helpers ─────────────────────────────────────────────────────────
   const isExactEmail  = t => (t.meeting_attendees || []).some(a => (a.email || '').toLowerCase() === email.toLowerCase());
   const isDomainEmail = t => (t.meeting_attendees || []).some(a => (a.email || '').toLowerCase().endsWith('@' + domain));
+  const hasDisplayNameMatch = t => {
+    if (!nameTokens.length) return false;
+    return (t.meeting_attendees || []).some(a => {
+      const normalized = normalizeToken(a.displayName);
+      return nameTokens.every(token => normalized.includes(token)) ||
+        nameTokens.some(token => normalized.includes(token));
+    });
+  };
+  const hasCompanyTitleMatch = t => {
+    const haystack = normalizeToken(t.title);
+    if (!haystack) return false;
+    return companyTokens.some(token => haystack.includes(token));
+  };
 
   function pickBest(results, acceptLoose, source) {
     const exact = results.filter(isExactEmail);
     if (exact.length)  { console.log(`[FF] ✓ exact email (${source}): "${exact[0].title}"`);  return exact[0]; }
     const dom   = results.filter(isDomainEmail);
     if (dom.length)    { console.log(`[FF] ✓ domain email (${source}): "${dom[0].title}"`);   return dom[0]; }
+    const nameMatch = results.filter(hasDisplayNameMatch);
+    if (nameMatch.length) { console.log(`[FF] ✓ attendee name (${source}): "${nameMatch[0].title}"`); return nameMatch[0]; }
+    const titleMatch = results.filter(hasCompanyTitleMatch);
+    if (titleMatch.length && acceptLoose) { console.log(`[FF] ✓ title/company (${source}): "${titleMatch[0].title}"`); return titleMatch[0]; }
     if (acceptLoose && results.length) { console.log(`[FF] ✓ loose match (${source}): "${results[0].title}"`); return results[0]; }
     return null;
   }
@@ -1648,12 +1709,15 @@ async function handleExtract(task, job) {
 
   // Mirror the stronger prefetch path: enrich with GHL first so Fireflies search
   // can use real name/company signals instead of guessing from the email local-part.
-  const ghlContact = await lookupGHLContact(email);
+  const [ghlContact, historicalContext] = await Promise.all([
+    lookupGHLContact(email),
+    getHistoricalContextByEmail(email)
+  ]);
   const contactInfo = {
-    name:    ghlContact?.name || null,
-    company: ghlContact?.company || job.prospect_company || null,
+    name:    ghlContact?.name || historicalContext?.name || null,
+    company: ghlContact?.company || job.prospect_company || historicalContext?.company || null,
     title:   ghlContact?.title || null,
-    website: (ghlContact?.website || defaultDomain || '').replace(/^https?:\/\//, '').split('/')[0] || null
+    website: (ghlContact?.website || historicalContext?.website || defaultDomain || '').replace(/^https?:\/\//, '').split('/')[0] || null
   };
   const scrapeDomain = contactInfo.website || defaultDomain;
 
@@ -2254,13 +2318,16 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: 'Valid email required' })); return;
       }
       // Step 0: GHL lookup to get real contact name/company (used to improve Fireflies matching)
-      const ghlContact = await lookupGHLContact(email);
+      const [ghlContact, historicalContext] = await Promise.all([
+        lookupGHLContact(email),
+        getHistoricalContextByEmail(email)
+      ]);
 
       const contactInfo = {
-        name:    body.name    || ghlContact?.name    || null,
-        company: body.company || ghlContact?.company || null,
+        name:    body.name    || ghlContact?.name    || historicalContext?.name || null,
+        company: body.company || ghlContact?.company || historicalContext?.company || null,
         title:   ghlContact?.title || null,
-        website: (body.website || ghlContact?.website || email.split('@')[1] || '').replace(/^https?:\/\//, '').split('/')[0]
+        website: (body.website || ghlContact?.website || historicalContext?.website || email.split('@')[1] || '').replace(/^https?:\/\//, '').split('/')[0]
       };
 
       // Parallel: Fireflies lookup (with contact info for better matching) + website scrape
@@ -2300,6 +2367,9 @@ const server = http.createServer(async (req, res) => {
         // Promote extracted contact info back to contactInfo
         if (brief?.prospect?.company      && !body.company) contactInfo.company = brief.prospect.company;
         if (brief?.prospect?.contact_name && !body.name)    contactInfo.name    = brief.prospect.contact_name;
+      } else if (historicalContext?.brief) {
+        brief = historicalContext.brief;
+        console.log(`[prefetch] Reusing historical brief from job ${historicalContext.jobId || 'unknown'} for ${email}`);
       }
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
