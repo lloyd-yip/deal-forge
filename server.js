@@ -847,19 +847,25 @@ async function classifyLeadsWithHaiku(leads, icp) {
   // The sector is the primary classification signal.
   // Titles/seniority are already pre-filtered by Apollo — we only need to confirm
   // the company is genuinely in the right industry sector.
-  const targetSector  = icp.industry || icp.role || 'the target sector';
+  const targetSectors = Array.isArray(icp.apollo_industries) && icp.apollo_industries.length
+    ? icp.apollo_industries
+    : [icp.industry || icp.role || 'the target sector'];
+  const targetSector  = targetSectors.join(', ');
   const targetTitles  = icp.apollo_titles?.join(', ') || icp.role || null;
   const targetGeo     = icp.apollo_geography?.join(', ') || icp.geography || null;
+  const targetProfile = icp.company_size || null;
   const systemPrompt = `You are a strict B2B lead classifier. Your job: determine if each company matches the target ICP on TWO dimensions — sector AND geography (if specified).
 
 Rules:
-1. PRIMARY SIGNAL — website content: does the copy, tone, and services described match the target sector? An agency writes about campaigns, clients, creative work. A university mentions students, courses, faculty, admissions. A consulting firm mentions strategy, engagements, frameworks.
+1. PRIMARY SIGNAL — website content: does the copy, tone, and services described match ANY listed target sector? An agency writes about campaigns, clients, creative work. A university mentions students, courses, faculty, admissions. A consulting firm mentions strategy, engagements, frameworks.
 2. SECONDARY SIGNAL — LinkedIn headline: if the person's headline explicitly references the company type or sector, weight it heavily.
 3. SECTOR MISMATCH = NO MATCH. A CEO title does not overcome a wrong-sector company.
-4. GEOGRAPHY CHECK (HARD REJECT): If TARGET GEOGRAPHY is specified AND the company's apparent location is CLEARLY not in that geography — based on company name, domain (.co.uk, .com.au etc.), or website content mentioning a different region — reject it. Examples: TARGET GEOGRAPHY = Baltic states/Europe → company named "Bank of Africa" or "Bank of China" → reject. TARGET = Europe → US/Australian/African company with no EU presence → reject. Only reject on geography if you are confident. If geography is ambiguous or unknown, do NOT reject on geo alone.
-5. NO SIGNAL RULE: If no website content AND no headline → default match: false.
-6. CONFIDENCE: "high" = website/headline clearly confirms BOTH sector AND geo. "medium" = sector confirmed, geo plausible but not explicit. "low" = company name plausible but no confirmation.
-7. Return valid JSON only. No markdown.`;
+4. MULTI-SECTOR ICP RULE: if multiple target sectors are listed, accept a company that clearly fits any one of them. Do not require it to fit all of them.
+5. COMPANY PROFILE RULE: if TARGET COMPANY PROFILE is given (for example "PE/VC-backed companies" or "mid-market to large"), treat that as an additional positive signal. A lead can still match even if the sector is broad, as long as the company type and role align with the stated profile.
+6. GEOGRAPHY CHECK (HARD REJECT): If TARGET GEOGRAPHY is specified AND the company's apparent location is CLEARLY not in that geography — based on company name, domain (.co.uk, .com.au etc.), or website content mentioning a different region — reject it. Examples: TARGET GEOGRAPHY = Baltic states/Europe → company named "Bank of Africa" or "Bank of China" → reject. TARGET = Europe → US/Australian/African company with no EU presence → reject. Only reject on geography if you are confident. If geography is ambiguous or unknown, do NOT reject on geo alone.
+7. NO SIGNAL RULE: If no website content AND no headline → default match: false.
+8. CONFIDENCE: "high" = website/headline clearly confirms fit. "medium" = fit is plausible and company profile aligns, but not every dimension is explicit. "low" = company name plausible but no confirmation.
+9. Return valid JSON only. No markdown.`;
   const chunkSize = 12;
   const out = [];
 
@@ -874,9 +880,10 @@ Rules:
     }).join('\n\n');
 
     const userMsg = [
-      `TARGET SECTOR: ${targetSector}`,
+      `TARGET SECTORS: ${targetSector}`,
       targetTitles ? `TARGET ROLES: ${targetTitles}` : null,
       targetGeo    ? `TARGET GEOGRAPHY: ${targetGeo}` : null,
+      targetProfile ? `TARGET COMPANY PROFILE: ${targetProfile}` : null,
       '',
       'LEADS TO CLASSIFY:',
       leadLines,
@@ -1278,48 +1285,56 @@ async function fetchLeadsFromApollo(icp) {
     // do geo verification via website content + headline. Better to over-fetch and classify
     // than to under-fetch and show 0 leads.
     const runOrgSearch = async (locations, label, useIndustryTag) => {
-      const orgBody = { per_page: 50 };
-      // Use a single primary industry tag only on the primary pass. This narrows huge markets
-      // without reintroducing Apollo's multi-tag AND-logic collapse.
-      if (useIndustryTag && apolloIndustries?.length) orgBody.q_organization_keyword_tags = [apolloIndustries[0]];
-      if (sizeRanges)       orgBody.organization_num_employees_ranges = sizeRanges;
-      if (locations?.length) orgBody.organization_locations = locations;
-      const orgRes = await fetch('https://api.apollo.io/api/v1/mixed_companies/search', {
-        method: 'POST', headers: apolloHeaders,
-        body: JSON.stringify(orgBody), signal: AbortSignal.timeout(10000)
-      });
-      debug.orgAttempts.push({
-        label,
-        locations: locations || [],
-        useIndustryTag,
-        httpStatus: orgRes.status
-      });
-      debug.orgSearch.httpStatus = orgRes.status;
-      if (!orgRes.ok) {
-        const errText = await orgRes.text().catch(() => '');
-        console.warn(`[Apollo] org search HTTP ${orgRes.status}: ${errText.slice(0,160)}`);
-        return { orgCount: null, orgIds: [] };
+      const shouldUseIndustryTag = useIndustryTag && Array.isArray(apolloIndustries) && apolloIndustries.length === 1;
+      const orgIds = [];
+      let orgCount = null;
+      for (let page = 1; page <= 3; page++) {
+        const orgBody = { per_page: 50, page };
+        // Only apply the primary industry tag for truly single-sector ICPs.
+        if (shouldUseIndustryTag) orgBody.q_organization_keyword_tags = [apolloIndustries[0]];
+        if (sizeRanges) orgBody.organization_num_employees_ranges = sizeRanges;
+        if (locations?.length) orgBody.organization_locations = locations;
+        const orgRes = await fetch('https://api.apollo.io/api/v1/mixed_companies/search', {
+          method: 'POST', headers: apolloHeaders,
+          body: JSON.stringify(orgBody), signal: AbortSignal.timeout(10000)
+        });
+        debug.orgAttempts.push({
+          label: page === 1 ? label : `${label}:p${page}`,
+          locations: locations || [],
+          useIndustryTag: shouldUseIndustryTag,
+          httpStatus: orgRes.status
+        });
+        debug.orgSearch.httpStatus = orgRes.status;
+        if (!orgRes.ok) {
+          const errText = await orgRes.text().catch(() => '');
+          console.warn(`[Apollo] org search HTTP ${orgRes.status}: ${errText.slice(0,160)}`);
+          return { orgCount: null, orgIds: [] };
+        }
+        const orgData = await orgRes.json();
+        const organizations = orgData.organizations || orgData.accounts || [];
+        if (orgCount == null) orgCount = orgData.pagination?.total_entries || orgData.total_entries || null;
+        organizations.forEach(o => {
+          const id = o.organization_id || o.id;
+          const name = String(o.name || '').trim();
+          const website = o.primary_domain ? `https://${o.primary_domain}` : (o.website_url || null);
+          const meta = {
+            id: id ? String(id) : null,
+            name,
+            website,
+            employeeCount: o.estimated_num_employees || o.num_employees || null
+          };
+          if (meta.id) orgMetaLookup.byId.set(meta.id, meta);
+          if (name) orgMetaLookup.byName.set(name.toLowerCase(), meta);
+          if (id) orgIds.push(id);
+        });
+        if (organizations.length < 50 || orgIds.length >= 150 || (orgCount != null && orgCount <= 50)) break;
       }
-      const orgData = await orgRes.json();
-      const organizations = orgData.organizations || orgData.accounts || [];
-      organizations.forEach(o => {
-        const id = o.organization_id || o.id;
-        const name = String(o.name || '').trim();
-        const website = o.primary_domain ? `https://${o.primary_domain}` : (o.website_url || null);
-        const meta = {
-          id: id ? String(id) : null,
-          name,
-          website,
-          employeeCount: o.estimated_num_employees || o.num_employees || null
-        };
-        if (meta.id) orgMetaLookup.byId.set(meta.id, meta);
-        if (name) orgMetaLookup.byName.set(name.toLowerCase(), meta);
-      });
-      debug.orgSearch.totalEntries = orgData.pagination?.total_entries || orgData.total_entries || null;
-      debug.orgSearch.orgIds = organizations.length;
+      const uniqueOrgIds = [...new Set(orgIds)];
+      debug.orgSearch.totalEntries = orgCount;
+      debug.orgSearch.orgIds = uniqueOrgIds.length;
       return {
-        orgCount: orgData.pagination?.total_entries || orgData.total_entries || null,
-        orgIds:   organizations.map(o => o.organization_id || o.id).filter(Boolean)
+        orgCount,
+        orgIds: uniqueOrgIds
       };
     };
     try {
@@ -1371,25 +1386,32 @@ async function fetchLeadsFromApollo(icp) {
         peopleBody.include_similar_titles = false;
         // NOTE: person_locations intentionally omitted — geo filtering on people is unreliable
         // for non-US markets. Classifier verifies geography via website + headline instead.
-        const peopleRes = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
-          method: 'POST', headers: apolloHeaders,
-          body: JSON.stringify(peopleBody), signal: AbortSignal.timeout(15000)
-        });
-        debug.peopleSearch.httpStatus = peopleRes.status;
-        if (peopleRes.ok) {
+        const collectedPeople = [];
+        for (let page = 1; page <= 3; page++) {
+          const peopleRes = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
+            method: 'POST', headers: apolloHeaders,
+            body: JSON.stringify({ ...peopleBody, page }), signal: AbortSignal.timeout(15000)
+          });
+          debug.peopleSearch.httpStatus = peopleRes.status;
+          if (!peopleRes.ok) {
+            const errText = await peopleRes.text().catch(() => '');
+            console.warn(`[Apollo] people/search HTTP ${peopleRes.status} — falling back to contacts/search. ${errText.slice(0,120)}`);
+            break;
+          }
           const peopleData = await peopleRes.json();
           const people = (peopleData.people || []).filter(p => {
             const normalized = normalizePerson(p, 'mixed_people/api_search:org_ids', orgMetaLookup);
             return normalized.name && normalized.title && normalized.company;
           });
-          allPeople = people.map(p => normalizePerson(p, 'people/search', orgMetaLookup));
+          collectedPeople.push(...people.map(p => normalizePerson(p, 'people/search', orgMetaLookup)));
+          if (people.length < 50 || collectedPeople.length >= 150) break;
+        }
+        if (collectedPeople.length) {
+          allPeople = collectedPeople;
           usedPeopleSearch = true;
           debug.peopleSearch.candidates = allPeople.length;
           debug.source = 'people_search_org_ids';
           console.log(`[Apollo] people/search: ${allPeople.length} contacts from ${orgIds.length} validated orgs`);
-        } else {
-          const errText = await peopleRes.text().catch(() => '');
-          console.warn(`[Apollo] people/search HTTP ${peopleRes.status} — falling back to contacts/search. ${errText.slice(0,120)}`);
         }
       } catch(e) { console.warn('[Apollo] people/search error:', e.message); }
     }
@@ -1398,7 +1420,7 @@ async function fetchLeadsFromApollo(icp) {
     // This uses Apollo's current prospecting endpoint and bypasses the org-ID dependency.
     // It is especially important for sparse EU/Baltic markets where org search may return 0
     // even though net-new people exist in Apollo's global database.
-    if (!usedPeopleSearch || allPeople.length < 10) {
+    if (!usedPeopleSearch || allPeople.length < 50 || (debug.orgSearch.totalEntries && debug.orgSearch.totalEntries > 5000 && allPeople.length < 100)) {
       const titleVariants = buildTitleVariants(apolloTitles);
       const locationVariants = buildDirectLocationVariants(geoPlan);
       const buildDirectPeopleBody = (titleVariant, locationVariant) => {
