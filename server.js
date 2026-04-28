@@ -245,16 +245,20 @@ async function getRecentJobsByEmail(email, limit = 5) {
 async function getHistoricalContextByEmail(email) {
   const rows = await getRecentJobsByEmail(email, 5);
   if (!rows.length) return null;
+  let websiteOnlyFallback = null;
   for (const row of rows) {
     const brief = row.extracted_data || null;
     const company = row.prospect_company || brief?.prospect?.company || null;
     const name = row.prospect_name || brief?.prospect?.contact_name || null;
     const website = row.prospect_website || null;
-    if (brief || company || name || website) {
+    if (brief || company || name) {
       return { brief, company, name, website, jobId: row.id || row.job_id || null };
     }
+    if (!websiteOnlyFallback && website) {
+      websiteOnlyFallback = { brief: null, company: null, name: null, website, jobId: row.id || row.job_id || null };
+    }
   }
-  return null;
+  return websiteOnlyFallback;
 }
 
 async function getPendingTasks(limit = 5) {
