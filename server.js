@@ -840,9 +840,13 @@ async function websiteQualityCheck(url) {
   // Jina already strips nav/footer/boilerplate — just trim to 500 chars
   return { excerpt: text.slice(0, 500) };
 }
-async function classifyLeadsWithHaiku(leads, icp) {
+async function classifyLeadsWithHaiku(leads, briefOrIcp) {
   if (!leads.length) return [];
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const brief = briefOrIcp && briefOrIcp.icp ? briefOrIcp : { icp: briefOrIcp || {} };
+  const icp = brief.icp || {};
+  const context = brief.context || {};
+  const angle = brief.angle || {};
 
   // The sector is the primary classification signal.
   // Titles/seniority are already pre-filtered by Apollo — we only need to confirm
@@ -854,6 +858,8 @@ async function classifyLeadsWithHaiku(leads, icp) {
   const targetTitles  = icp.apollo_titles?.join(', ') || icp.role || null;
   const targetGeo     = icp.apollo_geography?.join(', ') || icp.geography || null;
   const targetProfile = icp.company_size || null;
+  const targetPain    = brief.customer_pain || angle.pain || icp.target_pain || null;
+  const targetGoal    = brief.goals || context.goals || icp.target_goal || null;
   const systemPrompt = `You are a strict B2B lead classifier. Your job: determine if each company matches the target ICP on TWO dimensions — sector AND geography (if specified).
 
 Rules:
@@ -861,11 +867,14 @@ Rules:
 2. SECONDARY SIGNAL — LinkedIn headline: if the person's headline explicitly references the company type or sector, weight it heavily.
 3. SECTOR MISMATCH = NO MATCH. A CEO title does not overcome a wrong-sector company.
 4. MULTI-SECTOR ICP RULE: if multiple target sectors are listed, accept a company that clearly fits any one of them. Do not require it to fit all of them.
-5. COMPANY PROFILE RULE: if TARGET COMPANY PROFILE is given (for example "PE/VC-backed companies" or "mid-market to large"), treat that as an additional positive signal. A lead can still match even if the sector is broad, as long as the company type and role align with the stated profile.
-6. GEOGRAPHY CHECK (HARD REJECT): If TARGET GEOGRAPHY is specified AND the company's apparent location is CLEARLY not in that geography — based on company name, domain (.co.uk, .com.au etc.), or website content mentioning a different region — reject it. Examples: TARGET GEOGRAPHY = Baltic states/Europe → company named "Bank of Africa" or "Bank of China" → reject. TARGET = Europe → US/Australian/African company with no EU presence → reject. Only reject on geography if you are confident. If geography is ambiguous or unknown, do NOT reject on geo alone.
-7. NO SIGNAL RULE: If no website content AND no headline → default match: false.
-8. CONFIDENCE: "high" = website/headline clearly confirms fit. "medium" = fit is plausible and company profile aligns, but not every dimension is explicit. "low" = company name plausible but no confirmation.
-9. Return valid JSON only. No markdown.`;
+5. COMPANY PROFILE RULE: if TARGET COMPANY PROFILE is given (for example "PE/VC-backed companies" or "mid-market to large"), enforce it strictly. A lead is NOT a match unless the company type clearly aligns with that profile.
+6. INVESTOR-BACKED RULE: if TARGET COMPANY PROFILE mentions PE, VC, private equity, venture capital, sponsor-backed, investor-backed, growth equity, portfolio company, or similar, you must see direct or strong circumstantial evidence that the company fits that profile. Lack of evidence means match: false. Do NOT infer fit purely from "software company + CEO title".
+7. EXCLUDE MEGA-BRAND RULE: if the target profile sounds like growth-stage or mid-market operators, reject obvious hyperscalers, household-name mega brands, giant public tech platforms, universities, governments, and institutions unless the brief explicitly targets that class.
+8. BUYER-CONTEXT RULE: use TARGET BUYER CONTEXT to sanity-check fit. If the brief is about founder/CEO coaching, scale-ups, shareholder value, exits, PE-backed leadership, or similar, prefer operating companies whose CEOs plausibly buy that service. Reject candidates that only match by sector keyword but obviously miss the buyer context.
+9. GEOGRAPHY CHECK (HARD REJECT): If TARGET GEOGRAPHY is specified AND the company's apparent location is CLEARLY not in that geography — based on company name, domain (.co.uk, .com.au etc.), or website content mentioning a different region — reject it. Examples: TARGET GEOGRAPHY = Baltic states/Europe → company named "Bank of Africa" or "Bank of China" → reject. TARGET = Europe → US/Australian/African company with no EU presence → reject. Only reject on geography if you are confident. If geography is ambiguous or unknown, do NOT reject on geo alone.
+10. NO SIGNAL RULE: If no website content AND no headline → default match: false.
+11. CONFIDENCE: "high" = website/headline clearly confirms fit. "medium" = fit is plausible and company profile aligns, but not every dimension is explicit. "low" = company name plausible but no confirmation.
+12. Return valid JSON only. No markdown.`;
   const chunkSize = 12;
   const out = [];
 
@@ -884,6 +893,8 @@ Rules:
       targetTitles ? `TARGET ROLES: ${targetTitles}` : null,
       targetGeo    ? `TARGET GEOGRAPHY: ${targetGeo}` : null,
       targetProfile ? `TARGET COMPANY PROFILE: ${targetProfile}` : null,
+      targetPain ? `TARGET BUYER CONTEXT: ${targetPain}` : null,
+      targetGoal ? `TARGET GOAL: ${targetGoal}` : null,
       '',
       'LEADS TO CLASSIFY:',
       leadLines,
@@ -1226,7 +1237,9 @@ function normalizePerson(p, source, orgMetaLookup = null) {
   };
 }
 
-async function fetchLeadsFromApollo(icp) {
+async function fetchLeadsFromApollo(briefOrIcp) {
+  const brief = briefOrIcp && briefOrIcp.icp ? briefOrIcp : { icp: briefOrIcp || {} };
+  const icp = brief.icp || {};
   const APOLLO_KEY = process.env.APOLLO_API_KEY;
   if (!APOLLO_KEY) { console.log('[Apollo] No API key — skipping'); return null; }
 
@@ -1557,10 +1570,10 @@ async function fetchLeadsFromApollo(icp) {
     // Pass effective geo to classifier — if we broadened to EU, accept all EU companies
     const activeGeoFallback = geoPlan.fallbackSets.find(f => f.key === geoUsed);
     const icpForClassifier = activeGeoFallback?.locations?.length
-      ? { ...icp, apollo_geography: activeGeoFallback.locations }
+      ? { ...brief, icp: { ...icp, apollo_geography: activeGeoFallback.locations } }
       : (geoUsed === 'europe')
-        ? { ...icp, apollo_geography: EUROPE_COUNTRIES }
-        : (geoUsed === 'global' ? { ...icp, apollo_geography: null, geography: null } : icp);
+        ? { ...brief, icp: { ...icp, apollo_geography: EUROPE_COUNTRIES } }
+        : (geoUsed === 'global' ? { ...brief, icp: { ...icp, apollo_geography: null, geography: null } } : brief);
     const classifications = await classifyLeadsWithHaiku(leadsForClassification, icpForClassifier);
     debug.classifiedCount = classifications.length;
     const classMap = {};
@@ -1996,7 +2009,7 @@ async function handleLeadList(task, job) {
 
   // fetchLeadsFromApollo already runs website quality gate + Haiku classification internally.
   // Do NOT call filterLeadsByWebsite here — that would re-scrape every site a second time.
-  const result = await fetchLeadsFromApollo(icp);
+  const result = await fetchLeadsFromApollo(brief);
   const leads  = result?.leads || [];
   const tam    = result?.total || 0;
   const recommendedOutreach = result?.recommendedOutreach ||
