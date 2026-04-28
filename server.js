@@ -962,6 +962,27 @@ function preFilterLeadsByIndustry(leads, icp) {
   return out;
 }
 
+function prioritizeLeadCandidates(leads, limit = 72) {
+  const companyCounts = new Map();
+  const sorted = [...(leads || [])].sort((a, b) => {
+    const sliceDelta = (a._slice_priority ?? 999) - (b._slice_priority ?? 999);
+    if (sliceDelta !== 0) return sliceDelta;
+    const headlineA = a._headline ? 0 : 1;
+    const headlineB = b._headline ? 0 : 1;
+    return headlineA - headlineB;
+  });
+  const out = [];
+  for (const lead of sorted) {
+    const companyKey = String(lead.company || '').toLowerCase();
+    const current = companyCounts.get(companyKey) || 0;
+    if (current >= 2) continue;
+    companyCounts.set(companyKey, current + 1);
+    out.push(lead);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 function parseModelJson(raw, kind = 'object') {
   const text = String(raw || '').trim();
   const attempts = [
@@ -1389,7 +1410,7 @@ function buildApolloSearchSlices(briefOrIcp, leadProfile, baseEmployeeRanges) {
     });
   }
 
-  return slices.slice(0, 6);
+  return slices.slice(0, 4);
 }
 
 function normalizePerson(p, source, orgMetaLookup = null) {
@@ -1500,7 +1521,7 @@ async function fetchLeadsFromApollo(briefOrIcp) {
     const runOrgSearch = async (locations, label, slice) => {
       const orgIds = [];
       let orgCount = null;
-      for (let page = 1; page <= 3; page++) {
+      for (let page = 1; page <= 2; page++) {
         const orgBody = { per_page: 50, page };
         if (slice?.industryTag) orgBody.q_organization_keyword_tags = [slice.industryTag];
         if (slice?.qKeywords) orgBody.q_keywords = slice.qKeywords;
@@ -1545,7 +1566,7 @@ async function fetchLeadsFromApollo(briefOrIcp) {
           if (name && !orgMetaLookup.byName.has(name.toLowerCase())) orgMetaLookup.byName.set(name.toLowerCase(), meta);
           if (id) orgIds.push(id);
         });
-        if (organizations.length < 50 || orgIds.length >= 150 || (orgCount != null && orgCount <= 50)) break;
+        if (organizations.length < 50 || orgIds.length >= 100 || (orgCount != null && orgCount <= 50)) break;
       }
       const uniqueOrgIds = [...new Set(orgIds)];
       debug.orgSearch.totalEntries = orgCount;
@@ -1573,7 +1594,7 @@ async function fetchLeadsFromApollo(briefOrIcp) {
             qKeywords: slice.qKeywords || null
           });
         }
-        if (mergedOrgIds.length >= 75) break;
+        if (mergedOrgIds.length >= 40) break;
       }
       return { orgCount, orgIds: mergedOrgIds, slicesUsed };
     };
@@ -1661,7 +1682,7 @@ async function fetchLeadsFromApollo(briefOrIcp) {
     // This uses Apollo's current prospecting endpoint and bypasses the org-ID dependency.
     // It is especially important for sparse EU/Baltic markets where org search may return 0
     // even though net-new people exist in Apollo's global database.
-    if (!usedPeopleSearch || allPeople.length < 50 || (debug.orgSearch.totalEntries && debug.orgSearch.totalEntries > 5000 && allPeople.length < 100)) {
+    if (!usedPeopleSearch || allPeople.length < 20 || (debug.orgSearch.totalEntries && debug.orgSearch.totalEntries > 5000 && allPeople.length < 60)) {
       const titleVariants = buildTitleVariants(apolloTitles);
       const locationVariants = buildDirectLocationVariants(geoPlan);
       const buildDirectPeopleBody = (titleVariant, locationVariant) => {
@@ -1679,7 +1700,7 @@ async function fetchLeadsFromApollo(briefOrIcp) {
         let directPeople = allPeople.length >= 10 ? allPeople.slice() : [];
         for (const locationVariant of locationVariants) {
           for (const titleVariant of titleVariants) {
-            if (directPeople.length >= 25) break;
+            if (directPeople.length >= 20) break;
             const directPeopleBody = buildDirectPeopleBody(titleVariant, locationVariant);
             const attemptPeople = [];
             console.log(`[Apollo] direct people API attempt: ${locationVariant.key} + ${titleVariant.key}`);
@@ -1711,7 +1732,7 @@ async function fetchLeadsFromApollo(briefOrIcp) {
             }
             if (attemptPeople.length > directPeople.length) directPeople = attemptPeople;
           }
-          if (directPeople.length >= 25) break;
+          if (directPeople.length >= 20) break;
         }
         if (directPeople.length > allPeople.length) {
           allPeople = directPeople;
@@ -1774,19 +1795,21 @@ async function fetchLeadsFromApollo(briefOrIcp) {
     if (!allPeople.length) return { leads: [], total: total || estimateGlobalTAM(icp), source: debug.source, diagnostics: debug };
 
     // ── Path A: Industry keyword pre-filter ───────────────────────────────────
-    const rawLeads    = preFilterLeadsByIndustry(allPeople, icp);
+    const rawLeads = preFilterLeadsByIndustry(allPeople, icp);
     debug.preFilterCount = rawLeads.length;
     if (!rawLeads.length) return { leads: [], total: total || estimateGlobalTAM(icp), source: debug.source, diagnostics: debug };
+    const prioritizedLeads = prioritizeLeadCandidates(rawLeads, 72);
+    debug.prioritizedCount = prioritizedLeads.length;
 
     // ── Website excerpts — bonus signal, not a gate ───────────────────────────
-    console.log(`[Apollo] Fetching website excerpts for ${rawLeads.length} pre-filtered leads...`);
+    console.log(`[Apollo] Fetching website excerpts for ${prioritizedLeads.length} prioritized leads...`);
     const qualityResults = [];
-    for (let i = 0; i < rawLeads.length; i += 10) {
-      const batch = rawLeads.slice(i, i + 10);
+    for (let i = 0; i < prioritizedLeads.length; i += 10) {
+      const batch = prioritizedLeads.slice(i, i + 10);
       const batchResults = await Promise.all(batch.map(l => websiteQualityCheck(l.website)));
       qualityResults.push(...batchResults);
     }
-    const leadsForClassification = rawLeads.map((l, i) =>
+    const leadsForClassification = prioritizedLeads.map((l, i) =>
       qualityResults[i] ? { ...l, _excerpt: qualityResults[i].excerpt } : l
     );
     debug.classification.excerptCount = leadsForClassification.filter(l => l._excerpt).length;
