@@ -91,19 +91,9 @@ body { background: #0d0d12; font-family: -apple-system, BlinkMacSystemFont, 'Int
 .lead-table tr.data-row { border-top: 1px solid rgba(255,255,255,0.05); transition: background 100ms; }
 .lead-table tr.data-row:hover { background: rgba(255,255,255,0.025); }
 .lead-table td { padding: 11px 14px; font-size: 13px; }
-.lead-table tr.data-row { cursor: pointer; }
 .td-name { font-weight: 500; color: #e4e4e7; white-space: nowrap; }
 .td-title, .td-company { color: #a1a1aa; }
 .td-size { color: #71717a; white-space: nowrap; }
-.th-match, .td-match { width: 108px; white-space: nowrap; }
-.icp-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 62px; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; }
-.lead-detail-row .lead-detail-cell { padding: 0 14px 14px; border-top: none; }
-.lead-detail-inner { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; }
-.match-reason { font-size: 12px; color: #a1a1aa; line-height: 1.5; }
-.match-breakdown { display: flex; flex-wrap: wrap; gap: 8px; }
-.match-tag { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-.match-hit { color: #86efac; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.2); }
-.match-miss { color: #fca5a5; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.2); }
 .li-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #71717a; text-decoration: none; border: 1px solid transparent; padding: 3px 8px; border-radius: 6px; transition: all 100ms; }
 .li-link:hover { border-color: rgba(113,113,122,0.5); color: #a1a1aa; background: rgba(39,39,42,0.5); }
 .web-link { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #52525b; text-decoration: none; padding: 3px 8px; border-radius: 6px; border: 1px solid transparent; transition: all 100ms; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -530,9 +520,9 @@ input[type=number].roi-field-input::-webkit-outer-spin-button { -webkit-appearan
 
     <!-- Lead Table -->
     <table class="lead-table">
-      <thead><tr><th>#</th><th class="th-match">Match</th><th>Name</th><th>Title</th><th>Company</th><th>Size</th><th>Website</th><th>LinkedIn</th></tr></thead>
+      <thead><tr><th>#</th><th>Name</th><th>Title</th><th>Company</th><th>Size</th><th>Website</th><th>LinkedIn</th></tr></thead>
       <tbody id="leads-tbody">
-        <tr id="leads-loading-row"><td colspan="8" style="text-align:center;padding:28px 0;color:#52525b;font-size:13px;">
+        <tr id="leads-loading-row"><td colspan="7" style="text-align:center;padding:28px 0;color:#52525b;font-size:13px;">
           <div class="lead-loader">
             <svg class="loading-spinner" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.2" cx="12" cy="12" r="10" stroke="#34b433" stroke-width="3"/><path style="opacity:0.9" fill="#34b433" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
             <span class="lead-loader-copy">
@@ -1994,74 +1984,6 @@ function clearLeadListLoadingState() {
   if (cycleEl) cycleEl.classList.remove('is-loading');
 }
 
-function scoreIcpMatch(lead, session) {
-  var icp = (session && session.extracted && session.extracted.icp) || {};
-  var title = String(lead.title || '').toLowerCase();
-  var company = String(lead.company || '').toLowerCase();
-  var size = String(lead.company_size || '').toLowerCase();
-  var icpTitles = (Array.isArray(icp.apollo_titles) ? icp.apollo_titles : [icp.apollo_titles, icp.role]).filter(Boolean).map(function(v) { return String(v).toLowerCase(); });
-  var icpIndustries = (Array.isArray(icp.apollo_industries) ? icp.apollo_industries : [icp.apollo_industries, icp.industry]).filter(Boolean).map(function(v) { return String(v).toLowerCase(); });
-  var icpSize = String(icp.company_size || '').toLowerCase();
-  var reasons = [];
-  var misses = [];
-  var score = 0;
-
-  if (icpTitles.length) {
-    var titleHit = icpTitles.some(function(v) {
-      return v.split(/[;,/|]/).some(function(part) {
-        var trimmed = part.trim();
-        return trimmed && title.includes(trimmed);
-      });
-    });
-    if (titleHit) {
-      score += 2;
-      reasons.push('Title matches the ICP decision-maker profile');
-    } else {
-      misses.push('Title does not closely match the ICP titles');
-    }
-  }
-
-  if (icpIndustries.length) {
-    var industryHit = icpIndustries.some(function(v) {
-      return v && (company.includes(v) || title.includes(v));
-    });
-    if (industryHit) {
-      score += 1;
-      reasons.push('Company/title language lines up with the ICP industry');
-    } else {
-      misses.push('Industry fit is not obvious from the lead data');
-    }
-  }
-
-  if (icpSize) {
-    if (size && (size.includes(icpSize) || icpSize.includes(size))) {
-      score += 1;
-      reasons.push('Company size appears aligned with the ICP range');
-    } else if (size) {
-      misses.push('Company size does not clearly match the ICP range');
-    }
-  } else if (size) {
-    score += 1;
-    reasons.push('Company size is present for manual review');
-  }
-
-  if (!reasons.length && !misses.length) {
-    reasons.push('No structured ICP fields were available, so this lead is shown for manual review');
-  }
-
-  if (score >= 4) return { label: 'High', color: '#86efac', bg: 'rgba(34,197,94,0.12)', reasons: reasons, misses: misses };
-  if (score >= 2) return { label: 'Medium', color: '#fde68a', bg: 'rgba(245,158,11,0.12)', reasons: reasons, misses: misses };
-  return { label: 'Low', color: '#fca5a5', bg: 'rgba(239,68,68,0.12)', reasons: reasons, misses: misses };
-}
-
-function toggleLeadDetail(row) {
-  var detailRow = row && row.nextElementSibling;
-  if (!detailRow || !detailRow.classList.contains('lead-detail-row')) return;
-  var shouldOpen = detailRow.style.display === 'none' || detailRow.style.display === '';
-  document.querySelectorAll('.lead-detail-row').forEach(function(el) { el.style.display = 'none'; });
-  detailRow.style.display = shouldOpen ? 'table-row' : 'none';
-}
-
 // ── Personalization from session / job data ───────────────────────────────────
 (async function() {
   const params = new URLSearchParams(window.location.search);
@@ -2594,18 +2516,8 @@ function runPersonalization(session) {
           var liCell = lead.linkedin_url
             ? '<a class="li-link" href="' + lead.linkedin_url + '" target="_blank">' + liSvg + ' View</a>'
             : '<span style="color:#9ca3af">—</span>';
-          var matchResult = scoreIcpMatch(lead, window.SESSION || session);
-          var matchBadge = '<span class="icp-badge" style="color:' + matchResult.color + ';background:' + matchResult.bg + ';">' + matchResult.label + '</span>';
-          var whyHtml = '<div class="lead-detail-inner">' +
-            '<div class="match-reason">Why this lead fits <strong>' + PROSPECT.name + '</strong>\'s ICP</div>' +
-            '<div class="match-breakdown">' +
-              matchResult.reasons.map(function(reason) { return '<span class="match-tag match-hit">✓ ' + reason + '</span>'; }).join('') +
-              matchResult.misses.map(function(reason) { return '<span class="match-tag match-miss">✗ ' + reason + '</span>'; }).join('') +
-            '</div>' +
-          '</div>';
-          var dataRow = '<tr class="data-row" onclick="toggleLeadDetail(this)">' +
+          var dataRow = '<tr class="data-row">' +
             '<td style="color:#3f3f46;font-size:12px;">' + (idx + 1) + '</td>' +
-            '<td class="td-match">' + matchBadge + '</td>' +
             '<td class="td-name">' + lead.name + '</td>' +
             '<td class="td-title">' + lead.title + '</td>' +
             '<td class="td-company">' + lead.company + '</td>' +
@@ -2613,8 +2525,7 @@ function runPersonalization(session) {
             '<td>' + websiteCell + '</td>' +
             '<td>' + liCell + '</td>' +
             '</tr>';
-          var detailRow = '<tr class="lead-detail-row" style="display:none;"><td colspan="8" class="lead-detail-cell">' + whyHtml + '</td></tr>';
-          return dataRow + detailRow;
+          return dataRow;
         }).join('');
 
         console.log('[Deal Forge] Lead table populated with', generated.leads.length, 'Apollo leads');
@@ -2626,7 +2537,7 @@ function runPersonalization(session) {
       if (tbodyEmpty) {
         var diagSummary = buildLeadDiagnosticsSummary(generated);
         var detail = diagSummary ? diagSummary.copy : 'Apollo found a market size, but the title, geography, or company fit was too narrow to surface strong sample leads.';
-        tbodyEmpty.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px 0;color:#71717a;font-size:13px;line-height:1.8;"><strong style="color:#52525b;">No contacts cleared the lead filter for this ICP.</strong><br>' + detail + '</td></tr>';
+        tbodyEmpty.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px 0;color:#71717a;font-size:13px;line-height:1.8;"><strong style="color:#52525b;">No contacts cleared the lead filter for this ICP.</strong><br>' + detail + '</td></tr>';
       }
     }
 
