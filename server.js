@@ -2476,16 +2476,21 @@ async function handleWebinarMock(task, job) {
   const extracted = job.extracted_data || {};
   const brandData  = job.brand_data   || {};
   const research   = job.research_data?.host || {};
+  // Rep customizations from the Webinar Experience editor (edit-mode UI).
+  // Each field below reads override-first, then falls back to brand_data / AI defaults.
+  // Republish endpoint re-runs this handler so the public asset reflects edits.
+  const overrides = extracted._webinar_overrides || {};
+  const ov = (k) => (overrides[k] !== undefined && overrides[k] !== null && overrides[k] !== '') ? overrides[k] : null;
 
-  const primaryColor   = brandData.primary_color   || '#0D9488';
-  const secondaryColor = brandData.secondary_color  || '#1F2937';
-  const logoUrl        = brandData.logo_url         || '';
-  const companyName    = brandData.company_name     || extracted.prospect?.company || job.prospect_company || 'Your Company';
-  const hostName       = research.name              || extracted.prospect?.name    || companyName;
+  const primaryColor   = ov('primary_color')   || brandData.primary_color   || '#0D9488';
+  const secondaryColor = ov('secondary_color') || brandData.secondary_color || '#1F2937';
+  const logoUrl        = ov('logo_url')        ?? brandData.logo_url        ?? '';
+  const companyName    = ov('company_name')    || brandData.company_name    || extracted.prospect?.company || job.prospect_company || 'Your Company';
+  const hostName       = ov('host_name')       || research.name             || extracted.prospect?.name    || companyName;
 
-  // Find best hero image from brand scrape
+  // Find best hero image from brand scrape; rep override takes precedence
   const heroImage = (brandData.images || []).find(i => i.type === 'hero') || (brandData.images || [])[0];
-  const heroImageUrl = heroImage?.url || '';
+  const heroImageUrl = ov('background_url') || heroImage?.url || '';
 
   // Generate chat messages via AI prompt
   const chatResult = await generateChatMessages(
@@ -2507,15 +2512,18 @@ async function handleWebinarMock(task, job) {
     return { ...m, timestamp: `${h}:${min} ${ampm}` };
   });
 
-  // Attendee count: realistic
-  const attendeeCount = 750 + Math.floor(Math.random() * 300);
+  // Attendee count: rep override or randomized in 750-1050 range
+  const attendeeCount = (Number.isFinite(ov('attendee_count')) ? ov('attendee_count') : null)
+    || (750 + Math.floor(Math.random() * 300));
 
   if (!WEBINAR_MOCK_TEMPLATE) throw new Error('webinar_mock.html template not loaded');
 
-  const slide1Title    = variant.title || '';
-  const slide1Subtitle = `How ${companyName} Grows Your Business`;
-  const slide2Title    = 'What You\'ll Learn Today';
-  const bulletsList    = (variant.bullets || ['Proven system for getting clients', 'Step-by-step framework', 'How to scale predictably']).slice(0, 4);
+  const slide1Title    = ov('title')    || variant.title || '';
+  const slide1Subtitle = ov('subtitle') || `How ${companyName} Grows Your Business`;
+  const slide2Title    = ov('slide2_heading') || 'What You\'ll Learn Today';
+  const bulletsList    = Array.isArray(ov('bullets')) && ov('bullets').length
+    ? ov('bullets')
+    : (variant.bullets || ['Proven system for getting clients', 'Step-by-step framework', 'How to scale predictably']).slice(0, 4);
 
   let htmlContent = interpolate(WEBINAR_MOCK_TEMPLATE, {
     EVENT_TITLE:      slide1Title.replace(/</g, '&lt;').replace(/>/g, '&gt;'),
@@ -3198,6 +3206,105 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ deleted: true }));
     } catch(e) {
       console.error('[DELETE /api/jobs]', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ── PATCH /api/jobs/:id/webinar-overrides ─────────────────────────────────
+  // Webinar Experience editor — persists rep customizations to extracted_data._webinar_overrides.
+  // Single JSON blob (not individual fields) because the shape is wide and nested
+  // (slide 2 cards, color swatches, etc.). Schema is rep-driven, not enum-locked.
+  // Replace semantics: PATCH body fully replaces the existing override blob, so
+  // "reset" is a PATCH with {}.
+  if (req.method === 'PATCH' && urlPath.startsWith('/api/jobs/') && urlPath.endsWith('/webinar-overrides')) {
+    setCors(res);
+    const jobId = urlPath.slice('/api/jobs/'.length, -'/webinar-overrides'.length);
+    try {
+      const body = await parseBody(req);
+      const job = await getJob(jobId);
+      if (!job) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Job not found' })); return; }
+      const existingData = job.extracted_data || {};
+      const newOverrides = (body && typeof body === 'object') ? { ...body, _updated_at: new Date().toISOString() } : {};
+      const updatedData = { ...existingData, _webinar_overrides: newOverrides };
+      const r = await supabaseRequest('PATCH', `/rest/v1/jobs?id=eq.${jobId}`,
+        { extracted_data: updatedData, updated_at: new Date().toISOString() },
+        { 'Prefer': 'return=minimal' }
+      );
+      if (r.status >= 400) throw new Error(`Supabase PATCH failed: ${r.status}`);
+      console.log(`[PATCH /api/jobs/${jobId}/webinar-overrides] Saved (${Object.keys(newOverrides).length} keys)`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, webinar_overrides: newOverrides }));
+    } catch(e) {
+      console.error('[PATCH /api/jobs/webinar-overrides]', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ── POST /api/jobs/:id/upload-image ─────────────────────────────────────────
+  // Accepts a base64-encoded image payload (smaller blast radius than multipart),
+  // uploads to Supabase Storage under {jobId}/uploads/{filename}, returns public URL.
+  // Used by the Webinar Experience editor for custom logo + background uploads.
+  // Limits: 5MB decoded, image/* content types only.
+  if (req.method === 'POST' && urlPath.startsWith('/api/jobs/') && urlPath.endsWith('/upload-image')) {
+    setCors(res);
+    const jobId = urlPath.slice('/api/jobs/'.length, -'/upload-image'.length);
+    try {
+      const body = await parseBody(req);
+      const dataUrl = body?.data_url || body?.dataUrl || '';
+      const filenameRaw = body?.filename || 'upload.png';
+      const m = String(dataUrl).match(/^data:(image\/[a-z+.-]+);base64,(.+)$/i);
+      if (!m) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Body must contain data_url as a base64 image data URL' })); return;
+      }
+      const contentType = m[1];
+      const buf = Buffer.from(m[2], 'base64');
+      if (buf.length > 5 * 1024 * 1024) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Image exceeds 5MB limit' })); return;
+      }
+      // Sanitize filename: keep alphanumeric, dot, dash, underscore only
+      const safeName = String(filenameRaw).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80) || 'upload.png';
+      const ts = Date.now();
+      const storagePath = `${jobId}/uploads/${ts}-${safeName}`;
+      const publicUrl = await storageUpload(storagePath, buf, contentType);
+      console.log(`[upload-image] Job ${jobId}: uploaded ${buf.length} bytes → ${publicUrl}`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, url: publicUrl, size: buf.length, content_type: contentType }));
+    } catch(e) {
+      console.error('[POST /api/jobs/upload-image]', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ── POST /api/jobs/:id/republish-webinar ────────────────────────────────────
+  // Regenerates the public webinar_mock.html asset using the latest
+  // _webinar_overrides + brand_data + extracted_data. Used after the rep saves
+  // changes in the Webinar Experience editor and wants the prospect-facing
+  // shareable URL refreshed. Returns the same public URL (we re-upload).
+  if (req.method === 'POST' && urlPath.startsWith('/api/jobs/') && urlPath.endsWith('/republish-webinar')) {
+    setCors(res);
+    const jobId = urlPath.slice('/api/jobs/'.length, -'/republish-webinar'.length);
+    try {
+      const job = await getJob(jobId);
+      if (!job) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Job not found' })); return; }
+      const fakeTask = { id: null, job_id: jobId };
+      const result = await handleWebinarMock(fakeTask, job);
+      if (!result || !result.url) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Republish failed — handleWebinarMock returned no URL' })); return;
+      }
+      console.log(`[republish-webinar] Job ${jobId}: republished → ${result.url}`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, url: result.url }));
+    } catch(e) {
+      console.error('[POST /api/jobs/republish-webinar]', e.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
