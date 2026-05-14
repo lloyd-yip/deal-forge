@@ -73,3 +73,52 @@ Implementing a feature without reading its spec is a critical failure. Do not do
 - **Run `/schema-review` before any migration**
 - **Run `/api-isolation` before writing any API handler**
 - Every session: read `project_state.json` before touching anything
+
+---
+
+## ARCHITECTURE RULES — NON-NEGOTIABLE
+
+### Module Boundaries (for when the real pipeline is built)
+
+This project is a job pipeline, not a REST API. The correct structure when building:
+
+```
+/jobs/          → One file per pipeline task (extract.js, brand_scrape.js, etc.)
+                  Each file exports one async function. No shared mutable state.
+
+/services/      → Shared business logic called by multiple tasks (Claude wrappers,
+                  Supabase client, formatting utilities).
+
+/db/            → All Supabase queries. No direct supabase.from() calls in job files.
+
+/utils/         → Pure helper functions. No side effects. No DB calls.
+```
+
+### File Size Limits
+
+- **300 lines maximum per file.**
+- **40 lines maximum per function.** Pipeline steps that are longer should be broken into sub-steps with clear names.
+- One pipeline task per file. Never combine two tasks in one file.
+
+---
+
+## SECURITY REQUIREMENTS — NON-NEGOTIABLE
+
+### AI Endpoint Protection
+
+This pipeline calls Claude for every job. Before any endpoint triggers a pipeline run:
+1. Auth must verify the caller is a legitimate QS rep (not anonymous)
+2. The job queue must prevent duplicate triggers for the same meeting ID (idempotency key)
+
+### Secrets
+
+- Anthropic API key, Supabase URL/keys, Fireflies API key: environment variables only.
+- Never hardcode credentials in any pipeline file.
+
+---
+
+## CLEAN-AS-YOU-GO RULE
+
+When adding a new pipeline task, check if any helper logic already exists in services/.
+Write to services/ first, then call from the task file. Never duplicate Claude prompt
+construction logic across multiple task files.
