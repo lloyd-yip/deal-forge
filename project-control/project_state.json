@@ -2,45 +2,45 @@
   "project_name": "Deal Forge",
   "description": "AI pipeline that generates 8 custom prospect assets after Call 1 to increase Call 2 show rates for Quantum Scaling reps",
   "business_entity": "quantum_scaling",
-  "last_updated": "2026-04-15T00:00:00Z",
+  "last_updated": "2026-05-21T00:00:00Z",
   "current_state": {
     "phase_name": "Phase 2 - Build & Test",
     "status": "debugging"
   },
   "project_overview": {
     "what": "Deal Forge is an internal sales tool for Quantum Scaling reps. After completing a Call 1 (Business Audit), the rep triggers the app with the Fireflies meeting ID. An AI pipeline extracts the prospect's ICP and business context, then generates 8 custom assets: a verified lead list, interactive Google Calendar invite visual, a live webinar experience mock, 3 webinar title options, an interactive ROI calculator pre-populated with their numbers, a prospect research profile, and brand-scraped visual identity. All assets are ready before Call 2.",
-    "why": "QS's Call 2 show rate is 37.5% — the core constraint on revenue. Prospects feel informed after Call 1 and have no strong pull to return. Deal Forge creates a concrete bridge: assets so specific to the prospect that skipping Call 2 means walking away from something already built for them. The 'sunk cost' and perceived value dramatically increase show rate and close rate.",
+    "why": "QS's Call 2 show rate is 37.5% \u2014 the core constraint on revenue. Prospects feel informed after Call 1 and have no strong pull to return. Deal Forge creates a concrete bridge: assets so specific to the prospect that skipping Call 2 means walking away from something already built for them. The 'sunk cost' and perceived value dramatically increase show rate and close rate.",
     "end_state": "A polished internal rep dashboard used for every Call 2 booking. Rep selects today's calls from auto-loaded Fireflies meetings, clicks Generate, and has a full asset package ready within 20 minutes. The ROI model and reg page mock have shareable prospect-facing URLs. Eventually expands to full CRM integration and automated follow-up.",
-    "current_summary": "Phase 2 backend live on Railway. Full 8-task pipeline deployed. Rep portal live at deal-forge-production.up.railway.app. Key systems confirmed working: (1) Fireflies transcript lookup — 6-pass search strategy (GHL name → company → email segments → domain → recent scan p1 → p2), prefers exact email match → domain match → loose keyword. (2) GHL contact lookup — enriches contactInfo with name/company/title before Fireflies search for better matching. (3) extractBriefFromTranscript — Claude Sonnet extracts full structured brief: prospect info, ICP (apollo_titles, apollo_industries, apollo_employee_ranges, apollo_geography, person_seniorities), metrics (LTV/close/show rate), angle (pain/result/methodology/proof), verbatim quotes, situation, context, webinar title seeds. (4) /api/prefetch endpoint — runs Fireflies + GHL + website scrape + Claude extraction before job creation so rep can review the brief. (5) All 8 task handlers wired: extract, prospect_research, brand_scrape, lead_list, webinar_titles, roi_model, calendar_visual, webinar_mock. Main blocker: lead_list EU Apollo coverage — org search returns 0 for Baltic/EU ICPs. Latest fix deployed (commit c934325): strip 'Europe' from geo (invalid Apollo value), EU country list retry with no AND-logic industry filter, geoUsed flag tells classifier to accept EU-wide companies. Unconfirmed — stopped testing to avoid rate limit loop."
+    "current_summary": "Phase 2 backend live on Railway. Full 8-task pipeline deployed. Rep portal live at deal-forge-production.up.railway.app. Key systems confirmed working: (1) Fireflies transcript lookup \u2014 6-pass search strategy (GHL name \u2192 company \u2192 email segments \u2192 domain \u2192 recent scan p1 \u2192 p2), prefers exact email match \u2192 domain match \u2192 loose keyword. (2) GHL contact lookup \u2014 enriches contactInfo with name/company/title before Fireflies search for better matching. (3) extractBriefFromTranscript \u2014 Claude Sonnet extracts full structured brief: prospect info, ICP (apollo_titles, apollo_industries, apollo_employee_ranges, apollo_geography, person_seniorities), metrics (LTV/close/show rate), angle (pain/result/methodology/proof), verbatim quotes, situation, context, webinar title seeds. (4) /api/prefetch endpoint \u2014 runs Fireflies + GHL + website scrape + Claude extraction before job creation so rep can review the brief. (5) All 8 task handlers wired: extract, prospect_research, brand_scrape, lead_list, webinar_titles, roi_model, calendar_visual, webinar_mock. Main blocker: lead_list EU Apollo coverage \u2014 org search returns 0 for Baltic/EU ICPs. Latest fix deployed (commit c934325): strip 'Europe' from geo (invalid Apollo value), EU country list retry with no AND-logic industry filter, geoUsed flag tells classifier to accept EU-wide companies. Unconfirmed \u2014 stopped testing to avoid rate limit loop."
   },
-  "resume_here": "Phase 2 backend deployed. Full Fireflies→brief pipeline confirmed working. lead_list is the remaining blocker for EU/Baltic ICPs — returns 0 leads. Latest fix committed (c934325): EU org retry uses explicit country list with geo+size only (no AND-logic industry filter), geoUsed flag tells classifier to accept EU-wide companies. NOT yet confirmed working — stopped testing to avoid Apollo rate limit loop. Next session: (1) trigger one fresh job for rait@planpro.ee, (2) check Railway logs for which Apollo tier fires and what HTTP status/org count comes back, (3) if still 0, test people/search direct with person_locations as fallback path.",
+  "resume_here": "Phase 2 backend deployed. Full Fireflies\u2192brief pipeline confirmed working. lead_list is the remaining blocker for EU/Baltic ICPs \u2014 returns 0 leads. Latest fix committed (c934325): EU org retry uses explicit country list with geo+size only (no AND-logic industry filter), geoUsed flag tells classifier to accept EU-wide companies. NOT yet confirmed working \u2014 stopped testing to avoid Apollo rate limit loop. Next session: (1) trigger one fresh job for rait@planpro.ee, (2) check Railway logs for which Apollo tier fires and what HTTP status/org count comes back, (3) if still 0, test people/search direct with person_locations as fallback path.",
   "current_phase": {
     "name": "Phase 2 - Build & Test",
     "goal": "Debug lead_list EU Apollo coverage, confirm full pipeline end-to-end with real Call 1 transcripts, then polish rep portal UI.",
     "current_focus": [
-      "lead_list task returning 0 leads for Baltic/EU ICPs (rait@planpro.ee test case) — latest fix c934325 not yet confirmed working",
+      "lead_list task returning 0 leads for Baltic/EU ICPs (rait@planpro.ee test case) \u2014 latest fix c934325 not yet confirmed working",
       "Everything else confirmed working: Fireflies 6-pass transcript lookup, GHL contact enrichment, website scrape, Claude brief extraction, all 8 task handlers wired"
     ],
     "immediate_next_steps": [
-      "Fresh session: trigger one real job for rait@planpro.ee, watch Railway logs — need to see which Apollo org search tier fires and what count it returns",
-      "If Apollo EU org search still 0: try people/search direct with person_locations (person-level geo, separate from org search) — may have better EU coverage",
-      "Run end-to-end test with a US/NA-based prospect ICP to confirm pipeline works outside EU — isolates whether 0-leads issue is EU-specific",
+      "Fresh session: trigger one real job for rait@planpro.ee, watch Railway logs \u2014 need to see which Apollo org search tier fires and what count it returns",
+      "If Apollo EU org search still 0: try people/search direct with person_locations (person-level geo, separate from org search) \u2014 may have better EU coverage",
+      "Run end-to-end test with a US/NA-based prospect ICP to confirm pipeline works outside EU \u2014 isolates whether 0-leads issue is EU-specific",
       "Once lead_list confirmed: run full 8-task e2e on a real QS Call 1 transcript and review all asset outputs",
-      "Rep portal UI polish — currently functional but unstyled"
+      "Rep portal UI polish \u2014 currently functional but unstyled"
     ],
     "known_issues": [
       {
-        "title": "lead_list returns 0 leads for Baltic/EU ICPs — Apollo org search returns 0 even with explicit EU country list + geo+size only filter",
+        "title": "lead_list returns 0 leads for Baltic/EU ICPs \u2014 Apollo org search returns 0 even with explicit EU country list + geo+size only filter",
         "severity": "high",
         "status": "open"
       },
       {
-        "title": "Apollo q_organization_keyword_tags uses AND logic — multiple industry tags returns 0 EU results. Workaround deployed: EU retry drops industry filter entirely.",
+        "title": "Apollo q_organization_keyword_tags uses AND logic \u2014 multiple industry tags returns 0 EU results. Workaround deployed: EU retry drops industry filter entirely.",
         "severity": "high",
         "status": "fixed-unverified"
       },
       {
-        "title": "In-process job worker — jobs lost on Railway redeploy if in-flight. Jobs persist in Supabase but processing promise is killed.",
+        "title": "In-process job worker \u2014 jobs lost on Railway redeploy if in-flight. Jobs persist in Supabase but processing promise is killed.",
         "severity": "medium",
         "status": "open"
       }
@@ -73,13 +73,20 @@
     {
       "name": "Phase 3 - Rep Dashboard UI",
       "goal": "Build the Next.js frontend: job list, asset cards, shareable links, real-time status polling.",
-      "tools_and_apis": ["Next.js", "Supabase realtime", "Railway"],
+      "tools_and_apis": [
+        "Next.js",
+        "Supabase realtime",
+        "Railway"
+      ],
       "prerequisites": "Phase 2 worker deployed and tested with real transcripts"
     },
     {
       "name": "Phase 4 - GHL Integration",
       "goal": "Auto-trigger Deal Forge when a Call 2 appointment is booked in GHL. Push shareable asset links back to the GHL contact record.",
-      "tools_and_apis": ["GHL webhooks", "GHL API"],
+      "tools_and_apis": [
+        "GHL webhooks",
+        "GHL API"
+      ],
       "prerequisites": "Phase 3 dashboard live and stable"
     }
   ],
@@ -105,11 +112,11 @@
       "date": "2026-04-04"
     },
     {
-      "description": "Fireflies API isolated and validated — Notes field confirmed as primary extraction source",
+      "description": "Fireflies API isolated and validated \u2014 Notes field confirmed as primary extraction source",
       "date": "2026-04-04"
     },
     {
-      "description": "/task-spec skill created — mandatory 11-section gate before any task code is written",
+      "description": "/task-spec skill created \u2014 mandatory 11-section gate before any task code is written",
       "date": "2026-04-04"
     },
     {
@@ -121,7 +128,7 @@
       "date": "2026-04-06"
     },
     {
-      "description": "24 QS case studies scraped from due-diligence site and written to Lloyd OS Brain — Consulting x7, Software x5, Coaching x7, Agencies x5",
+      "description": "24 QS case studies scraped from due-diligence site and written to Lloyd OS Brain \u2014 Consulting x7, Software x5, Coaching x7, Agencies x5",
       "date": "2026-04-06"
     },
     {
@@ -133,35 +140,35 @@
       "date": "2026-04-07"
     },
     {
-      "description": "lead_list task specced — 5-step pipeline with deterministic website quality gate, Apollo.io API (replaced Ample Leads), company_size in output",
+      "description": "lead_list task specced \u2014 5-step pipeline with deterministic website quality gate, Apollo.io API (replaced Ample Leads), company_size in output",
       "date": "2026-04-07"
     },
     {
-      "description": "roi_model task specced — no LLM call, pure template-fill + math, interactive HTML, rep edits live on Call 2, shareable prospect URL",
+      "description": "roi_model task specced \u2014 no LLM call, pure template-fill + math, interactive HTML, rep edits live on Call 2, shareable prospect URL",
       "date": "2026-04-08"
     },
     {
-      "description": "calendar_visual task specced — Google Calendar popup mock, webinar copy injected from prior tasks, Haiku generates 3 reminder emails, Yes click reveals email sequence",
+      "description": "calendar_visual task specced \u2014 Google Calendar popup mock, webinar copy injected from prior tasks, Haiku generates 3 reminder emails, Yes click reveals email sequence",
       "date": "2026-04-08"
     },
     {
-      "description": "webinar_mock task specced — live webinar experience simulator, 2 branded slides, AI-generated ICP live chat (18 messages), LIVE badge + attendee count",
+      "description": "webinar_mock task specced \u2014 live webinar experience simulator, 2 branded slides, AI-generated ICP live chat (18 messages), LIVE badge + attendee count",
       "date": "2026-04-08"
     },
     {
-      "description": "Phase 1 spec gate complete — all 8 pipeline tasks fully specced. Ready for /ux-design and Phase 2 build.",
+      "description": "Phase 1 spec gate complete \u2014 all 8 pipeline tasks fully specced. Ready for /ux-design and Phase 2 build.",
       "date": "2026-04-08"
     },
     {
-      "description": "Phase 2 backend built and deployed to Railway — full 8-task pipeline live, GHL webhook, Fireflies lookup, rep portal at deal-forge-production.up.railway.app",
+      "description": "Phase 2 backend built and deployed to Railway \u2014 full 8-task pipeline live, GHL webhook, Fireflies lookup, rep portal at deal-forge-production.up.railway.app",
       "date": "2026-04-15"
     },
     {
-      "description": "Fireflies 6-pass transcript lookup confirmed working: GHL name → company → email segments → domain → recent scan (p1+p2). Prefers exact email attendee → domain attendee → loose keyword match.",
+      "description": "Fireflies 6-pass transcript lookup confirmed working: GHL name \u2192 company \u2192 email segments \u2192 domain \u2192 recent scan (p1+p2). Prefers exact email attendee \u2192 domain attendee \u2192 loose keyword match.",
       "date": "2026-04-15"
     },
     {
-      "description": "extractBriefFromTranscript confirmed working: Claude Sonnet extracts full structured brief with 8 top-level sections — prospect, icp (incl. apollo_titles, apollo_industries, apollo_employee_ranges, apollo_geography, person_seniorities), metrics, angle, verbatim, situation, context, titles.",
+      "description": "extractBriefFromTranscript confirmed working: Claude Sonnet extracts full structured brief with 8 top-level sections \u2014 prospect, icp (incl. apollo_titles, apollo_industries, apollo_employee_ranges, apollo_geography, person_seniorities), metrics, angle, verbatim, situation, context, titles.",
       "date": "2026-04-15"
     },
     {
@@ -194,7 +201,7 @@
       "phase": "Phase 1 - Backend Architecture"
     },
     {
-      "decision": "lead_list uses 4-step sub-pipeline (ICP extraction → lead fetch → website crawl → ICP match filter)",
+      "decision": "lead_list uses 4-step sub-pipeline (ICP extraction \u2192 lead fetch \u2192 website crawl \u2192 ICP match filter)",
       "reasoning": "Raw Apify/Ample Leads results are low quality (~50% irrelevant). Website crawl + Claude ICP classification filters to 25 verified matches.",
       "phase": "Phase 1 - Backend Architecture"
     },
@@ -209,8 +216,8 @@
       "phase": "Phase 1 - Backend Architecture"
     },
     {
-      "decision": "lead_list uses Apollo.io People Search API directly — Ample Leads (Apify) dropped",
-      "reasoning": "Dev team already has Apollo credits. Direct API is cleaner than Apify actor wrapper — better documented, no actor ID uncertainty, no additional Apify cost layer.",
+      "decision": "lead_list uses Apollo.io People Search API directly \u2014 Ample Leads (Apify) dropped",
+      "reasoning": "Dev team already has Apollo credits. Direct API is cleaner than Apify actor wrapper \u2014 better documented, no actor ID uncertainty, no additional Apify cost layer.",
       "phase": "Phase 1 - Backend Architecture"
     },
     {
@@ -220,7 +227,7 @@
     },
     {
       "decision": "reg_page replaced by webinar_mock (live webinar experience simulator)",
-      "reasoning": "Calendar invite IS the registration mechanism — showing a reg page alongside it creates cognitive dissonance ('just click Yes' vs 'also fill out this form'). webinar_mock is more powerful: shows the prospect their brand applied to the full webinar experience (slides + live chat), creating the 'oh shit' moment. Same brand data is used, better outcome.",
+      "reasoning": "Calendar invite IS the registration mechanism \u2014 showing a reg page alongside it creates cognitive dissonance ('just click Yes' vs 'also fill out this form'). webinar_mock is more powerful: shows the prospect their brand applied to the full webinar experience (slides + live chat), creating the 'oh shit' moment. Same brand data is used, better outcome.",
       "phase": "Phase 1 - Backend Architecture"
     }
   ],
@@ -229,5 +236,23 @@
     "repo": "https://github.com/lloyd-yip/deal-forge",
     "app_url": "https://deal-forge-production.up.railway.app",
     "docs": null
-  }
+  },
+  "tech_stack": {
+    "backend": "Node.js (async pipeline \u2014 one file per pipeline task)",
+    "database": "Supabase (project: lcryrllxityssyamcvst, eu-west-1, schema: sales_assets)",
+    "storage": "Supabase Storage bucket: sales-assets (public URLs for generated assets)",
+    "ai": "Anthropic Claude Sonnet (asset generation for all 8 tasks)",
+    "input": "Fireflies API (meeting transcript retrieval)",
+    "lead_data": "Apollo.io People Search API",
+    "hosting": "Railway (project: 8839ef6c-015c-455e-a75a-8bb8f82c43a2)"
+  },
+  "hard_constraints": [
+    "SPEC GATE: Read all task specs in specs/ before writing any task code.",
+    "One file per pipeline task. Never combine two pipeline stages in one file.",
+    "jobs/ \u2192 services/ \u2192 db/. No direct supabase.from() calls in task files.",
+    "extract writes to jobs.extracted_data \u2014 all Stage 2 tasks read from jobs.extracted_data.",
+    "Hard delete on jobs \u2014 job records are operational queue state, not compliance records.",
+    "Idempotency key on all pipeline triggers \u2014 prevent duplicate runs for same meeting ID.",
+    "No hardcoded credentials \u2014 all in Railway environment variables."
+  ]
 }

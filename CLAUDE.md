@@ -1,5 +1,11 @@
 # Deal Forge — Claude Code Context
 
+## Always-Load Context
+
+@project-control/project_state.json
+
+---
+
 ## What This Project Is
 
 Deal Forge is an AI-powered sales asset generation pipeline for Quantum Scaling. After a rep completes Call 1 (Business Audit), they trigger Deal Forge with the Fireflies meeting ID. An 8-task pipeline runs and generates custom prospect-specific assets before Call 2 — increasing show rates and close rates.
